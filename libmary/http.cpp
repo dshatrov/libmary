@@ -1,0 +1,389 @@
+/*  LibMary - C++ library for high-performance network servers
+    Copyright (C) 2011 Dmitry Shatrov
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License as published by the Free Software Foundation; either
+    version 2.1 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+
+#include <libmary/types.h>
+
+#include <cctype>
+
+#include <libmary/log.h>
+#include <libmary/util_str.h>
+#include <libmary/util_dev.h> // Debugging
+
+#include <libmary/http.h>
+
+
+namespace M {
+
+namespace {
+LogGroup libMary_logGroup_http ("http", LogLevel::N);
+}
+
+Receiver::Frontend const HttpServer::receiver_frontend = {
+    processInput,
+    processEof,
+    processError
+};
+
+Result
+HttpServer::processRequestLine (ConstMemory const &_mem)
+{
+    logD (http, _func, "mem: ", _mem);
+
+    cur_req->request_line = grab (new String (_mem));
+    ConstMemory const mem = cur_req->request_line->mem();
+
+    Byte const *path_beg = (Byte const *) memchr (mem.mem(), 32 /* SP */, mem.len());
+    if (!path_beg) {
+	logE_ (_func, "Bad request (1) \"", mem, "\"");
+	return Result::Failure;
+    }
+
+    cur_req->method = ConstMemory (mem.mem(), path_beg - mem.mem());
+    ++path_beg;
+
+    Size path_offs = path_beg - mem.mem();
+    if (mem.len() - path_offs >= 1 &&
+	mem.mem() [path_offs] == '/')
+    {
+	++path_offs;
+	++path_beg;
+    }
+
+    Byte const * const path_end = (Byte const *) memchr (path_beg, 32 /* SP */, mem.len() - path_offs);
+    if (!path_end) {
+	logE_ (_func, "Bad request (2) \"", mem, "\"");
+	return Result::Failure;
+    }
+
+    cur_req->full_path = ConstMemory (path_beg, path_end - mem.mem() - path_offs);
+
+    logD (http, _func, "path_offs: ", path_offs);
+
+    {
+      // Counting path elements.
+
+	Size path_pos = path_offs;
+	while (path_pos < (Size) (path_end - mem.mem())) {
+	    Byte const *next_path_elem = (Byte const *) memchr (mem.mem() + path_pos, '/', mem.len() - path_pos);
+	    if (next_path_elem > path_end)
+		next_path_elem = NULL;
+
+	    Size path_elem_end;
+	    if (next_path_elem)
+		path_elem_end = next_path_elem - mem.mem();
+	    else
+		path_elem_end = path_end - mem.mem();
+
+	    logD (http, _func, "path_pos: ", path_pos, ", path_elem_end: ", path_elem_end);
+
+	    ++cur_req->num_path_elems;
+
+	    path_pos = path_elem_end + 1;
+	}
+    }
+
+    logD (http, _func, "num_path_elems: ", cur_req->num_path_elems);
+    if (cur_req->num_path_elems > 0) {
+      // Filling path elements.
+
+	cur_req->path = new ConstMemory [cur_req->num_path_elems];
+
+	Size path_pos = path_offs;
+	Count index = 0;
+	while (path_pos < (Size) (path_end - mem.mem())) {
+	    Byte const *next_path_elem = (Byte const *) memchr (mem.mem() + path_pos, '/', mem.len() - path_pos);
+	    if (next_path_elem > path_end)
+		next_path_elem = NULL;
+
+	    Size path_elem_end;
+	    if (next_path_elem)
+		path_elem_end = next_path_elem - mem.mem();
+	    else
+		path_elem_end = path_end - mem.mem();
+
+	    logD (http, _func, "path_pos: ", path_pos, ", path_elem_end: ", path_elem_end);
+
+	    cur_req->path [index] = ConstMemory (mem.mem() + path_pos, path_elem_end - path_pos);
+	    ++index;
+
+	    path_pos = path_elem_end + 1;
+	}
+    }
+
+    // TODO Distinguish between HTTP/1.0 and HTTP/1.1.
+
+    if (logLevelOn (http, LogLevel::Debug)) {
+	logD (http, _func, "request line: ", cur_req->getRequestLine ());
+	logD (http, _func, "method: ", cur_req->getMethod ());
+	logD (http, _func, "full path: ", cur_req->getFullPath ());
+	logD (http, _func, "path elements (", cur_req->getNumPathElems(), "):");
+	for (Count i = 0, i_end = cur_req->getNumPathElems(); i < i_end; ++i)
+	    logD (http, _func, cur_req->getPath (i));
+    }
+
+    return Result::Success;
+}
+
+void
+HttpServer::processHeaderField (ConstMemory const &mem)
+{
+    logD (http, _func, mem);
+
+    Byte const * const header_name_end = (Byte const *) memchr (mem.mem(), ':', mem.len());
+    if (!header_name_end) {
+	logE_ (_func, "bad header line: ", mem);
+	return;
+    }
+
+    // TODO allow modifying data by receiver backend (Memory, not ConstMemory).
+
+    Size const header_name_len = header_name_end - mem.mem();
+    for (Size i = 0; i < header_name_len; ++i)
+	// TODO Get rid of this const_cast
+	((Byte*) mem.mem()) [i] = tolower (mem.mem() [i]);
+
+    // TODO SP, HT - correct?
+    Byte const *header_value_buf = header_name_end + 1;
+    Size header_value_len = mem.len() - header_name_len - 1;
+    while (header_value_len > 0
+	   && (header_value_buf [0] == 32 /* SP */ ||
+	       header_value_buf [0] ==  9 /* HT */))
+    {
+	++header_value_buf;
+	--header_value_len;
+    }
+
+    ConstMemory const header_name (mem.mem(), header_name_len);
+    ConstMemory const header_value (header_value_buf, header_value_len);
+
+    if (!compare (header_name, "content-length")) {
+	recv_content_length = strToUlong (header_value);
+	logD (http, _func, "recv_content_length: ", recv_content_length);
+    } else
+    if (!compare (header_name, "expect")) {
+	if (!compare (header_value, "100-continue")) {
+	    logD (http, _func, "responding to 100-continue");
+	    sender->send (
+		    page_pool,
+		    "HTTP/1.1 100 Continue\r\n"
+		    "Cache-Control: no-cache\r\n"
+		    "Content-Type: application/x-fcs\r\n"
+		    "Content-Length: 0\r\n"
+		    "Connection: Keep-Alive\r\n"
+		    "\r\n");
+	    sender->flush ();
+	}
+    }
+}
+
+Receiver::ProcessInputResult
+HttpServer::receiveRequestLine (ConstMemory const &_mem,
+				Size * const mt_nonnull ret_accepted,
+				bool * const mt_nonnull ret_header_parsed)
+{
+    logD (http, _func, _mem.len(), " bytes");
+//    hexdump (logs, _mem);
+
+    *ret_accepted = 0;
+    *ret_header_parsed = false;
+
+    ConstMemory mem = _mem;
+
+    Size field_offs = 0;
+    for (;;) {
+	logD (http, _func, "iteration");
+
+	assert (mem.len() >= recv_pos);
+	if (mem.len() == recv_pos) {
+	  // No new data since the last input event => nothing changed.
+	    return Receiver::ProcessInputResult::Again;
+	}
+
+	Size cr_pos;
+	for (;;) {
+	    Byte const * const cr_ptr = (Byte const *) memchr (mem.mem() + recv_pos, 13 /* CR */, mem.len() - recv_pos);
+	    if (!cr_ptr) {
+		recv_pos += mem.len();
+		return Receiver::ProcessInputResult::Again;
+	    }
+
+	    cr_pos = cr_ptr - mem.mem();
+	    // We need LF and one non-SP symbol to determine header field end.
+	    // Also we want to look 2 symbols ahead to detect end of message headers.
+	    // This means that we need 3 symbols of lookahead.
+	    if (mem.len() - (cr_pos + 1) < 3) {
+		// Leaving CR unaccepted for the next input event.
+		recv_pos += cr_pos;
+		return Receiver::ProcessInputResult::Again;
+	    }
+
+	    if (mem.mem() [cr_pos + 1] == 10 /* LF */ &&
+		    // Request line cannot be split into multiple lines.
+		    (req_state == RequestState::RequestLine ||
+			    (mem.mem() [cr_pos + 2] != 32 /* SP */ &&
+			     mem.mem() [cr_pos + 2] !=  9 /* HT */)))
+	    {
+	      // Got a complete header field.
+		break;
+	    }
+
+	  // CR at cr_pos does not end header field.
+	  // Searching for another one.
+	    recv_pos = cr_pos + 1;
+	}
+
+	if (req_state == RequestState::RequestLine) {
+	    // TODO returns Result
+	    logD (http, _func, "calling processRequestLine()");
+	    processRequestLine (mem.region (0, cr_pos));
+	    req_state = RequestState::HeaderField;
+	} else
+	    processHeaderField (mem.region (0, cr_pos));
+
+	Size const next_pos = cr_pos + 2;
+	*ret_accepted = field_offs + next_pos;
+
+	recv_pos = 0;
+
+	if (mem.mem() [cr_pos + 2] == 13 /* CR */ &&
+	    mem.mem() [cr_pos + 3] == 10 /* LF */)
+	{
+	    if (frontend && frontend->request)
+		frontend.call (frontend->request, /*(*/ cur_req /*)*/);
+
+	    *ret_accepted += 2;
+	    *ret_header_parsed = true;
+	    return Receiver::ProcessInputResult::Again;
+	}
+
+	field_offs += next_pos;
+	mem = mem.region (next_pos);
+    }
+
+    unreachable ();
+}
+
+Receiver::ProcessInputResult
+HttpServer::processInput (Memory const &_mem,
+			  Size * const mt_nonnull ret_accepted,
+			  void * const _self)
+{
+    logD (http, _func, _mem.len(), " bytes");
+
+    HttpServer * const self = static_cast <HttpServer*> (_self);
+
+    *ret_accepted = 0;
+
+    Memory mem = _mem;
+
+    for (;;) {
+	switch (self->req_state) {
+	    case RequestState::RequestLine:
+	    case RequestState::HeaderField: {
+		if (!self->cur_req)
+		    self->cur_req = grab (new HttpRequest);
+
+		bool header_parsed;
+		Size line_accepted;
+		Receiver::ProcessInputResult const res = self->receiveRequestLine (mem, &line_accepted, &header_parsed);
+		*ret_accepted += line_accepted;
+		if (!header_parsed)
+		    return res;
+
+		mem = mem.region (line_accepted);
+
+		if (self->recv_content_length > 0) {
+		    self->recv_pos = 0;
+		    self->req_state = RequestState::MessageBody;
+		}
+	    } break;
+	    case RequestState::MessageBody: {
+		logD (http, _func, "MessageBody, mem.len(): ", mem.len());
+
+		Size toprocess = mem.len();
+		bool must_consume = false;
+		if (toprocess >= self->recv_content_length - self->recv_pos) {
+		    toprocess = self->recv_content_length - self->recv_pos;
+		    must_consume = true;
+		}
+
+		logD (http, _func, "recv_pos: ", self->recv_pos, ", toprocess: ", toprocess);
+		Size accepted = toprocess;
+		if (self->frontend && self->frontend->messageBody) {
+		    self->frontend.call (self->frontend->messageBody, /*(*/
+			    self->cur_req, Memory (mem.mem(), toprocess), &accepted /*)*/);
+		    assert (accepted <= toprocess);
+		}
+
+		if (must_consume && accepted != toprocess) {
+		    logE (http, _func, "RTMPT request contains an incomplete message");
+		    return Receiver::ProcessInputResult::Error;
+		}
+
+		*ret_accepted += accepted;
+
+		self->recv_pos += accepted;
+		if (self->recv_pos < self->recv_content_length) {
+		    logD (http, _func, "waiting for more content");
+		    return Receiver::ProcessInputResult::Again;
+		}
+
+		logD (http, _func, "message body processed in full");
+
+	      // Message body processed in full.
+
+		assert (self->recv_pos == self->recv_content_length);
+		mem = mem.region (toprocess);
+
+		self->recv_pos = 0;
+		self->recv_content_length = 0;
+		self->cur_req = NULL;
+		self->req_state = RequestState::RequestLine;
+	    } break;
+	    default:
+		unreachable ();
+	}
+    }
+}
+
+void
+HttpServer::processEof (void * const _self)
+{
+    HttpServer * const self = static_cast <HttpServer*> (_self);
+
+    logD (http, _func_);
+
+    if (self->frontend && self->frontend->closed)
+	self->frontend.call (self->frontend->closed, /*(*/ (Exception*) NULL /* exc_ */ /*)*/);
+}
+
+void
+HttpServer::processError (Exception * const exc_,
+			  void      * const _self)
+{
+    HttpServer * const self = static_cast <HttpServer*> (_self);
+
+    logD (http, _func_);
+
+    if (self->frontend && self->frontend->closed)
+	self->frontend.call (self->frontend->closed, /*(*/ exc_ /*)*/);
+}
+
+}
+

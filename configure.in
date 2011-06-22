@@ -1,0 +1,28 @@
+AC_INIT([LibMary], [0.1])
+
+PKG_CHECK_MODULES(THIS, [glib-2.0 >= 2.0, gthread-2.0 >= 2.0, gmodule-2.0 >= 2.0])
+AC_SUBST(THIS_CFLAGS)
+AC_SUBST(THIS_LIBS)
+
+AM_INIT_AUTOMAKE([1.7 gnu nostdinc])
+
+AC_PROG_CC
+AC_PROG_CXX
+AC_LIBTOOL_WIN32_DLL
+AC_PROG_LIBTOOL
+
+case "$host" in
+  *-*-mingw*|*-*-cygwin*)
+    platform_win32=yes
+    ;;
+  *)
+    platform_win32=no
+    ;;
+esac
+AM_CONDITIONAL(PLATFORM_WIN32, test x$platform_win32 = xyes)
+
+AC_CONFIG_FILES([Makefile
+		 libmary/Makefile
+		 libmary-1.0.pc])
+AC_OUTPUT
+

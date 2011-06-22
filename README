@@ -1,0 +1,13 @@
+I've come to a point where I can't trust MyCpp anymore. I have also sketched
+new code guidelines to which MyCpp does not adhere. Therefore, I need a new
+base library, which would also serve as a testbed for my ideas on Mt language
+extensions.
+
+If Mt translator will be implemented, then libmary will be the library which
+will be called by Mt language constructs. Therefore, libmary is meant to be
+really minimalistic: it is just about basic multithreading. General-purpose
+library on top of libmary will be called "libmess".
+
+The first project that will use libmary as a core library will be Momentvideo
+video server.
+

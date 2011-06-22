@@ -1,0 +1,118 @@
+/*  LibMary - C++ library for high-performance network servers
+    Copyright (C) 2011 Dmitry Shatrov
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License as published by the Free Software Foundation; either
+    version 2.1 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+
+#ifndef __LIBMARY__REFERENCED__H__
+#define __LIBMARY__REFERENCED__H__
+
+
+#include <libmary/types.h>
+#include <libmary/atomic.h>
+#include <libmary/virt_referenced.h>
+
+
+namespace M {
+
+class Object;
+
+class Referenced : public virtual VirtReferenced
+{
+    friend class Object;
+
+private:
+    AtomicInt refcount;
+
+protected:
+    virtual void last_unref ()
+    {
+	delete this;
+    }
+
+public:
+    void libMary_ref ()
+    {
+	refcount.inc ();
+    }
+
+    void libMary_unref ()
+    {
+	if (refcount.decAndTest ())
+	    last_unref ();
+    }
+
+    void ref ()
+    {
+	libMary_ref ();
+    }
+
+    void unref ()
+    {
+	libMary_unref ();
+    }
+
+    virtual void virt_ref ()
+    {
+	libMary_ref ();
+    }
+
+    virtual void virt_unref ()
+    {
+	libMary_unref ();
+    }
+
+    // For debugging purposes only.
+    Count getRefCount () const
+    {
+	return refcount.get ();
+    }
+
+    // Copying is allowed for MyCpp::Exception cloning mechanism to work.
+    // There's no real reason to forbid copying of Referenced objects,
+    // because it can be done transparently and with zero overhead.
+    Referenced & operator = (Referenced const &)
+    {
+      // No-op
+	return *this;
+    }
+
+    Referenced (Referenced const &)
+	: VirtReferenced (),
+	  refcount (1)
+    {
+    }
+
+    Referenced ()
+	: refcount (1)
+    {
+    }
+
+    virtual ~Referenced ()
+    {
+    }
+};
+
+template <class T>
+class ReferencedWrap : public Referenced, public T
+{
+};
+
+}
+
+
+#endif /* __LIBMARY__REFERENCED__H__ */
+
