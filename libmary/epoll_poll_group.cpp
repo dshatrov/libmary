@@ -73,7 +73,7 @@ EpollPollGroup::triggerPipeWrite ()
 	    return Result::Failure;
 	}
 
-	// If res is 0, the we don't care, because this means that the pipe is
+	// If res is 0, then we don't care, because this means that the pipe is
 	// full of unread data, and the poll group will be triggered by that
 	// data	anyway.
 
@@ -82,65 +82,6 @@ EpollPollGroup::triggerPipeWrite ()
 
     return Result::Success;
 }
-
-void
-EpollPollGroup::requestInput (void * const /* _pollable_entry */)
-{
-#if 0
-ALWAYS INFORMING
-    PollableEntry * const pollable_entry = static_cast <PollableEntry*> (_pollable_entry);
-    // We assume that the poll group is always available when requestInput()
-    // is called.
-    EpollPollGroup * const self = pollable_entry->select_poll_group;
-
-    if (self->poll_tlocal && self->poll_tlocal == libMary_getThreadLocal()) {
-	pollable_entry->need_input = true;
-    } else {
-	self->mutex.lock ();
-	pollable_entry->need_input = true;
-	if (self->triggered) {
-	    self->mutex.unlock ();
-	} else {
-	    self->mutex.unlock ();
-	    self->triggerWrite ();
-	}
-    }
-
-    // TODO call epoll_ctl ()
-#endif
-}
-
-void
-EpollPollGroup::requestOutput (void * const /* _pollable_entry */)
-{
-#if 0
-ALWAYS INFORMING
-    PollableEntry * const pollable_entry = static_cast <PollableEntry*> (_pollable_entry);
-    // We assume that the poll group is always available when requestOutput()
-    // is called.
-    EpollPollGroup * const self = pollable_entry->select_poll_group;
-
-    if (self->poll_tlocal && self->poll_tlocal == libMary_getThreadLocal()) {
-	pollable_entry->need_output = true;
-    } else {
-	self->mutex.lock ();
-	pollable_entry->need_input = true;
-	if (self->triggered) {
-	    self->mutex.unlock ();
-	} else {
-	    self->mutex.unlock ();
-	    self->triggerWrite ();
-	}
-    }
-
-    // TODO call epoll_ctl ()
-#endif
-}
-
-PollGroup::Feedback const EpollPollGroup::pollable_feedback = {
-    requestInput,
-    requestOutput
-};
 
 mt_throws PollGroup::PollableKey
 EpollPollGroup::addPollable (Cb<Pollable> const &pollable)
@@ -151,24 +92,10 @@ EpollPollGroup::addPollable (Cb<Pollable> const &pollable)
     // We're making an unsafe call, assuming that the pollable is available.
     pollable_entry->fd = pollable->getFd (pollable.getCbData());
     pollable_entry->valid = true;
-#if 0
-ALWAYS INFORMING
-    pollable_entry->need_input = true;
-    pollable_entry->need_output = true;
-#endif
 
     mutex.lock ();
     pollable_list.append (pollable_entry);
     mutex.unlock ();
-
-    // We're making an unsafe call, assuming that the pollable is available.
-    //
-    // We're counting on the fact that the poll group will always be available
-    // when pollable_feedback callbacks are called - that's why we use NULL
-    // for coderef_container.
-    pollable->setFeedback (
-	    Cb<Feedback> (&pollable_feedback, pollable_entry, NULL /* coderef_container */),
-	    pollable.getCbData());
 
     {
 	struct epoll_event event;
@@ -290,15 +217,11 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	    }
 
 	    if (pollable_entry->valid) {
-		if (epoll_event_flags & EPOLLIN) {
-// ALWAYS INFORMING		    pollable_entry->need_input = false;
+		if (epoll_event_flags & EPOLLIN)
 		    event_flags |= PollGroup::Input;
-		}
 
-		if (epoll_event_flags & EPOLLOUT) {
-// ALWAYS INFORMING		    pollable_entry->need_output = false;
+		if (epoll_event_flags & EPOLLOUT)
 		    event_flags |= PollGroup::Output;
-		}
 
 		if (epoll_event_flags & EPOLLHUP ||
 		    epoll_event_flags & EPOLLRDHUP)

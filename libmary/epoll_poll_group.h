@@ -48,12 +48,6 @@ private:
 	mt_const int fd;
 
 	mt_mutex (EpollPollGroup::mutex) bool valid;
-
-#if 0
-ALWAYS INFORMING
-	mt_mutex (EpollPollGroup::mutex) bool need_input;
-	mt_mutex (EpollPollGroup::mutex) bool need_output;
-#endif
     };
 
     typedef IntrusiveList<PollableEntry, PollableList_name> PollableList;
@@ -69,18 +63,9 @@ ALWAYS INFORMING
 
     StateMutex mutex;
 
-    // Accessed from the same thread only.
-// ALWAYS INFORMING    LibMary_ThreadLocal *poll_tlocal;
-
     void processPollableDeletionQueue ();
 
     mt_throws Result triggerPipeWrite ();
-
-    static Feedback const pollable_feedback;
-
-    static void requestInput (void *_pollable_entry);
-
-    static void requestOutput (void *_pollable_entry);
 
 public:
   mt_iface (ActivePollgroup)
