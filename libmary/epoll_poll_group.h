@@ -35,36 +35,59 @@ class EpollPollGroup : public ActivePollGroup,
 		       public DependentCodeReferenced
 {
 private:
-    class PollableList_name
+    class PollableList_name;
+    class PollableDeletionQueue_name;
 
-    class PollableEntry : public IntrusiveListElement<PollableList_name>
+    class PollableEntry : public IntrusiveListElement<PollableList_name>,
+			  public IntrusiveListElement<PollableDeletionQueue_name>
     {
     public:
-	Cb<Pollable> pollable;
+	mt_const EpollPollGroup *epoll_poll_group;
+
+	mt_const Cb<Pollable> pollable;
+	mt_const int fd;
+
+	mt_mutex (EpollPollGroup::mutex) bool valid;
+
+#if 0
+ALWAYS INFORMING
+	mt_mutex (EpollPollGroup::mutex) bool need_input;
+	mt_mutex (EpollPollGroup::mutex) bool need_output;
+#endif
     };
 
     typedef IntrusiveList<PollableEntry, PollableList_name> PollableList;
+    typedef IntrusiveList<PollableEntry, PollableDeletionQueue_name> PollableDeletionQueue;
 
-    PollableList pollable_list;
+    mt_const int efd;
 
     mt_const int trigger_pipe [2];
-    bool triggered;
+    mt_mutex (mutex) bool triggered;
 
-    mt_const Cb<Frontend> frontend;
+    mt_mutex (mutex) PollableList pollable_list;
+    mt_mutex (mutex) PollableDeletionQueue pollable_deletion_queue;
 
     StateMutex mutex;
 
     // Accessed from the same thread only.
-    LibMary_ThreadLocal *poll_tlocal;
+// ALWAYS INFORMING    LibMary_ThreadLocal *poll_tlocal;
+
+    void processPollableDeletionQueue ();
+
+    mt_throws Result triggerPipeWrite ();
 
     static Feedback const pollable_feedback;
+
+    static void requestInput (void *_pollable_entry);
+
+    static void requestOutput (void *_pollable_entry);
 
 public:
   mt_iface (ActivePollgroup)
     mt_iface (PollGroup)
       mt_throws PollableKey addPollable (Cb<Pollable> const &pollable);
 
-      mt_throws Result removePollable (PollableKey mt_nonnull key);
+      void removePollable (PollableKey mt_nonnull key);
     mt_end
 
     mt_throws Result poll (Uint64 timeout_microsec = (Uint64) -1);
