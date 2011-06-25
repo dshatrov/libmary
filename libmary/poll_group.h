@@ -63,17 +63,22 @@ public:
 
     virtual mt_throws PollableKey addPollable (Cb<Pollable> const &pollable) = 0;
 
-    virtual Result removePollable (PollableKey mt_nonnull key) = 0;
+    virtual void removePollable (PollableKey mt_nonnull key) = 0;
 };
 
 }
 
 
 namespace M {
+#ifdef PLATFORM_WIN32
     class SelectPollGroup;
     typedef SelectPollGroup DefaultPollGroup;
+#else
+    class EpollPollGroup;
+    typedef EpollPollGroup DefaultPollGroup;
+#endif
 }
-#include <libmary/select_poll_group.h>
+#include <libmary/active_poll_group.h>
 
 
 #endif /* __LIBMARY__POLL_GROUP__H__ */

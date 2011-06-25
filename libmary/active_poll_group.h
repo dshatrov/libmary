@@ -29,12 +29,33 @@ namespace M {
 class ActivePollGroup : public PollGroup
 {
 public:
+    struct Frontend {
+	// pollIterationBegin is not called when poll() returns (poll timeout/error).
+	void (*pollIterationBegin) (void *cb_data);
+	void (*pollIterationEnd)   (void *cb_data);
+    };
+
+protected:
+    mt_const Cb<Frontend> frontend;
+
+public:
     virtual mt_throws Result poll (Uint64 timeout_msec = (Uint64) -1) = 0;
 
     virtual mt_throws Result trigger () = 0;
+
+    void setFrontend (Cb<Frontend> const &frontend)
+    {
+	this->frontend = frontend;
+    }
 };
 
 }
+
+
+#include <libmary/select_poll_group.h>
+#ifndef PLATFORM_WIN32
+#include <libmary/epoll_poll_group.h>
+#endif
 
 
 #endif /* __LIBMARY__ACTIVE_POLL_GROUP__H__ */
