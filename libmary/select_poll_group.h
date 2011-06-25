@@ -35,20 +35,17 @@ namespace M {
 class SelectPollGroup : public ActivePollGroup,
 			public DependentCodeReferenced
 {
-public:
-    typedef void (*IterationBeginCallback) (void *cb_data);
-    typedef void (*IterationEndCallback)   (void *cb_data);
-
-    struct Frontend {
-	// pollIterationBegin is not called when poll() returns (poll timeout/error).
-	void (*pollIterationBegin) (void *cb_data);
-	void (*pollIterationEnd)   (void *cb_data);
-    };
-
 private:
     class PollableList_name;
     class SelectedList_name;
 
+    // TODO It would be more efficient to manage PollableEntries through
+    // a deletion queue instead of basic refcounts. There's two points where
+    // the queue can be processed: right after processing all events in poll(),
+    // and in ~SelectPollGroup() destructor.
+    //
+    // Operations with BasicReferenced base (ref/unref) should be synchronized
+    // with SelectPollGroup::mutex.
     class PollableEntry : public BasicReferenced,
 			  public IntrusiveListElement<PollableList_name>,
 			  public IntrusiveListElement<SelectedList_name>
@@ -74,14 +71,12 @@ private:
     mt_const int trigger_pipe [2];
     bool triggered;
 
-    mt_const Cb<Frontend> frontend;
-
     StateMutex mutex;
 
     // Accessed from the same thread only.
     LibMary_ThreadLocal *poll_tlocal;
 
-    mt_throws Result triggerWrite ();
+    mt_throws Result triggerPipeWrite ();
 
     static Feedback const pollable_feedback;
 
@@ -91,26 +86,17 @@ private:
 
 public:
   mt_iface (ActivePollGroup)
-
     mt_iface (PollGroup)
-
       mt_throws PollableKey addPollable (Cb<Pollable> const &pollable);
 
-      mt_throws Result removePollable (PollableKey mt_nonnull key);
-
-    mt_iface_end (PollGroup)
+      void removePollable (PollableKey mt_nonnull key);
+    mt_end
 
     // Must be called from the same thread every time.
     mt_throws Result poll (Uint64 timeout_microsec = (Uint64) -1);
 
     mt_throws Result trigger ();
-
-  mt_iface_end (ActivePollGroup)
-
-    void setFrontend (Cb<Frontend> const &frontend)
-    {
-	this->frontend = frontend;
-    }
+  mt_end
 
     mt_throws Result open ();
 

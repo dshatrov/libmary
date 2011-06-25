@@ -17,6 +17,7 @@
 */
 
 
+#include <libmary/types.h>
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -26,6 +27,7 @@
 #include <libmary/posix.h>
 #include <libmary/util_str.h>
 #include <libmary/util_time.h>
+#include <libmary/util_posix.h>
 
 #include <libmary/select_poll_group.h>
 
@@ -39,7 +41,7 @@ LogGroup libMary_logGroup_iters   ("iters",   LogLevel::N);
 }
 
 mt_throws Result
-SelectPollGroup::triggerWrite ()
+SelectPollGroup::triggerPipeWrite ()
 {
     for (;;) {
 	ssize_t const res = write (trigger_pipe [1], "A", 1);
@@ -61,7 +63,7 @@ SelectPollGroup::triggerWrite ()
 	    return Result::Failure;
 	}
 
-	// If res is 0, the we don't care, because this means that the pipe is
+	// If res is 0, then we don't care, because this means that the pipe is
 	// full of unread data, and the poll group will be triggered by that
 	// data	anyway.
 
@@ -75,6 +77,8 @@ void
 SelectPollGroup::requestInput (void * const _pollable_entry)
 {
     PollableEntry * const pollable_entry = static_cast <PollableEntry*> (_pollable_entry);
+    // We assume that the poll group is always available when requestInput()
+    // is called.
     SelectPollGroup * const self = pollable_entry->select_poll_group;
 
     if (self->poll_tlocal && self->poll_tlocal == libMary_getThreadLocal()) {
@@ -86,7 +90,7 @@ SelectPollGroup::requestInput (void * const _pollable_entry)
 	    self->mutex.unlock ();
 	} else {
 	    self->mutex.unlock ();
-	    self->triggerWrite ();
+	    self->triggerPipeWrite ();
 	}
     }
 }
@@ -95,6 +99,8 @@ void
 SelectPollGroup::requestOutput (void * const _pollable_entry)
 {
     PollableEntry * const pollable_entry = static_cast <PollableEntry*> (_pollable_entry);
+    // We assume that the poll group is always available when requestOutput()
+    // is called.
     SelectPollGroup * const self = pollable_entry->select_poll_group;
 
     if (self->poll_tlocal && self->poll_tlocal == libMary_getThreadLocal()) {
@@ -106,7 +112,7 @@ SelectPollGroup::requestOutput (void * const _pollable_entry)
 	    self->mutex.unlock ();
 	} else {
 	    self->mutex.unlock ();
-	    self->triggerWrite ();
+	    self->triggerPipeWrite ();
 	}
     }
 }
@@ -134,12 +140,21 @@ SelectPollGroup::addPollable (Cb<Pollable> const &pollable)
     mutex.unlock ();
 
     // We're making an unsafe call, assuming that the pollable is available.
-    pollable->setFeedback (Cb<Feedback> (&pollable_feedback, pollable_entry, getCoderefContainer()), pollable.getCbData());
+    //
+    // We're counting on the fact that the poll group will always be available
+    // when pollable_feedback callbacks are called - that's why we use NULL
+    // for coderef_container.
+// Deprecated    pollable->setFeedback (Cb<Feedback> (&pollable_feedback, pollable_entry, getCoderefContainer()), pollable.getCbData());
+    pollable->setFeedback (
+	    Cb<Feedback> (&pollable_feedback, pollable_entry, NULL /* coderef_container */),
+	    pollable.getCbData());
+
+    // TODO FIXME if (different thread) then trigger().
 
     return static_cast <void*> (pollable_entry);
 }
 
-mt_throws Result
+void
 SelectPollGroup::removePollable (PollableKey const mt_nonnull key)
 {
     PollableEntry * const pollable_entry = static_cast <PollableEntry*> (key);
@@ -147,10 +162,8 @@ SelectPollGroup::removePollable (PollableKey const mt_nonnull key)
     mutex.lock ();
     pollable_entry->valid = false;
     pollable_list.remove (pollable_entry);
-    mutex.unlock ();
-
     pollable_entry->unref ();
-    return Result::Success;
+    mutex.unlock ();
 }
 
 mt_throws Result
@@ -179,6 +192,8 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	FD_SET (trigger_pipe [0], &rfds);
 	// We hope for the better and don't subscribe for errors on trigger_pipe[*].
 
+	// FIXME There's a limit of 1024 (correct?) fds for a single call to select().
+
 	selected_list.clear ();
 
 	{
@@ -202,6 +217,7 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	    }
 	}
 
+	Time elapsed_microsec;
 	{
 	    Time const cur_microsec = getTimeMicroseconds ();
 
@@ -212,7 +228,7 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	    }
 	    assert (cur_microsec >= start_microsec);
 
-	    Time const elapsed_microsec = cur_microsec - start_microsec;
+	    elapsed_microsec = cur_microsec - start_microsec;
 
 //	    logD_ (_func, "timeout_microsec: ", timeout_microsec == (Uint64) -1 ? toString ("-1") : toString (timeout_microsec), ", elapsed_microsec: ", elapsed_microsec);
 
@@ -233,10 +249,12 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	    if (nfds == -1) {
 		if (errno == EINTR) {
 		    SelectedList::iter iter (selected_list);
+		    mutex.lock ();
 		    while (!selected_list.iter_done (iter)) {
 			PollableEntry * const pollable_entry = selected_list.iter_next (iter);
 			pollable_entry->unref ();
 		    }
+		    mutex.unlock ();
 
 		    // Re-initializing rfds, wfds, efds.
 		    continue;
@@ -264,6 +282,7 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		PollableEntry * const pollable_entry = selected_list.iter_next (iter);
 
 		mutex.lock ();
+
 		if (pollable_entry->valid) {
 		    Uint32 event_flags = 0;
 
@@ -290,9 +309,10 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 			logD (iters, _func, "notified pollable 0x", fmt_hex, (UintPtr) pollable_entry->pollable.getWeakObject());
 		    }
 		}
-		mutex.unlock ();
 
 		pollable_entry->unref ();
+
+		mutex.unlock ();
 	    }
 	}
 
@@ -335,16 +355,23 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 
 	    break;
 	}
+
+	if (elapsed_microsec >= timeout_microsec) {
+	  // Timeout expired.
+	    break;
+	}
     } // for (;;)
 
     return ret_res;
 
 _select_interrupted:
     SelectedList::iter iter (selected_list);
+    mutex.lock ();
     while (!selected_list.iter_done (iter)) {
 	PollableEntry * const pollable_entry = selected_list.iter_next (iter);
 	pollable_entry->unref ();
     }
+    mutex.unlock ();
 
     return ret_res;
 }
@@ -360,45 +387,14 @@ SelectPollGroup::trigger ()
     triggered = true;
     mutex.unlock ();
 
-    return triggerWrite ();
+    return triggerPipeWrite ();
 }
 
 mt_throws Result
 SelectPollGroup::open ()
 {
-    {
-	int const res = pipe (trigger_pipe);
-	if (res == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
-	    logE_ (_func, "pipe() failed: ", errnoString (errno));
-	    return Result::Failure;
-	} else
-	if (res != 0) {
-	    exc_throw <InternalException> (InternalException::BackendMalfunction);
-	    logE_ (_func, "pipe(): unexpected return value: ", res);
-	    return Result::Failure;
-	}
-    }
-
-    for (int i = 0; i < 2; ++i) {
-	int flags = fcntl (trigger_pipe [i], F_GETFL, 0);
-	if (flags == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
-	    logE_ (_func, "fcntl() failed (trigger_pipe[", i, "]): ", errnoString (errno));
-	    return Result::Failure;
-	}
-
-	flags |= O_NONBLOCK;
-
-	if (fcntl (trigger_pipe [i], F_SETFL, flags) == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
-	    logE_ (_func, "fcntl() failed (F_SETFL, trigger_pipe[", i, "]): ", errnoString (errno));
-	    return Result::Failure;
-	}
-    }
+    if (!posix_createNonblockingPipe (&trigger_pipe))
+	return Result::Failure;
 
     return Result::Success;
 }
@@ -406,13 +402,13 @@ SelectPollGroup::open ()
 SelectPollGroup::~SelectPollGroup ()
 {
     mutex.lock ();
-
-    PollableList::iter iter (pollable_list);
-    while (!pollable_list.iter_done (iter)) {
-	PollableEntry * const pollable_entry = pollable_list.iter_next (iter);
-	delete pollable_entry;
+    {
+	PollableList::iter iter (pollable_list);
+	while (!pollable_list.iter_done (iter)) {
+	    PollableEntry * const pollable_entry = pollable_list.iter_next (iter);
+	    delete pollable_entry;
+	}
     }
-
     mutex.unlock ();
 
     for (int i = 0; i < 2; ++i) {
