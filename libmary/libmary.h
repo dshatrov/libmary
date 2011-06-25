@@ -84,6 +84,9 @@
 #include <libmary/poll_group.h>
 #include <libmary/active_poll_group.h>
 #include <libmary/select_poll_group.h>
+#ifndef PLATFORM_WIN32
+#include <libmary/epoll_poll_group.h>
+#endif
 
 #include <libmary/http.h>
 #include <libmary/http_service.h>
