@@ -34,15 +34,15 @@ class ServerApp : public DependentCodeReferenced
 {
 private:
     Timers timers;
-    SelectPollGroup select_poll_group;
+    DefaultPollGroup select_poll_group;
 
     void doTimerIteration ();
 
     static void firstTimerAdded (void *_self);
 
-  mt_iface (SelectPollGroup::Frontend)
+  mt_iface (ActivePollGroup::Frontend)
 
-    static SelectPollGroup::Frontend poll_frontend;
+    static ActivePollGroup::Frontend poll_frontend;
 
     static void pollIterationBegin (void *_self);
 

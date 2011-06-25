@@ -26,7 +26,7 @@
 
 namespace M {
 
-SelectPollGroup::Frontend ServerApp::poll_frontend = {
+ActivePollGroup::Frontend ServerApp::poll_frontend = {
     pollIterationBegin,
     pollIterationEnd
 };
@@ -68,7 +68,7 @@ ServerApp::init ()
     if (!select_poll_group.open ())
 	return Result::Failure;
 
-    select_poll_group.setFrontend (Cb<SelectPollGroup::Frontend> (&poll_frontend, this, getCoderefContainer()));
+    select_poll_group.setFrontend (Cb<ActivePollGroup::Frontend> (&poll_frontend, this, getCoderefContainer()));
 
     return Result::Success;
 }
