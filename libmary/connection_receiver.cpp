@@ -57,8 +57,12 @@ ConnectionReceiver::doProcessInput ()
 		    return;
 		} break;
 		case AsyncIoResult::Error: {
-		    if (frontend && frontend->processError)
-			frontend.call (frontend->processError, /*(*/ exc /*)*/);
+		    logD_ (_func, "read() failed: ", exc->toString());
+		    if (!error_reported) {
+			error_reported = true;
+			if (frontend && frontend->processError)
+			    frontend.call (frontend->processError, /*(*/ exc /*)*/);
+		    }
 		    return;
 		} break;
 		case AsyncIoResult::Eof: {
@@ -100,9 +104,13 @@ ConnectionReceiver::doProcessInput ()
 		recv_accepted_pos = 0;
 		break;
 	    case ProcessInputResult::Error:
-		if (frontend && frontend->processError) {
-		    InternalException internal_exc (InternalException::FrontendError);
-		    frontend.call (frontend->processError, /*(*/ &internal_exc /*)*/);
+		logD_ (_func, "user's input handler failed");
+		if (!error_reported) {
+		    error_reported = true;
+		    if (frontend && frontend->processError) {
+			InternalException internal_exc (InternalException::FrontendError);
+			frontend.call (frontend->processError, /*(*/ &internal_exc /*)*/);
+		    }
 		}
 		return;
 	    case ProcessInputResult::Again:
@@ -139,7 +147,14 @@ void
 ConnectionReceiver::processError (Exception * const exc_,
 				  void      * const _self)
 {
+    logD_ (_func_);
     ConnectionReceiver * const self = static_cast <ConnectionReceiver*> (_self);
+
+    if (self->error_reported) {
+	return;
+    }
+    self->error_reported = true;
+
     if (self->frontend && self->frontend->processError)
 	self->frontend.call (self->frontend->processError, /*(*/ exc_ /*)*/);
 }
@@ -151,7 +166,8 @@ ConnectionReceiver::ConnectionReceiver (Object     * const coderef_container,
       conn (conn),
       recv_buf_len (1 << 16 /* 64 Kb */),
       recv_buf_pos (0),
-      recv_accepted_pos (0)
+      recv_accepted_pos (0),
+      error_reported (false)
 {
     recv_buf = new Byte [recv_buf_len];
     assert (recv_buf);
@@ -163,7 +179,8 @@ ConnectionReceiver::ConnectionReceiver (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
       recv_buf_len (1 << 16 /* 64 Kb */),
       recv_buf_pos (0),
-      recv_accepted_pos (0)
+      recv_accepted_pos (0),
+      error_reported (false)
 {
     recv_buf = new Byte [recv_buf_len];
     assert (recv_buf);

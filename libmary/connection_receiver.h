@@ -40,6 +40,8 @@ private:
     Size recv_buf_pos;
     Size recv_accepted_pos;
 
+    bool error_reported;
+
     void doProcessInput ();
 
     static Connection::InputFrontend const conn_input_frontend;
