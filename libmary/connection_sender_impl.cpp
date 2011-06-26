@@ -18,6 +18,7 @@
 
 
 #include <libmary/types.h>
+#include <libmary/util_dev.h>
 #include <libmary/log.h>
 
 #include <libmary/connection_sender_impl.h>
@@ -26,9 +27,10 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_send   ("send",   LogLevel::N);
-LogGroup libMary_logGroup_writev ("writev", LogLevel::N);
-LogGroup libMary_logGroup_close  ("close",  LogLevel::D);
+LogGroup libMary_logGroup_send    ("send",    LogLevel::N);
+LogGroup libMary_logGroup_writev  ("writev",  LogLevel::N);
+LogGroup libMary_logGroup_close   ("close",   LogLevel::D);
+LogGroup libMary_logGroup_hexdump ("hexdump", LogLevel::N);
 }
 
 void
@@ -401,26 +403,67 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 void
 ConnectionSenderImpl::queueMessage (Sender::MessageEntry * const mt_nonnull msg_entry)
 {
-#if 0
-// Unnecessary
-    switch (msg_entry->type) {
-	case Sender::MessageEntry::Pages: {
-	    Sender::MessageEntry_Pages * const msg_pages = static_cast <Sender::MessageEntry_Pages*> (msg_entry);
+    if (logLevelOn (hexdump, LogLevel::Debug)) {
+      // Dumping message data.
 
-#if 0
-	    // TODO FIXME Этого не нужно делать: страницы в MessageEntry уже ref'нутые.
-	    PagePool::Page *cur_page = msg_pages->first_page;
-	    while (cur_page != NULL) {
-		logD (send, _func, "refing page 0x", fmt_hex, (UintPtr) cur_page);
-		msg_pages->page_pool->pageRef (cur_page);
-		cur_page = cur_page->getNextMsgPage ();
-	    }
-#endif
-	} break;
-	default:
-	    unreachable ();
+	switch (msg_entry->type) {
+	    case Sender::MessageEntry::Pages: {
+		Sender::MessageEntry_Pages * const msg_pages = static_cast <Sender::MessageEntry_Pages*> (msg_entry);
+
+		// Counting message length.
+		Size msg_len = 0;
+		{
+		    msg_len += msg_pages->header_len;
+
+		    PagePool::Page *cur_page = msg_pages->first_page;
+		    while (cur_page != NULL) {
+			if (cur_page == msg_pages->first_page) {
+			    assert (cur_page->data_len >= msg_pages->msg_offset);
+			    msg_len += cur_page->data_len - msg_pages->msg_offset;
+			} else {
+			    msg_len += cur_page->data_len;
+			}
+
+			cur_page = cur_page->getNextMsgPage ();
+		    }
+		}
+
+		// Collecting message data into a single adrray.
+		Byte * const tmp_data = new Byte [msg_len];
+		{
+		    Size pos = 0;
+
+		    memcpy (tmp_data + pos, msg_pages->getHeaderData(), msg_pages->header_len);
+		    pos += msg_pages->header_len;
+
+		    PagePool::Page *cur_page = msg_pages->first_page;
+		    while (cur_page != NULL) {
+			if (cur_page == msg_pages->first_page) {
+			    assert (cur_page->data_len >= msg_pages->msg_offset);
+			    memcpy (tmp_data + pos,
+				    cur_page->getData() + msg_pages->msg_offset,
+				    cur_page->data_len - msg_pages->msg_offset);
+			    pos += cur_page->data_len - msg_pages->msg_offset;
+			} else {
+			    memcpy (tmp_data + pos, cur_page->getData(), cur_page->data_len);
+			    pos += cur_page->data_len;
+			}
+
+			cur_page = cur_page->getNextMsgPage ();
+		    }
+		}
+
+		logLock ();
+		log_unlocked_ (libMary_logGroup_hexdump.getLogLevel(), _func, "Message data:");
+		hexdump (logs, ConstMemory (tmp_data, msg_len));
+		logUnlock ();
+
+		delete tmp_data;
+	    } break;
+	    default:
+		unreachable ();
+	}
     }
-#endif
 
     msg_list.append (msg_entry);
 }
