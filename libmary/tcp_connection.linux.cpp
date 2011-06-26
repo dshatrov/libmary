@@ -129,6 +129,7 @@ TcpConnection::processEvents (Uint32   const event_flags,
     }
 
     if (event_flags & PollGroup::Error) {
+	logD_ (_func, "Error");
 	if (self->input_frontend && self->input_frontend->processError) {
 	    // TODO getsockopt SO_ERROR + fill PosixException
 	    IoException io_exc;
@@ -378,15 +379,19 @@ TcpConnection::connect (IpAddress const &addr)
 	int const res = ::connect (fd, (struct sockaddr*) &saddr, sizeof (saddr));
 	if (res == 0) {
 	    connected = true;
-	    if (frontend && frontend->connected)
+	    if (frontend && frontend->connected) {
+		logD_ (_func, "Calling frontend->connected");
 		frontend.call (frontend->connected, /*(*/ (Exception*) NULL /* exc */ /*)*/);
+	    }
 	} else
 	if (res == -1) {
 	    if (errno == EINTR)
 		continue;
 
-	    if (errno == EINPROGRESS)
+	    if (errno == EINPROGRESS) {
+		logD_ (_func, "EINPROGRESS");
 		break;
+	    }
 
 	    exc_throw <PosixException> (errno);
 	    exc_push <IoException> ();
