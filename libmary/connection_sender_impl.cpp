@@ -158,7 +158,7 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 		return Result::Failure;
 	    }
 
-	    assert (res == AsyncIoResult::Normal);
+	    // Normal_Again is not handled specially here yet.
 
 	    if (num_written > 0)
 		break;

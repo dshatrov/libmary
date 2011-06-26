@@ -47,11 +47,12 @@ ConnectionReceiver::doProcessInput ()
 	}
 
 	Size nread;
+	AsyncIoResult io_res;
 	{
 	    // TODO ret_again to avoid extra syscalls
-	    AsyncIoResult const res = conn->read (Memory (recv_buf + recv_buf_pos, toread), &nread);
-	    logD (msg, _func, "read(): ", toString (res));
-	    switch (res) {
+	    io_res = conn->read (Memory (recv_buf + recv_buf_pos, toread), &nread);
+	    logD (msg, _func, "read(): ", toString (io_res));
+	    switch (io_res) {
 		case AsyncIoResult::Again: {
 		    // TODO if (recv_buf_pos >= recv_buf_len) then error.
 		    return;
@@ -71,6 +72,7 @@ ConnectionReceiver::doProcessInput ()
 		    return;
 		} break;
 		case AsyncIoResult::Normal:
+		case AsyncIoResult::Normal_Again:
 		  // No-op
 		    break;
 		default:
@@ -133,7 +135,10 @@ ConnectionReceiver::doProcessInput ()
 	    default:
 		unreachable ();
 	}
-    }
+
+	if (io_res == AsyncIoResult::Normal_Again)
+	    return;
+    } // for (;;)
 }
 
 void

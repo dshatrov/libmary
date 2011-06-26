@@ -208,6 +208,9 @@ TcpConnection::read (Memory const &mem,
     if (ret_nread)
 	*ret_nread = (Size) res;
 
+    if ((Size) res < len)
+	return AsyncIoResult::Normal_Again;
+
     return AsyncIoResult::Normal;
 }
 

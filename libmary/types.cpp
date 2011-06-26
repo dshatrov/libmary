@@ -29,6 +29,8 @@ AsyncIoResult::toString_ (Memory const &mem,
     switch (value) {
 	case Normal:
 	    return toString (mem, "AsyncIoResult::Normal");
+	case Normal_Again:
+	    return toString (mem, "AsyncIoResult::Normal_Again");
 	case Again:
 	    return toString (mem, "AsyncIoResult::Again");
 	case Eof:

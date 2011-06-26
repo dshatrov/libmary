@@ -120,6 +120,9 @@ class AsyncIoResult
 public:
     enum Value {
 	Normal,
+	// We've got the data and we know for sure that the following call to
+	// read() will return EAGAIN.
+	Normal_Again,
 	Again,
 	Eof,
 	Error
