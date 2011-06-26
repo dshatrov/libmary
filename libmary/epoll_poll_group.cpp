@@ -36,15 +36,6 @@ EpollPollGroup::processPollableDeletionQueue ()
     PollableDeletionQueue::iter iter (pollable_deletion_queue);
     while (!pollable_deletion_queue.iter_done (iter)) {
 	PollableEntry * const pollable_entry = pollable_deletion_queue.iter_next (iter);
-
-	int const res = epoll_ctl (efd, EPOLL_CTL_DEL, pollable_entry->fd, NULL /* event */);
-	if (res == -1) {
-	    logE_ (_func, "epoll_ctl() failed: ", errnoString (errno));
-	} else {
-	    if (res != 0)
-		logE_ (_func, "epoll_ctl(): unexpected return value: ", res);
-	}
-
 	delete pollable_entry;
     }
     pollable_deletion_queue.clear ();
@@ -132,6 +123,16 @@ void
 EpollPollGroup::removePollable (PollableKey const mt_nonnull key)
 {
     PollableEntry * const pollable_entry = static_cast <PollableEntry*> (key);
+
+    {
+	int const res = epoll_ctl (efd, EPOLL_CTL_DEL, pollable_entry->fd, NULL /* event */);
+	if (res == -1) {
+	    logE_ (_func, "epoll_ctl() failed: ", errnoString (errno));
+	} else {
+	    if (res != 0)
+		logE_ (_func, "epoll_ctl(): unexpected return value: ", res);
+	}
+    }
 
     mutex.lock ();
     pollable_entry->valid = false;
