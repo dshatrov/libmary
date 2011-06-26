@@ -49,7 +49,6 @@ ConnectionReceiver::doProcessInput ()
 	Size nread;
 	AsyncIoResult io_res;
 	{
-	    // TODO ret_again to avoid extra syscalls
 	    io_res = conn->read (Memory (recv_buf + recv_buf_pos, toread), &nread);
 	    logD (msg, _func, "read(): ", toString (io_res));
 	    switch (io_res) {
@@ -123,9 +122,17 @@ ConnectionReceiver::doProcessInput ()
 			memcpy (recv_buf, recv_buf + recv_accepted_pos, toprocess - num_accepted);
 			recv_buf_pos = toprocess - num_accepted;
 			recv_accepted_pos = 0;
-		    } else {
-			assert (recv_buf_pos < recv_buf_len);
 		    }
+		}
+		// If the buffer is full and the frontend wants more data, then
+		// we fail to serve the client. This should never happen with
+		// properly written frontends.
+		if (recv_buf_pos >= recv_buf_len) {
+		    logE_ (_func, "Read buffer is full, frontend should have consumed some data. "
+			   "recv_accepted_pos: ", recv_accepted_pos, ", "
+			   "recv_buf_pos: ", recv_buf_pos, ", "
+			   "recv_buf_len: ", recv_buf_len);
+		    unreachable ();
 		}
 		break;
 	    case ProcessInputResult::InputBlocked:
