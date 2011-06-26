@@ -127,13 +127,9 @@ void _libMary_do_log_unlocked (Format const & /* fmt */, Format const &new_fmt, 
 template <char const (&loglevel_str) [5], class ...Args>
 void _libMary_log_unlocked (Args const &...args)
 {
-    // TODO Add standard timestamp + loglevel indicator
-//    _libMary_do_log_unlocked (fmt_def, "[00:00] D ", args...);
-    // TODO Different letters for different loglevels.
     Format fmt;
     fmt.min_digits = 2;
-//    _libMary_do_log_unlocked (fmt, "[", _libMary_localtime.tm_hour, ":", _libMary_localtime.tm_min, ".", _libMary_localtime.tm_sec, "] D ", fmt_def, args...);
-    _libMary_do_log_unlocked (fmt, "[", _libMary_localtime.tm_hour, ":", _libMary_localtime.tm_min, ".", _libMary_localtime.tm_sec, loglevel_str, fmt_def, args...);
+    _libMary_do_log_unlocked (fmt, "[", _libMary_localtime.tm_hour, ":", _libMary_localtime.tm_min, ":", _libMary_localtime.tm_sec, loglevel_str, fmt_def, args...);
     logs->flush ();
 }
 
@@ -165,7 +161,6 @@ extern char const _libMary_loglevel_str_N [5];
 	do {									\
 	    if ((loglevel) >= libMary_logGroup_ ## group .getLogLevel()) {	\
 		exc_block ();							\
-		char const (*loglevel_str) [4];					\
 		switch (loglevel) {						\
 		    case LogLevel::All:						\
 			log_func<_libMary_loglevel_str_A> (__VA_ARGS__);	\
