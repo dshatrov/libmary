@@ -28,6 +28,7 @@
 
 namespace M {
 
+// Synchronized externally by the associated Connection object.
 class ConnectionReceiver : public Receiver,
 			   public DependentCodeReferenced
 {
