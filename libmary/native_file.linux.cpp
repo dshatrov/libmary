@@ -27,6 +27,7 @@
 #include <libmary/posix.h>
 #include <libmary/log.h>
 #include <libmary/util_base.h>
+#include <libmary/util_dev.h>
 
 #include <libmary/native_file.h>
 
@@ -149,6 +150,55 @@ mt_throws Result
 NativeFile::sync ()
 {
   // TODO
+    return Result::Success;
+}
+
+mt_throws Result
+NativeFile::stat (FileStat * const mt_nonnull ret_stat)
+{
+  // TODO There's code duplication with VfsPosix::stat().
+
+    struct stat stat_buf;
+
+    int const res = ::fstat (fd, &stat_buf);
+    if (res == -1) {
+	exc_throw <PosixException> (errno);
+	return Result::Failure;
+    } else
+    if (res != 0) {
+	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	return Result::Failure;
+    }
+
+    if (S_ISBLK (stat_buf.st_mode))
+	ret_stat->file_type = FileType::BlockDevice;
+    else
+    if (S_ISCHR (stat_buf.st_mode))
+	ret_stat->file_type = FileType::CharacterDevice;
+    else
+    if (S_ISDIR (stat_buf.st_mode))
+	ret_stat->file_type = FileType::Directory;
+    else
+    if (S_ISFIFO (stat_buf.st_mode))
+	ret_stat->file_type = FileType::Fifo;
+    else
+    if (S_ISREG (stat_buf.st_mode))
+	ret_stat->file_type = FileType::RegularFile;
+    else
+    if (S_ISLNK (stat_buf.st_mode))
+	ret_stat->file_type = FileType::SymbolicLink;
+    else
+    if (S_ISSOCK (stat_buf.st_mode))
+	ret_stat->file_type = FileType::Socket;
+    else {
+	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	logE_ (_func, "Unknown file type:");
+	hexdump (logs, ConstMemory::forObject (stat_buf.st_mode));
+	return Result::Failure;
+    }
+
+    ret_stat->size = (unsigned long long) stat_buf.st_size;
+
     return Result::Success;
 }
 

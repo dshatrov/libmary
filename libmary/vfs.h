@@ -42,35 +42,20 @@
 
 #include <libmary/types.h>
 #include <libmary/exception.h>
-#include <libmary/object.h>
+#include <libmary/basic_referenced.h>
 #include <libmary/string.h>
-#include <libmary/file.h>
+#include <libmary/native_file.h>
 
 
 namespace M {
 
-class Vfs : public Object
+class Vfs : public BasicReferenced
 {
 public:
-    enum FileType
-    {
-	FileType_BlockDevice,
-	FileType_CharacterDevice,
-	FileType_Fifo,
-	FileType_RegularFile,
-	FileType_Directory,
-	FileType_SymbolicLink,
-	FileType_Socket
-    };
+    typedef NativeFile::FileType FileType;
+    typedef NativeFile::FileStat FileStat;
 
-    class StatData : public Referenced
-    {
-    public:
-	unsigned long long size;
-	FileType file_type;
-    };
-
-    class Directory : public Referenced
+    class Directory : public BasicReferenced
     {
     public:
 	virtual mt_throws Result getNextEntry (Ref<String> &ret_name) = 0;
@@ -78,7 +63,7 @@ public:
 	virtual mt_throws Result rewind () = 0;
     };
 
-    virtual mt_throws Ref<StatData> stat (ConstMemory const &name) = 0;
+    virtual mt_throws Ref<FileStat> stat (ConstMemory const &name) = 0;
 
     virtual mt_throws Ref<Directory> openDirectory (ConstMemory const &dirname) = 0;
 

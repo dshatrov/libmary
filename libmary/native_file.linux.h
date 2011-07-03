@@ -30,6 +30,33 @@ namespace M {
 
 class NativeFile : public File
 {
+public:
+    class FileType
+    {
+    public:
+	enum Value {
+	    BlockDevice,
+	    CharacterDevice,
+	    Fifo,
+	    RegularFile,
+	    Directory,
+	    SymbolicLink,
+	    Socket
+	};
+	operator Value () const { return value; }
+	FileType (Value const value) : value (value) {}
+	FileType () {}
+    private:
+	Value value;
+    };
+
+    class FileStat : public BasicReferenced
+    {
+    public:
+	unsigned long long size;
+	FileType file_type;
+    };
+
 private:
     int fd;
 
@@ -48,6 +75,8 @@ public:
     mt_throws Result flush ();
 
     mt_throws Result sync ();
+
+    mt_throws Result stat (FileStat * mt_nonnull ret_stat);
 
     mt_throws Result close (bool flush_data = true);
 
