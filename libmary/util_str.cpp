@@ -99,7 +99,7 @@ ComparisonResult compare (ConstMemory const &left,
 			  ConstMemory const &right)
 {
     if (left.len() >= right.len()) {
-	int const res = memcmp (left.mem(), right.mem(), left.len());
+	int const res = memcmp (left.mem(), right.mem(), right.len());
 	if (res == 0) {
 	    if (left.len() > right.len())
 		return ComparisonResult::Greater;
