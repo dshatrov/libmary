@@ -115,10 +115,13 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 	assert (cur_namespace);
     }
 
-    logD_ (_func, "Lookin up \"", handler_path_el, "\"");
+    logD_ (_func, "Looking up \"", handler_path_el, "\"");
     Namespace::HandlerHash::EntryKey handler_key = cur_namespace->handler_hash.lookup (handler_path_el);
-    if (!handler_key)
+    if (!handler_key) {
 	handler_key = cur_namespace->handler_hash.lookup (ConstMemory());
+	// We could add a trailing slash to the path and redirect the client.
+	// This would make both "http://a.b/c" and "http://a.b/c/" work.
+    }
     if (!handler_key) {
 	self->mutex.unlock ();
 	logD_ (_func, "No suitable handler found");
