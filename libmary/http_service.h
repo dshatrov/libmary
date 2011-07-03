@@ -42,6 +42,7 @@ public:
 	// If the module has subscribed to request message body pre-assembly,
 	// then @msg_body points to message body.
 	Result (*httpRequest) (HttpRequest   * mt_nonnull req,
+			       Sender        * mt_nonnull conn_sender,
 			       Memory const  &msg_body,
 			       void         ** mt_nonnull ret_msg_data,
 			       void          *cb_data);
@@ -49,7 +50,8 @@ public:
 	// If @req is NULL, then we have not received the request in full due to
 	// an error. Such last call is made to give the module a chance
 	// to release msg_data.
-	Result (*httpMessageBody) (HttpRequest  *req,
+	Result (*httpMessageBody) (HttpRequest  * mt_nonnull req,
+				   Sender       * mt_nonnull conn_sender,
 				   Memory const &mem,
 				   Size         * mt_nonnull ret_accepted,
 				   void         *msg_data,
@@ -124,7 +126,8 @@ private:
 
     StateMutex mutex;
 
-    void releaseHttpConnection (HttpConnection * mt_nonnull _http_conn);
+    void releaseHttpConnection (HttpConnection * mt_nonnull _http_conn,
+				bool release_timer = true);
 
     static void connKeepaliveTimerExpired (void *_http_conn);
 

@@ -37,9 +37,12 @@ HttpService::tcp_server_frontend = {
 };
 
 void
-HttpService::releaseHttpConnection (HttpConnection * const mt_nonnull http_conn)
+HttpService::releaseHttpConnection (HttpConnection * const mt_nonnull http_conn,
+				    bool             const release_timer)
 {
-    timers->deleteTimer (http_conn->conn_keepalive_timer);
+    if (release_timer)
+	timers->deleteTimer (http_conn->conn_keepalive_timer);
+
     poll_group->removePollable (http_conn->pollable_key);
 }
 
@@ -47,6 +50,8 @@ void
 HttpService::connKeepaliveTimerExpired (void * const _http_conn)
 {
     HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
+
+    logD_ (_func, "0x", fmt_hex, (UintPtr) (http_conn));
 
     CodeRef http_service_ref;
     if (http_conn->weak_http_service.isValid()) {
@@ -56,7 +61,7 @@ HttpService::connKeepaliveTimerExpired (void * const _http_conn)
     }
     HttpService * const self = http_conn->unsafe_http_service;
 
-    self->releaseHttpConnection (http_conn);
+    self->releaseHttpConnection (http_conn, false /* release_timer */);
 
     self->mutex.lock ();
     self->conn_list.remove (http_conn);
@@ -70,6 +75,8 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 			  void        * const _http_conn)
 {
     HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
+
+    logD_ (_func, req->getRequestLine());
 
     CodeRef http_service_ref;
     if (http_conn->weak_http_service.isValid()) {
@@ -91,24 +98,48 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 
     Namespace *cur_namespace = &self->root_namespace;
     Count const num_path_els = req->getNumPathElems();
+    logD_ (_func, "num_path_els: ", num_path_els);
     ConstMemory handler_path_el;
-    if (num_path_els > 1) {
-	for (Count i = 0; i < num_path_els - 1; ++i) {
-	    ConstMemory const path_el = req->getPath (i);
-	    Namespace::NamespaceHash::EntryKey const namespace_key = cur_namespace->namespace_hash.lookup (path_el);
-	    if (!namespace_key) {
-		handler_path_el = req->getPath (i + 1);
-		break;
-	    }
-
-	    cur_namespace = namespace_key.getData();
-	    assert (cur_namespace);
+    for (Count i = 0; i < num_path_els; ++i) {
+	ConstMemory const path_el = req->getPath (i);
+	logD_ (_func, "path_el: ", path_el);
+	Namespace::NamespaceHash::EntryKey const namespace_key = cur_namespace->namespace_hash.lookup (path_el);
+	if (!namespace_key) {
+	    handler_path_el = path_el;
+	    break;
 	}
+
+	logD_ (_func, "Got namespace key for \"", path_el, "\"");
+
+	cur_namespace = namespace_key.getData();
+	assert (cur_namespace);
     }
 
-    Namespace::HandlerHash::EntryKey const handler_key = cur_namespace->handler_hash.lookup (handler_path_el);
+    logD_ (_func, "Lookin up \"", handler_path_el, "\"");
+    Namespace::HandlerHash::EntryKey handler_key = cur_namespace->handler_hash.lookup (handler_path_el);
+    if (!handler_key)
+	handler_key = cur_namespace->handler_hash.lookup (ConstMemory());
     if (!handler_key) {
 	self->mutex.unlock ();
+	logD_ (_func, "No suitable handler found");
+
+	ConstMemory const reply_body = "404 Not Found";
+
+	Byte date_buf [timeToString_BufSize];
+	Size const date_len = timeToString (Memory::forObject (date_buf), getUnixtime());
+	logD_ (_func, "page_pool: 0x", fmt_hex, (UintPtr) self->page_pool);
+	http_conn->conn_sender.send (
+		self->page_pool,
+		"HTTP/1.1 404 Not found\r\n"
+		"Server: Moment/1.0\r\n"
+		"Date: ", ConstMemory (date_buf, date_len), "\r\n"
+		"Connection: Keep-Alive\r\n"
+		"Content-Type: text/plain\r\n"
+		"Content-Length: ", reply_body.len(), "\r\n"
+		"\r\n",
+		reply_body);
+	http_conn->conn_sender.flush ();
+
 	return;
     }
     HandlerEntry * const handler = handler_key.getDataPtr();
@@ -119,8 +150,11 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
     self->mutex.unlock ();
 
     // TODO if (!preassembly), otherwise collect message body up to a specified limit first.
-    if (handler->cb.call (handler->cb->httpRequest, /* ( */ req, Memory(), &http_conn->cur_msg_data /* ) */))
+    if (handler->cb.call (handler->cb->httpRequest,
+		/* ( */ req, &http_conn->conn_sender, Memory(), &http_conn->cur_msg_data /* ) */))
+    {
 	http_conn->cur_handler = handler;
+    }
 }
 
 void
@@ -146,7 +180,7 @@ HttpService::httpMessageBody (HttpRequest * const mt_nonnull req,
 #endif
 
     if (!http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody,
-		/* ( */ req, mem, ret_accepted, http_conn->cur_msg_data /* ) */)
+		/* ( */ req, &http_conn->conn_sender, mem, ret_accepted, http_conn->cur_msg_data /* ) */)
 	|| *ret_accepted == mem.len())
     {
 	http_conn->cur_handler = NULL;
@@ -178,7 +212,7 @@ HttpService::httpClosed (Exception * const exc_,
 
     Size accepted = 0;
     http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody,
-	    /* ( */ (HttpRequest*) NULL, Memory(), &accepted, http_conn->cur_msg_data /* ) */);
+	    /* ( */ (HttpRequest*) NULL, &http_conn->conn_sender, Memory(), &accepted, http_conn->cur_msg_data /* ) */);
     http_conn->cur_handler = NULL;
 }
 
@@ -191,13 +225,13 @@ HttpService::acceptOneConnection ()
     {
 	TcpServer::AcceptResult const res = tcp_server.accept (&http_conn->tcp_conn);
 	if (res == TcpServer::AcceptResult::Error) {
-	    delete http_conn;
+	    http_conn->unref ();
 	    logE_ (_func, exc->toString());
 	    return false;
 	}
 
 	if (res == TcpServer::AcceptResult::NotAccepted) {
-	    delete http_conn;
+	    http_conn->unref ();
 	    return false;
 	}
 
@@ -207,7 +241,7 @@ HttpService::acceptOneConnection ()
     http_conn->pollable_key = poll_group->addPollable (
 	    http_conn->tcp_conn.getPollable());
     if (!http_conn->pollable_key) {
-	delete http_conn;
+	http_conn->unref ();
 	logE_ (_func, exc->toString());
 	return true;
     }
@@ -239,6 +273,8 @@ HttpService::accepted (void *_self)
 {
     HttpService * const self = static_cast <HttpService*> (_self);
 
+    logD_ (_func);
+
     for (;;) {
 	if (!self->acceptOneConnection ())
 	    break;
@@ -251,7 +287,7 @@ HttpService::addHttpHandler_rec (Cb<HttpHandler>   const &cb,
 				 Namespace       * const nsp)
 {
     ConstMemory path = path_;
-    while (path.len() > 0 && path.mem() [0] == '/')
+    if (path.len() > 0 && path.mem() [0] == '/')
 	path = path.region (1);
 
     Byte const *delim = (Byte const *) memchr (path.mem(), '/', path.len());
@@ -279,6 +315,8 @@ void
 HttpService::addHttpHandler (Cb<HttpHandler> const &cb,
 			     ConstMemory     const &path)
 {
+    logD_ (_func, "Adding handler for \"", path, "\"");
+
     mutex.lock ();
     addHttpHandler_rec (cb, path, &root_namespace); 
     mutex.unlock ();
@@ -308,13 +346,18 @@ HttpService::start ()
 mt_throws Result
 HttpService::init (PollGroup * const mt_nonnull poll_group,
 		   Timers    * const mt_nonnull timers,
-		   PagePool  * const mt_nonnull,
+		   PagePool  * const mt_nonnull page_pool,
 		   Time        const keepalive_timeout_microsec)
 {
     this->poll_group = poll_group;
     this->timers = timers;
     this->page_pool = page_pool;
     this->keepalive_timeout_microsec = keepalive_timeout_microsec;
+
+    if (!tcp_server.open ())
+	return Result::Failure;
+
+    tcp_server.setFrontend (Cb<TcpServer::Frontend> (&tcp_server_frontend, this, getCoderefContainer()));
 
     return Result::Success;
 }
