@@ -295,6 +295,7 @@ HttpServer::processInput (Memory const &_mem,
     for (;;) {
 	switch (self->req_state) {
 	    case RequestState::RequestLine:
+		logD (http, _func, "RequestState::RequestLine");
 	    case RequestState::HeaderField: {
 		if (!self->cur_req)
 		    self->cur_req = grab (new HttpRequest);
@@ -308,10 +309,11 @@ HttpServer::processInput (Memory const &_mem,
 
 		mem = mem.region (line_accepted);
 
-		if (self->recv_content_length > 0) {
-		    self->recv_pos = 0;
+		self->recv_pos = 0;
+		if (self->recv_content_length > 0)
 		    self->req_state = RequestState::MessageBody;
-		}
+		else
+		    self->req_state = RequestState::RequestLine;
 	    } break;
 	    case RequestState::MessageBody: {
 		logD (http, _func, "MessageBody, mem.len(): ", mem.len());
