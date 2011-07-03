@@ -116,9 +116,10 @@ DeferredConnectionSender::pollIterationEnd ()
 	glob_output_queue_mutex.unlock ();
 
 	// The only place where 'deferred_sender' may be removed from the queue
-	// is its destructor, which won't be called because 'deferred_sender is
+	// is its destructor, which won't be called because 'deferred_sender' is
 	// refed here.
 	deferred_sender->mutex.lock ();
+
 	assert (deferred_sender->in_output_queue);
 	deferred_sender->in_output_queue = false;
 
@@ -138,6 +139,10 @@ DeferredConnectionSender::pollIterationEnd ()
 	    }
 	    continue;
 	}
+
+	// At this point, conn_sender_impl has either sent all data, or it has
+	// gotten EAGAIN from writev. In either case, we should have removed
+	// deferred_sender from glob_output_queue.
 
 	deferred_sender->closeIfNeeded ();
 	// 'deferred_sender->mutex' has been unlocked by closeIfNeeded().
