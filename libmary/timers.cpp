@@ -207,6 +207,9 @@ Timers::processTimers ()
 	if (delete_timer)
 	    delete timer;
 
+	if (delete_chain)
+	    return;
+
 	mutex.lock ();
     }
 
