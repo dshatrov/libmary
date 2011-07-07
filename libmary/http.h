@@ -96,6 +96,7 @@ public:
 
     ~HttpRequest ()
     {
+	logD_ (_func, "0x", fmt_hex, (UintPtr) this);
 	delete[] path;
     }
 };
@@ -141,25 +142,20 @@ private:
     Ref<HttpRequest> cur_req;
 
     RequestState req_state;
+    // Number of bytes received for message body / request line / header field.
     Size recv_pos;
+    // What the "Content-Length" HTTP header said for the current request.
     Size recv_content_length;
-
-#if 0
-    void resetRequestState ()
-    {
-	req_state = RequestState::FirstRequestLine;
-    }
-#endif
 
     Result processRequestLine (ConstMemory const &mem);
 
     void processHeaderField (ConstMemory const &mem);
 
-//    void processMessageBody (ConstMemory const &mem);
-
     Receiver::ProcessInputResult receiveRequestLine (ConstMemory const &_mem,
 						     Size * mt_nonnull ret_accepted,
 						     bool * mt_nonnull ret_header_parsed);
+
+    void resetRequestState ();
 
   // Receiver frontend.
 

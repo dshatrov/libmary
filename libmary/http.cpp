@@ -279,6 +279,15 @@ HttpServer::receiveRequestLine (ConstMemory const &_mem,
     unreachable ();
 }
 
+void
+HttpServer::resetRequestState ()
+{
+    recv_pos = 0;
+    recv_content_length = 0;
+    cur_req = NULL;
+    req_state = RequestState::RequestLine;
+}
+
 Receiver::ProcessInputResult
 HttpServer::processInput (Memory const &_mem,
 			  Size * const mt_nonnull ret_accepted,
@@ -309,11 +318,11 @@ HttpServer::processInput (Memory const &_mem,
 
 		mem = mem.region (line_accepted);
 
-		self->recv_pos = 0;
-		if (self->recv_content_length > 0)
+		if (self->recv_content_length > 0) {
+		    self->recv_pos = 0;
 		    self->req_state = RequestState::MessageBody;
-		else
-		    self->req_state = RequestState::RequestLine;
+		} else
+		    self->resetRequestState ();
 	    } break;
 	    case RequestState::MessageBody: {
 		logD (http, _func, "MessageBody, mem.len(): ", mem.len());
@@ -353,10 +362,7 @@ HttpServer::processInput (Memory const &_mem,
 		assert (self->recv_pos == self->recv_content_length);
 		mem = mem.region (toprocess);
 
-		self->recv_pos = 0;
-		self->recv_content_length = 0;
-		self->cur_req = NULL;
-		self->req_state = RequestState::RequestLine;
+                self->resetRequestState ();
 	    } break;
 	    default:
 		unreachable ();
