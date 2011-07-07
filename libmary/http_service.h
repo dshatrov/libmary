@@ -102,13 +102,9 @@ private:
 	    void *cur_msg_data;
 	// }
 
-	HttpConnection ()
-	    : tcp_conn      (this),
-	      conn_sender   (this),
-	      conn_receiver (this),
-	      http_server   (this)
-	{
-	}
+	HttpConnection ();
+
+	~HttpConnection ();
     };
 
     PollGroup *poll_group;

@@ -24,6 +24,10 @@
 
 namespace M {
 
+namespace {
+LogGroup libMary_logGroup_http_service    ("http_service",    LogLevel::N);
+}
+
 HttpServer::Frontend const
 HttpService::http_frontend = {
     httpRequest,
@@ -36,12 +40,28 @@ HttpService::tcp_server_frontend = {
     accepted
 };
 
+HttpService::HttpConnection::HttpConnection ()
+    : tcp_conn      (this),
+      conn_sender   (this),
+      conn_receiver (this),
+      http_server   (this)
+{
+    logD (http_service, _func, "0x", fmt_hex, (UintPtr) this);
+}
+
+HttpService::HttpConnection::~HttpConnection ()
+{
+    logD (http_service, _func, "0x", fmt_hex, (UintPtr) this);
+}
+
 void
 HttpService::releaseHttpConnection (HttpConnection * const mt_nonnull http_conn,
 				    bool             const release_timer)
 {
-    if (release_timer)
-	timers->deleteTimer (http_conn->conn_keepalive_timer);
+    if (release_timer) {
+	if (http_conn->conn_keepalive_timer)
+	    timers->deleteTimer (http_conn->conn_keepalive_timer);
+    }
 
     poll_group->removePollable (http_conn->pollable_key);
 }
@@ -51,7 +71,7 @@ HttpService::connKeepaliveTimerExpired (void * const _http_conn)
 {
     HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
 
-    logD_ (_func, "0x", fmt_hex, (UintPtr) (http_conn));
+    logD (http_service, _func, "0x", fmt_hex, (UintPtr) (http_conn));
 
     CodeRef http_service_ref;
     if (http_conn->weak_http_service.isValid()) {
@@ -76,7 +96,7 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 {
     HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
 
-    logD_ (_func, req->getRequestLine());
+    logD (http_service, _func, req->getRequestLine());
 
     CodeRef http_service_ref;
     if (http_conn->weak_http_service.isValid()) {
@@ -88,6 +108,7 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 
     http_conn->cur_handler = NULL;
     http_conn->cur_msg_data = NULL;
+//    logD_ (_func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
 
   // Searching for a handler with the longest matching path.
   //
@@ -98,24 +119,24 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 
     Namespace *cur_namespace = &self->root_namespace;
     Count const num_path_els = req->getNumPathElems();
-    logD_ (_func, "num_path_els: ", num_path_els);
+//    logD_ (_func, "num_path_els: ", num_path_els);
     ConstMemory handler_path_el;
     for (Count i = 0; i < num_path_els; ++i) {
 	ConstMemory const path_el = req->getPath (i);
-	logD_ (_func, "path_el: ", path_el);
+//	logD_ (_func, "path_el: ", path_el);
 	Namespace::NamespaceHash::EntryKey const namespace_key = cur_namespace->namespace_hash.lookup (path_el);
 	if (!namespace_key) {
 	    handler_path_el = path_el;
 	    break;
 	}
 
-	logD_ (_func, "Got namespace key for \"", path_el, "\"");
+//	logD_ (_func, "Got namespace key for \"", path_el, "\"");
 
 	cur_namespace = namespace_key.getData();
 	assert (cur_namespace);
     }
 
-    logD_ (_func, "Looking up \"", handler_path_el, "\"");
+//    logD_ (_func, "Looking up \"", handler_path_el, "\"");
     Namespace::HandlerHash::EntryKey handler_key = cur_namespace->handler_hash.lookup (handler_path_el);
     if (!handler_key) {
 	handler_key = cur_namespace->handler_hash.lookup (ConstMemory());
@@ -124,13 +145,13 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
     }
     if (!handler_key) {
 	self->mutex.unlock ();
-	logD_ (_func, "No suitable handler found");
+	logD (http_service, _func, "No suitable handler found");
 
 	ConstMemory const reply_body = "404 Not Found";
 
 	Byte date_buf [timeToString_BufSize];
 	Size const date_len = timeToString (Memory::forObject (date_buf), getUnixtime());
-	logD_ (_func, "page_pool: 0x", fmt_hex, (UintPtr) self->page_pool);
+	logD (http_service, _func, "page_pool: 0x", fmt_hex, (UintPtr) self->page_pool);
 	http_conn->conn_sender.send (
 		self->page_pool,
 		"HTTP/1.1 404 Not found\r\n"
@@ -157,6 +178,7 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 		/* ( */ req, &http_conn->conn_sender, Memory(), &http_conn->cur_msg_data /* ) */))
     {
 	http_conn->cur_handler = handler;
+	logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
     }
 }
 
@@ -187,6 +209,7 @@ HttpService::httpMessageBody (HttpRequest * const mt_nonnull req,
 	|| *ret_accepted == mem.len())
     {
 	http_conn->cur_handler = NULL;
+	logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
     }
 }
 
@@ -198,6 +221,8 @@ HttpService::httpClosed (Exception * const exc_,
 
     if (exc_)
 	logE_ (_func, exc_->toString());
+
+    logD (http_service, _func, "http_conn 0x", fmt_hex, (UintPtr) http_conn, ", refcount: ", fmt_def, http_conn->getRefCount(), ", cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
 
     if (!http_conn->cur_handler)
 	return;
@@ -217,6 +242,7 @@ HttpService::httpClosed (Exception * const exc_,
     http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody,
 	    /* ( */ (HttpRequest*) NULL, &http_conn->conn_sender, Memory(), &accepted, http_conn->cur_msg_data /* ) */);
     http_conn->cur_handler = NULL;
+    logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
 }
 
 bool
@@ -252,17 +278,24 @@ HttpService::acceptOneConnection ()
     http_conn->weak_http_service = this;
     http_conn->unsafe_http_service = this;
 
+    http_conn->cur_handler = NULL;
+    http_conn->cur_msg_data = NULL;
+
     http_conn->conn_sender.setConnection (&http_conn->tcp_conn);
     http_conn->conn_receiver.setConnection (&http_conn->tcp_conn);
     http_conn->conn_receiver.setFrontend (http_conn->http_server.getReceiverFrontend());
     http_conn->http_server.setSender (&http_conn->conn_sender, page_pool);
     http_conn->http_server.setFrontend (Cb<HttpServer::Frontend> (&http_frontend, http_conn, http_conn));
 
-    http_conn->conn_keepalive_timer = timers->addTimer (connKeepaliveTimerExpired,
-							http_conn,
-							http_conn,
-							keepalive_timeout_microsec,
-							false /* periodical */);
+    if (keepalive_timeout_microsec > 0) {
+	http_conn->conn_keepalive_timer = timers->addTimer (connKeepaliveTimerExpired,
+							    http_conn,
+							    http_conn,
+							    keepalive_timeout_microsec,
+							    false /* periodical */);
+    } else {
+	http_conn->conn_keepalive_timer = NULL;
+    }
 
     mutex.lock ();
     conn_list.append (http_conn);
