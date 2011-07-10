@@ -36,7 +36,23 @@
 
 namespace M {
 
-// TODO class CbDesc for things like getPollable()
+template <class T>
+class CbDesc
+{
+public:
+    T const * const cb;
+    void    * const cb_data;
+    Object  * const coderef_container;
+
+    CbDesc (T const * const cb,
+	    void    * const cb_data,
+	    Object  * const coderef_container)
+	: cb (cb),
+	  cb_data (cb_data),
+	  coderef_container (coderef_container)
+    {
+    }
+};
 
 template <class T>
 class Cb
@@ -212,6 +228,15 @@ public:
 	return cb;
     }
 
+    Cb& operator = (CbDesc<T> const &cb_desc)
+    {
+	cb = cb_desc.cb;
+	cb_data = cb_desc.cb_data;
+	weak_code_ref = cb_desc.coderef_container;
+
+	return *this;
+    }
+
     // TODO After introduction of coderef containers, copying Cb<>'s around
     //      became more expensive because of Ref<_Shadow> member. Figure out
     //      what's the most effective way to avoid excessive atomic ref/unref
@@ -222,6 +247,13 @@ public:
 	: cb (cb),
 	  cb_data (cb_data),
 	  weak_code_ref (coderef_container)
+    {
+    }
+
+    Cb (CbDesc<T> const &cb_desc)
+	: cb            (cb_desc.cb),
+	  cb_data       (cb_desc.cb_data),
+	  weak_code_ref (cb_desc.coderef_container)
     {
     }
 
