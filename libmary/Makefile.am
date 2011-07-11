@@ -108,6 +108,7 @@ mary_target_headers =			\
 	vfs.h				\
 	vfs_posix.h			\
 					\
+	deferred_processor.h		\
 	poll_group.h			\
 	active_poll_group.h		\
 	select_poll_group.h		\
@@ -215,6 +216,7 @@ libmary_1_0_la_SOURCES =		\
 	receiver.cpp			\
 	connection_receiver.cpp		\
 					\
+	deferred_processor.cpp		\
 	select_poll_group.cpp		\
 					\
 	http.cpp			\
