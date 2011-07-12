@@ -26,6 +26,7 @@
 #include <libmary/exception.h>
 #include <libmary/timers.h>
 #include <libmary/select_poll_group.h>
+//#include <libmary/deferred_processor.h>
 
 
 namespace M {
@@ -35,6 +36,7 @@ class ServerApp : public DependentCodeReferenced
 private:
     Timers timers;
     DefaultPollGroup select_poll_group;
+//    DeferredProcessor deferred_processor;
 
     void doTimerIteration ();
 
@@ -46,7 +48,7 @@ private:
 
     static void pollIterationBegin (void *_self);
 
-    static void pollIterationEnd (void *_self);
+    static bool pollIterationEnd (void *_self);
 
   mt_iface_end()
 
@@ -57,6 +59,12 @@ public:
     }
 
     PollGroup* getPollGroup ()
+    {
+	return &select_poll_group;
+    }
+
+    // TEST For testing purposes only.
+    ActivePollGroup* getActivePollGroup ()
     {
 	return &select_poll_group;
     }

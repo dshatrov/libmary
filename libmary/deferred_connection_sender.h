@@ -26,37 +26,55 @@
 #include <libmary/sender.h>
 #include <libmary/connection_sender_impl.h>
 #include <libmary/code_referenced.h>
+#include <libmary/deferred_processor.h>
 
 
 namespace M {
 
 class DeferredConnectionSender_OutputQueue_name;
+class DeferredConnectionSender_ProcessingQueue_name;
 
 class DeferredConnectionSender : public Sender,
 				 public IntrusiveListElement<DeferredConnectionSender_OutputQueue_name>,
+				 public IntrusiveListElement<DeferredConnectionSender_ProcessingQueue_name>,
 				 public DependentCodeReferenced
 {
+public:
+    struct Backend
+    {
+	// @cb_desc should be called after poll iteration ends.
+	void (*trigger) (CbDesc<GenericCallback> const &cb_desc,
+			 void *cb_data);
+    };
+
 private:
-  // mt_mutex (mutex)
-  // {
+    mt_const Cb<Backend> backend;
+    mt_const DeferredProcessor::Registration *deferred_reg;
+
+  mt_mutex (mutex)
+  mt_begin
     ConnectionSenderImpl conn_sender_impl;
 
     bool close_after_flush;
 
+    bool ready_for_output;
+
     bool in_output_queue;
 
     typedef IntrusiveList<DeferredConnectionSender, DeferredConnectionSender_OutputQueue_name> OutputQueue;
+    typedef IntrusiveList<DeferredConnectionSender, DeferredConnectionSender_ProcessingQueue_name> ProcessingQueue;
 
-    static OutputQueue glob_output_queue;
+    static mt_mutex (glob_output_queue_mutex) OutputQueue glob_output_queue;
+    static mt_mutex (glob_output_queue_mutex) bool glob_output_queue_processing;
     static Mutex glob_output_queue_mutex;
-
-  //}
+  mt_end
 
     StateMutex mutex;
 
     mt_mutex (mutex) void toGlobOutputQueue ();
 
-    mt_mutex (mutex) mt_unlocks void closeIfNeeded ();
+    // Returns 'true' if the sender has been closed.
+    mt_mutex (mutex) mt_unlocks bool closeIfNeeded ();
 
     static Connection::OutputFrontend const conn_output_frontend;
 
@@ -69,7 +87,10 @@ public:
 
     void closeAfterFlush ();
 
-    // TODO conn_sender->setWritevFd()
+    void setBackend (CbDesc<Backend> const &cb_desc)
+    {
+	backend = cb_desc;
+    }
 
     void setConnection (Connection * const mt_nonnull conn)
     {
@@ -77,12 +98,20 @@ public:
 	conn->setOutputFrontend (Cb<Connection::OutputFrontend> (&conn_output_frontend, this, getCoderefContainer()));
     }
 
+    mt_const void setDeferredRegistration (DeferredProcessor::Registration * const deferred_reg)
+    {
+	this->deferred_reg = deferred_reg;
+    }
+
     // Call this method once before entering select/epoll syscall every time.
-    static void pollIterationEnd ();
+    // Returns 'true' if there's still more data to send.
+    static bool pollIterationEnd ();
 
     DeferredConnectionSender (Object * const coderef_container)
 	: DependentCodeReferenced (coderef_container),
+	  deferred_reg (NULL),
 	  close_after_flush (false),
+	  ready_for_output (true),
 	  in_output_queue (false)
     {
     }

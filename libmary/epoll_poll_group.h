@@ -58,10 +58,15 @@ private:
     mt_const int trigger_pipe [2];
     mt_mutex (mutex) bool triggered;
 
+    // Should be accessed from event processing thread only.
+    bool got_deferred_tasks;
+
     mt_mutex (mutex) PollableList pollable_list;
     mt_mutex (mutex) PollableDeletionQueue pollable_deletion_queue;
 
     StateMutex mutex;
+
+    DeferredProcessor deferred_processor;
 
     void processPollableDeletionQueue ();
 
@@ -70,7 +75,8 @@ private:
 public:
   mt_iface (ActivePollgroup)
     mt_iface (PollGroup)
-      mt_throws PollableKey addPollable (Cb<Pollable> const &pollable);
+      mt_throws PollableKey addPollable (CbDesc<Pollable> const &pollable,
+					 DeferredProcessor::Registration *ret_reg);
 
       void removePollable (PollableKey mt_nonnull key);
     mt_end

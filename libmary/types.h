@@ -27,6 +27,7 @@
 namespace M {
 
 typedef void (*VoidFunction) (void);
+typedef void (GenericCallback) (void *cb_data);
 
 class EmptyBase {};
 

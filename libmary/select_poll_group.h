@@ -71,7 +71,12 @@ private:
     mt_const int trigger_pipe [2];
     bool triggered;
 
+    // Should be accessed from event processing thread only.
+    bool got_deferred_tasks;
+
     StateMutex mutex;
+
+    DeferredProcessor deferred_processor;
 
     // Accessed from the same thread only.
     LibMary_ThreadLocal *poll_tlocal;
@@ -87,7 +92,8 @@ private:
 public:
   mt_iface (ActivePollGroup)
     mt_iface (PollGroup)
-      mt_throws PollableKey addPollable (Cb<Pollable> const &pollable);
+      mt_throws PollableKey addPollable (CbDesc<Pollable> const &pollable,
+					 DeferredProcessor::Registration *ret_reg);
 
       void removePollable (PollableKey mt_nonnull key);
     mt_end
@@ -100,14 +106,7 @@ public:
 
     mt_throws Result open ();
 
-    SelectPollGroup (Object * const coderef_container)
-	: DependentCodeReferenced (coderef_container),
-	  triggered (false),
-	  poll_tlocal (NULL)
-    {
-	trigger_pipe [0] = -1;
-	trigger_pipe [1] = -1;
-    }
+    SelectPollGroup (Object *coderef_container);
 
     ~SelectPollGroup ();
 };

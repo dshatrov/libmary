@@ -70,6 +70,19 @@ DeferredProcessor::Registration::revokeTask (Task * const mt_nonnull task)
     deferred_processor->mutex.unlock ();
 }
 
+void
+DeferredProcessor::Registration::release ()
+{
+    deferred_processor->mutex.lock ();
+
+    task_list.clear ();
+
+    if (scheduled)
+	deferred_processor->registration_list.remove (this);
+
+    deferred_processor->mutex.unlock ();
+}
+
 bool
 DeferredProcessor::process ()
 {

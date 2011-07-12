@@ -25,7 +25,7 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_http_service    ("http_service",    LogLevel::N);
+LogGroup libMary_logGroup_http_service    ("http_service",    LogLevel::D);
 }
 
 HttpServer::Frontend const
@@ -267,8 +267,7 @@ HttpService::acceptOneConnection ()
 	assert (res == TcpServer::AcceptResult::Accepted);
     }
 
-    http_conn->pollable_key = poll_group->addPollable (
-	    http_conn->tcp_conn.getPollable());
+    http_conn->pollable_key = poll_group->addPollable (http_conn->tcp_conn.getPollable(), NULL /* ret_reg */);
     if (!http_conn->pollable_key) {
 	http_conn->unref ();
 	logE_ (_func, exc->toString());
@@ -373,7 +372,7 @@ HttpService::start ()
     if (!tcp_server.listen ())
 	return Result::Failure;
 
-    if (!poll_group->addPollable (tcp_server.getPollable()))
+    if (!poll_group->addPollable (tcp_server.getPollable(), NULL /* ret_reg */))
 	return Result::Failure;
 
     return Result::Success;

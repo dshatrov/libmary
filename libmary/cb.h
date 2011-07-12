@@ -44,6 +44,11 @@ public:
     void    * const cb_data;
     Object  * const coderef_container;
 
+    T const * operator -> () const
+    {
+	return cb;
+    }
+
     CbDesc (T const * const cb,
 	    void    * const cb_data,
 	    Object  * const coderef_container)
@@ -182,6 +187,75 @@ public:
 	return true;
     }
 
+    // Convenient mutex-aware method of invoking callbacks which return void.
+    //
+    // Before the call, unlocks the mutex given. After the call is complete,
+    // locks the mutex.
+    //
+    // The object that cb is pointing to and this Cb object may be destroyed
+    // safely after the mutex is unlocked.
+    //
+    // Returns 'true' if the callback has actually been called.
+    // Returns 'false' if we couldn't grab a code referenced for the callback.
+    template <class CB, class MutexType, class ...Args>
+    bool call_mutex (CB tocall, MutexType &mutex, Args const &...args) const
+    {
+	if (!tocall) {
+	    DEBUG (
+	      fprintf (stderr, "Cb::call_mutex: callback not set, obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
+	    )
+	    return false;
+	}
+
+	void * const tmp_cb_data = cb_data;
+
+	if (weak_code_ref.isValid ()) {
+	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
+	    if (weak_code_ref.getWeakObject() == tlocal->last_coderef_container)
+		goto _simple_path;
+
+	    CodeRef const code_ref = weak_code_ref;
+	    if (!code_ref) {
+		DEBUG (
+		  fprintf (stderr, "Cb::call_mutex: obj 0x%lx gone\n", (unsigned long) weak_code_ref.getWeakObject());
+		)
+		return false;
+	    }
+	    DEBUG (
+	      fprintf (stderr, "Cb::call_mutex: refed obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
+	    )
+
+	    Object * const prv_coderef_container = tlocal->last_coderef_container;
+	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
+
+	    mutex.unlock ();
+	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
+
+	    tocall (args..., tmp_cb_data);
+
+	    tlocal->last_coderef_container = prv_coderef_container;
+	    mutex.lock ();
+	    return true;
+	} else {
+	    DEBUG (
+	      fprintf (stderr, "Cb::call_mutex: no weak obj\n");
+	    )
+	}
+
+      _simple_path:
+	DEBUG (
+	  fprintf (stderr, "Cb::call_mutex: simple path, obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
+	)
+	mutex.unlock ();
+	// Be careful not to use any data members of class Cb after the mutex is unlocked.
+	tocall (args..., tmp_cb_data);
+	mutex.lock ();
+	DEBUG (
+	  fprintf (stderr, "Cb::call_mutex: done\n");
+	)
+	return true;
+    }
+
     template <class RET, class ...Args>
     bool call_ret_ (RET * const mt_nonnull ret, Args const &...args) const
     {
@@ -192,6 +266,12 @@ public:
     bool call_ (Args const &...args) const
     {
 	return call (cb, args...);
+    }
+
+    template <class MutexType, class ...Args>
+    bool call_mutex_ (MutexType &mutex, Args const &...args) const
+    {
+	return call_mutex (cb, mutex, args...);
     }
 
 #if 0

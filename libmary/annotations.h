@@ -27,6 +27,7 @@
 // Note that this source file may be included in plain C source files.
 
 
+#define mt_begin
 #define mt_end
 
 // Function parameters marked with 'mt_nonnull' cannot be null. If null is

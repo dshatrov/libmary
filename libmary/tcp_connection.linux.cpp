@@ -53,7 +53,7 @@ TcpConnection::processEvents (Uint32   const event_flags,
 
     if (event_flags & PollGroup::Hup) {
       // TODO remember eof
-	logD_ (_func, "Hup");
+	logD_ (_func, "0x", fmt_hex, (UintPtr) self, " Hup");
     }
 
     if (event_flags & PollGroup::Output) {
@@ -283,9 +283,12 @@ TcpConnection::writev (struct iovec * const iovs,
 	logE_ (_func, "writev() failed: ", errnoString (errno));
 
 	logE_ (_func, "num_iovs: ", num_iovs);
+#if 0
+	// Dump of all iovs.
 	for (Count i = 0; i < num_iovs; ++i) {
 	    logE_ (_func, "iovs[", i, "]: ", fmt_hex, (UintPtr) iovs [i].iov_base, ", ", fmt_def, iovs [i].iov_len);
 	}
+#endif
 
 	return AsyncIoResult::Error;
     } else

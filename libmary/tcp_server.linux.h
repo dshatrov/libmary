@@ -102,9 +102,9 @@ public:
 	this->frontend = frontend;
     }
 
-    Cb<PollGroup::Pollable> getPollable ()
+    CbDesc<PollGroup::Pollable> getPollable ()
     {
-        return Cb<PollGroup::Pollable> (&pollable, this, getCoderefContainer());
+        return CbDesc<PollGroup::Pollable> (&pollable, this, getCoderefContainer());
     }
 
     TcpServer (Object * const coderef_container)

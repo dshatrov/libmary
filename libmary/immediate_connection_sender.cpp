@@ -49,13 +49,27 @@ ImmediateConnectionSender::processOutput (void * const _self)
     ImmediateConnectionSender * const self = static_cast <ImmediateConnectionSender*> (_self);
 
     self->mutex.lock ();
-    if (!self->conn_sender_impl.sendPendingMessages ()) {
+    self->conn_sender_impl.markProcessingBarrier ();
+    AsyncIoResult const res = self->conn_sender_impl.sendPendingMessages ();
+    if (res == AsyncIoResult::Error ||
+	res == AsyncIoResult::Eof)
+    {
+	self->ready_for_output = false;
 	self->mutex.unlock ();
-	logE_ (_func, exc->toString());
+
+	// exc is NULL for Eof.
+	if (res == AsyncIoResult::Error)
+	    logE_ (_func, exc->toString());
+
 	if (self->frontend && self->frontend->closed)
 	    self->frontend.call (self->frontend->closed, /*(*/ exc /*)*/);
 	return;
     }
+
+    if (res == AsyncIoResult::Again)
+	self->ready_for_output = false;
+    else
+	self->ready_for_output = true;
 
     self->closeIfNeeded ();
     // 'mutex' has been unlocked by closeIfNeeded().
@@ -73,7 +87,17 @@ void
 ImmediateConnectionSender::flush ()
 {
     mutex.lock ();
-    if (!conn_sender_impl.sendPendingMessages ()) {
+    if (!ready_for_output) {
+	mutex.unlock ();
+	return;
+    }
+
+    conn_sender_impl.markProcessingBarrier ();
+    AsyncIoResult const res = conn_sender_impl.sendPendingMessages ();
+    if (res == AsyncIoResult::Error ||
+	res == AsyncIoResult::Eof)
+    {
+	ready_for_output = false;
 	mutex.unlock ();
 	// TODO It might be better to return Result from flush().
 	logE_ (_func, exc->toString());
@@ -81,6 +105,9 @@ ImmediateConnectionSender::flush ()
 	    frontend.call (frontend->closed, /*(*/ exc /*)*/);
 	return;
     }
+
+    if (res == AsyncIoResult::Again)
+	ready_for_output = false;
 
     closeIfNeeded ();
     // 'mutex' has been unlocked by closeIfNeeded().

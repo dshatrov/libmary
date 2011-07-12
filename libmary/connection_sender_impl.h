@@ -35,6 +35,9 @@ private:
 
     Sender::MessageList msg_list;
 
+    Sender::MessageEntry *processing_barrier;
+    bool processing_barrier_hit;
+
     bool sending_message;
 
     Size send_header_sent;
@@ -44,7 +47,7 @@ private:
 
     void popPage (Sender::MessageEntry_Pages * mt_nonnull msg_pages);
 
-    mt_throws Result sendPendingMessages_writev ();
+    mt_throws AsyncIoResult sendPendingMessages_writev ();
 
     void sendPendingMessages_vector (bool          count_iovs,
 				     bool          fill_iovs,
@@ -58,7 +61,17 @@ public:
     // Takes ownership of msg_entry.
     void queueMessage (Sender::MessageEntry * const mt_nonnull msg_entry);
 
-    mt_throws Result sendPendingMessages ();
+    mt_throws AsyncIoResult sendPendingMessages ();
+
+    void markProcessingBarrier ()
+    {
+	processing_barrier = msg_list.getLast ();
+    }
+
+    bool processingBarrierHit() const
+    {
+	return processing_barrier_hit;
+    }
 
     bool gotDataToSend () const
     {

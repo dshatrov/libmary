@@ -68,14 +68,14 @@ public:
     };
 
 protected:
-    Cb<Frontend> frontend;
+    mt_const Cb<Frontend> frontend;
 
 public:
     // TODO void setInputEnabled (bool enable);
     //      ConstMemory peekInput ();
     //      void RtmpConnection::setReceiver ();
 
-    void setFrontend (Cb<Frontend> const frontend)
+    mt_const void setFrontend (Cb<Frontend> const frontend)
     {
 	this->frontend = frontend;
     }

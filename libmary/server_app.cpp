@@ -55,11 +55,11 @@ ServerApp::pollIterationBegin (void * const _self)
     self->doTimerIteration ();
 }
 
-void
+bool
 ServerApp::pollIterationEnd (void * const /* _self */)
 {
 //    logD_ (_func_);
-    DeferredConnectionSender::pollIterationEnd ();
+    return DeferredConnectionSender::pollIterationEnd ();
 }
 
 mt_throws Result
@@ -80,7 +80,7 @@ ServerApp::run ()
 	if (!select_poll_group.poll (timers.getSleepTime_microseconds()))
 	    return Result::Failure;
 
-	doTimerIteration ();
+// Deprecated.	doTimerIteration ();
     }
 
     return Result::Success;

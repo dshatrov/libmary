@@ -24,6 +24,7 @@
 #include <libmary/types.h>
 #include <libmary/cb.h>
 #include <libmary/exception.h>
+#include <libmary/deferred_processor.h>
 
 
 namespace M {
@@ -61,7 +62,8 @@ public:
 
     typedef void *PollableKey;
 
-    virtual mt_throws PollableKey addPollable (Cb<Pollable> const &pollable) = 0;
+    virtual mt_throws PollableKey addPollable (CbDesc<Pollable> const &pollable,
+					       DeferredProcessor::Registration *ret_reg) = 0;
 
     virtual void removePollable (PollableKey mt_nonnull key) = 0;
 };
@@ -70,6 +72,8 @@ public:
 
 
 namespace M {
+    // TODO Rename DefaultPollGroup to DefaultActivePollGroup
+    //      and move this into active_poll_group.h
 #ifdef PLATFORM_WIN32
     class SelectPollGroup;
     typedef SelectPollGroup DefaultPollGroup;

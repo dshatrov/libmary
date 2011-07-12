@@ -124,14 +124,15 @@ PollGroup::Feedback const SelectPollGroup::pollable_feedback = {
 
 // The pollable should be available for unsafe callbacks while this method is called.
 mt_throws PollGroup::PollableKey
-SelectPollGroup::addPollable (Cb<Pollable> const &pollable)
+SelectPollGroup::addPollable (CbDesc<Pollable> const &pollable,
+			      DeferredProcessor::Registration * const ret_reg)
 {
     PollableEntry * const pollable_entry = new PollableEntry;
     pollable_entry->select_poll_group = this;
     pollable_entry->valid = true;
     pollable_entry->pollable = pollable;
     // We're making an unsafe call, assuming that the pollable is available.
-    pollable_entry->fd = pollable->getFd (pollable.getCbData());
+    pollable_entry->fd = pollable->getFd (pollable.cb_data);
     pollable_entry->need_input = true;
     pollable_entry->need_output = true;
 
@@ -147,7 +148,10 @@ SelectPollGroup::addPollable (Cb<Pollable> const &pollable)
 // Deprecated    pollable->setFeedback (Cb<Feedback> (&pollable_feedback, pollable_entry, getCoderefContainer()), pollable.getCbData());
     pollable->setFeedback (
 	    Cb<Feedback> (&pollable_feedback, pollable_entry, NULL /* coderef_container */),
-	    pollable.getCbData());
+	    pollable.cb_data);
+
+    if (ret_reg)
+	ret_reg->setDeferredProcessor (&deferred_processor);
 
     // TODO FIXME if (different thread) then trigger().
 
@@ -218,6 +222,7 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	}
 
 	Time elapsed_microsec;
+	int nfds = 0;
 	{
 	    Time const cur_microsec = getTimeMicroseconds ();
 
@@ -232,20 +237,28 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 
 //	    logD_ (_func, "timeout_microsec: ", timeout_microsec == (Uint64) -1 ? toString ("-1") : toString (timeout_microsec), ", elapsed_microsec: ", elapsed_microsec);
 
+	    bool null_timeout = true;
 	    struct timeval timeout_val;
-	    if (timeout_microsec != (Uint64) -1) {
-		if (timeout_microsec > elapsed_microsec) {
-		    timeout_val.tv_sec = (timeout_microsec - elapsed_microsec) / 1000000;
-		    timeout_val.tv_usec = (timeout_microsec - elapsed_microsec) % 1000000;
+	    if (!got_deferred_tasks) {
+		null_timeout = false;
+		if (timeout_microsec != (Uint64) -1) {
+		    if (timeout_microsec > elapsed_microsec) {
+			timeout_val.tv_sec = (timeout_microsec - elapsed_microsec) / 1000000;
+			timeout_val.tv_usec = (timeout_microsec - elapsed_microsec) % 1000000;
 
-//		    logD_ (_func, "tv_sec: ", timeout_val.tv_sec, ", tv_usec: ", timeout_val.tv_usec);
-		} else {
-		    timeout_val.tv_sec = 0;
-		    timeout_val.tv_usec = 0;
+//			logD_ (_func, "tv_sec: ", timeout_val.tv_sec, ", tv_usec: ", timeout_val.tv_usec);
+		    } else {
+			timeout_val.tv_sec = 0;
+			timeout_val.tv_usec = 0;
+		    }
 		}
+	    } else {
+		null_timeout = false;
+		timeout_val.tv_sec = 0;
+		timeout_val.tv_usec = 0;
 	    }
 
-	    int const nfds = select (largest_fd + 1, &rfds, &wfds, &efds, timeout_microsec != (Uint64) -1 ? &timeout_val : NULL);
+	    nfds = select (largest_fd + 1, &rfds, &wfds, &efds, null_timeout ? NULL : &timeout_val);
 	    if (nfds == -1) {
 		if (errno == EINTR) {
 		    SelectedList::iter iter (selected_list);
@@ -267,16 +280,22 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		goto _select_interrupted;
 	    }
 
+#if 0
+// Deprecated.
 	    if (nfds == 0) {
 	      // Timeout expired.
+		got_deferred_tasks = deferred_processor.process ();
 		goto _select_interrupted;
 	    }
+#endif
+
+	    got_deferred_tasks = false;
 	}
 
 	if (frontend)
 	    frontend.call (frontend->pollIterationBegin);
 
-	{
+	if (nfds > 0) {
 	    SelectedList::iter iter (selected_list);
 	    while (!selected_list.iter_done (iter)) {
 		PollableEntry * const pollable_entry = selected_list.iter_next (iter);
@@ -314,10 +333,17 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 
 		mutex.unlock ();
 	    }
+	} // if (nfds > 0)
+
+	if (frontend) {
+	    bool extra_iteration_needed = false;
+	    frontend.call_ret (&extra_iteration_needed, frontend->pollIterationEnd);
+	    if (extra_iteration_needed)
+		got_deferred_tasks = true;
 	}
 
-	if (frontend)
-	    frontend.call (frontend->pollIterationEnd);
+	if (deferred_processor.process ())
+	    got_deferred_tasks = true;
 
 	if (FD_ISSET (trigger_pipe [0], &rfds)) {
 	    for (;;) {
@@ -397,6 +423,18 @@ SelectPollGroup::open ()
 	return Result::Failure;
 
     return Result::Success;
+}
+
+SelectPollGroup::SelectPollGroup (Object * const coderef_container)
+    : DependentCodeReferenced (coderef_container),
+      triggered (false),
+      // Initializing to 'true' to process deferred tasks scheduled before we
+      // enter poll() the first time.
+      got_deferred_tasks (true),
+      poll_tlocal (NULL)
+{
+    trigger_pipe [0] = -1;
+    trigger_pipe [1] = -1;
 }
 
 SelectPollGroup::~SelectPollGroup ()

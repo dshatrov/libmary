@@ -78,16 +78,18 @@ ConnectionSenderImpl::popPage (Sender::MessageEntry_Pages * const mt_nonnull msg
     send_cur_offset = 0;
 }
 
-Result
+AsyncIoResult
 ConnectionSenderImpl::sendPendingMessages ()
     mt_throw ((IoException,
 	       InternalException))
 {
     logD (send, _func_);
 
+    processing_barrier_hit = false;
+
     if (!sending_message) {
 	if (!msg_list.getFirst())
-	    return Result::Success;
+	    return AsyncIoResult::Normal;
 
 	resetSendingState ();
     }
@@ -96,14 +98,17 @@ ConnectionSenderImpl::sendPendingMessages ()
     return sendPendingMessages_writev ();
 }
 
-Result
+AsyncIoResult
 ConnectionSenderImpl::sendPendingMessages_writev ()
     mt_throw ((IoException,
 	       InternalException))
 {
     for (;;) {
-	if (!gotDataToSend ())
-	    return Result::Success;
+	if (!gotDataToSend() ||
+	    processingBarrierHit())
+	{
+	    return AsyncIoResult::Normal;
+	}
 
 	// TODO Count num_iovs
 	Size num_iovs = 0;
@@ -137,31 +142,42 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 //	if (num_iovs < IOV_MAX)
 //	    logD_ (_func, "< IOV_MAX");
 
+#if 0
+	// Dump of all iovs.
 	if (defaultLogLevelOn (LogLevel::Debug)) {
 	    logD (writev, _func, "iovs:");
 	    for (Count i = 0; i < num_iovs; ++i)
 		logD (writev, "    #", i, ": 0x", (UintPtr) iovs [i].iov_base, ": ", iovs [i].iov_len);
 	}
+#endif
 
 	Size num_written = 0;
-	for (;;) {
+// Deprecated	for (;;) {
+	{
+	    bool tmp_processing_barrier_hit = processing_barrier_hit;
+	    processing_barrier_hit = false;
+
 	    AsyncIoResult const res = conn->writev (iovs, num_iovs, &num_written);
 	    if (res == AsyncIoResult::Again)
-		return Result::Success;
+		return AsyncIoResult::Again;
 
 	    if (res == AsyncIoResult::Error)
-		return Result::Failure;
+		return AsyncIoResult::Error;
 
 	    if (res == AsyncIoResult::Eof) {
-		logD (close, _func, "Eof");
-		exc_throw <IoException> ();
-		return Result::Failure;
+		logD (close, _func, "Eof, num_iovs: ", num_iovs);
+		return AsyncIoResult::Eof;
 	    }
+
+	    processing_barrier_hit = tmp_processing_barrier_hit;
 
 	    // Normal_Again is not handled specially here yet.
 
+#if 0
+// Deprecated.
 	    if (num_written > 0)
 		break;
+#endif
 	}
 
 	sendPendingMessages_vector (false /* count_iovs */,
@@ -174,7 +190,7 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
     } // for (;;)
 
     unreachable();
-    return Result::Success;
+    return AsyncIoResult::Normal;
 }
 
 // @count_iovs   - Сосчитать кол-во векторов, нужных для отправки всех сообщений в очереди.
@@ -204,6 +220,14 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 	return;
     }
 
+    if (!processing_barrier) {
+	if (gotDataToSend())
+	    processing_barrier_hit = true;
+
+	logD (writev, _func, "processing barrier is NULL");
+	return;
+    }
+
     // Valid if @count_iovs is false.
     Count cur_num_iovs = 0;
 
@@ -214,6 +238,8 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
     while (msg_entry) {
 	Sender::MessageEntry * const next_msg_entry = msg_list.getNext (msg_entry);
 
+	// If still set to 'true' after the switch, then msg_entry is removed
+	// from the queue.
 	bool msg_sent_completely = true;
 	switch (msg_entry->type) {
 #if 0
@@ -255,6 +281,7 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 			    if (num_written < msg_pages->header_len - send_header_sent) {
 				send_header_sent += num_written;
 				num_written = 0;
+				msg_sent_completely = false;
 				break;
 			    }
 
@@ -287,6 +314,7 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 			    if (num_written < msg_pages->header_len) {
 				send_header_sent = num_written;
 				num_written = 0;
+				msg_sent_completely = false;
 				break;
 			    }
 
@@ -306,6 +334,10 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 		    if (page->data_len > 0) {
 			logD (writev, _func, "non-empty page");
 
+			// FIXME Limit on the number of iovs conflicts with send barrier logics.
+			//       There probably are bugs because of this.
+			//       Consider situations where we hit num_iovs limit and the message
+			//       has been sent completely.
 			if (count_iovs) {
 			    ++*ret_num_iovs;
 			    if (*ret_num_iovs >= IOV_MAX)
@@ -387,9 +419,25 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 		Sender::deleteMessageEntry (msg_entry);
 
 		resetSendingState ();
+
+		if (msg_entry == processing_barrier) {
+		    processing_barrier = NULL;
+
+		    if (gotDataToSend())
+			processing_barrier_hit = true;
+
+		    break;
+		}
 	    } else {
+		assert (gotDataToSend());
+		if (msg_entry == processing_barrier)
+		    processing_barrier_hit = true;
+
 		break;
 	    }
+	} else {
+	    if (msg_entry == processing_barrier)
+		break;
 	}
 
 	first_entry = false;
@@ -470,6 +518,8 @@ ConnectionSenderImpl::queueMessage (Sender::MessageEntry * const mt_nonnull msg_
 
 ConnectionSenderImpl::ConnectionSenderImpl ()
     : conn (NULL),
+      processing_barrier (NULL),
+      processing_barrier_hit (false),
       sending_message (false),
       send_header_sent (0),
       send_cur_offset (0)

@@ -37,6 +37,8 @@ private:
     ConnectionSenderImpl conn_sender_impl;
 
     bool close_after_flush;
+
+    bool ready_for_output;
   // }
 
     StateMutex mutex;
@@ -62,7 +64,8 @@ public:
 
     ImmediateConnectionSender (Object * const coderef_container)
 	: DependentCodeReferenced (coderef_container),
-	  close_after_flush (false)
+	  close_after_flush (false),
+	  ready_for_output (true)
     {
     }
 

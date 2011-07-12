@@ -81,6 +81,7 @@
 #include <libmary/vfs_posix.h>
 #endif
 
+#include <libmary/deferred_processor.h>
 #include <libmary/poll_group.h>
 #include <libmary/active_poll_group.h>
 #include <libmary/select_poll_group.h>

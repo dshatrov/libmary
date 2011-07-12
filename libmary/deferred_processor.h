@@ -23,13 +23,12 @@
 
 #include <libmary/types.h>
 #include <libmary/cb.h>
-//#include <libmary/code_referenced.h>
 #include <libmary/intrusive_list.h>
 
 
 namespace M {
 
-class DeferredProcessor// : public DependentCodeReferenced
+class DeferredProcessor
 {
 public:
     class Registration;
@@ -77,10 +76,12 @@ public:
 
 	void revokeTask (Task * mt_nonnull task);
 
-	mt_const void setDeferredProcessor ()
+	mt_const void setDeferredProcessor (DeferredProcessor * const mt_nonnull deferred_processor)
 	{
 	    this->deferred_processor = deferred_processor;
 	}
+
+	void release ();
 
 	Registration ()
 	    : deferred_processor (NULL),

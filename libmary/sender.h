@@ -36,7 +36,25 @@ namespace M {
 class Sender
 {
 public:
+    enum SendState {
+			      // The comments below describe usual behavior of
+			      // user's code when processing sendStateChanged()
+			      // notifications.
+
+	ConnectionReady,      // Fast client, no flow control restrictions.
+
+	ConnectionOverloaded, // Slow client, dropping disposable messages.
+
+	QueueSoftLimit,       // Send queue is full, blocking input from
+			      // the client as an extra countermeasure.
+
+	QueueHardLimit        // Send queue growth is out of control.
+			      // Disconnecting the client.
+    };
+
     struct Frontend {
+	void (*sendStateChanged) (SendState send_state);
+
 	void (*closed) (Exception *exc_,
 			void      *cb_data);
     };
@@ -95,7 +113,7 @@ public:
     };
 
 protected:
-    Cb<Frontend> frontend;
+    mt_const Cb<Frontend> frontend;
 
 public:
     // Takes ownership of msg_entry.
@@ -134,7 +152,7 @@ public:
 	sendMessage (msg_pages);
     }
 
-    void setFrontend (Cb<Frontend> const frontend)
+    mt_const void setFrontend (Cb<Frontend> const frontend)
     {
 	this->frontend = frontend;
     }

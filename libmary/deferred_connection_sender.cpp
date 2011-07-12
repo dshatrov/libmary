@@ -25,6 +25,7 @@
 namespace M {
 
 DeferredConnectionSender::OutputQueue DeferredConnectionSender::glob_output_queue;
+bool DeferredConnectionSender::glob_output_queue_processing = false;
 Mutex DeferredConnectionSender::glob_output_queue_mutex;
 
 Connection::OutputFrontend const DeferredConnectionSender::conn_output_frontend = {
@@ -48,7 +49,7 @@ DeferredConnectionSender::toGlobOutputQueue ()
     }
 }
 
-mt_mutex (mutex) mt_unlocks void
+mt_mutex (mutex) mt_unlocks bool
 DeferredConnectionSender::closeIfNeeded ()
 {
     if (close_after_flush &&
@@ -58,9 +59,13 @@ DeferredConnectionSender::closeIfNeeded ()
 	    mutex.unlock ();
 	    frontend.call (frontend->closed, /*(*/ (Exception*) NULL /* exc_ */);
 	}
+
+	return true;
     } else {
 	mutex.unlock ();
     }
+
+    return false;
 }
 
 void
@@ -68,6 +73,7 @@ DeferredConnectionSender::processOutput (void * const _self)
 {
     DeferredConnectionSender * const self = static_cast <DeferredConnectionSender*> (_self);
     self->mutex.lock ();
+    self->ready_for_output = true;
     if (self->conn_sender_impl.gotDataToSend ()) {
 	self->toGlobOutputQueue ();
     }
@@ -86,7 +92,9 @@ void
 DeferredConnectionSender::flush ()
 {
     mutex.lock ();
-    if (conn_sender_impl.gotDataToSend ()) {
+    if (ready_for_output
+	&& conn_sender_impl.gotDataToSend ())
+    {
 	toGlobOutputQueue ();
     }
     mutex.unlock ();
@@ -101,12 +109,45 @@ DeferredConnectionSender::closeAfterFlush ()
     // 'mutex' has been unlocked by closeIfNeeded().
 }
 
-void
+bool
 DeferredConnectionSender::pollIterationEnd ()
 {
   // Processing global output queue.
+
+    ProcessingQueue processing_queue;
+
+    glob_output_queue_mutex.lock ();
+
+    if (glob_output_queue_processing) {
+	glob_output_queue_mutex.unlock ();
+	logW_ (_func, "Concurrent invocation");
+	return false;
+    }
+    glob_output_queue_processing = true;
+
+    {
+	OutputQueue::iter iter (glob_output_queue);
+	while (!glob_output_queue.iter_done (iter)) {
+	    DeferredConnectionSender * const deferred_sender = glob_output_queue.iter_next (iter);
+	    deferred_sender->conn_sender_impl.markProcessingBarrier ();
+	    processing_queue.append (deferred_sender);
+
+	    glob_output_queue.remove (deferred_sender);
+	    deferred_sender->in_output_queue = false;
+	}
+    }
+
+    glob_output_queue_mutex.unlock ();
+
+    bool extra_iteration_needed = false;
+
+    ProcessingQueue::iter iter (processing_queue);
+    while (!processing_queue.iter_done (iter)) {
+#if 0
+// Deprecated.
     for (;;) {
 	glob_output_queue_mutex.lock ();
+#error TODO Use DeferredProcessor to avoid starvation.
 	DeferredConnectionSender * const deferred_sender = glob_output_queue.getFirst ();
 	if (!deferred_sender) {
 	    glob_output_queue_mutex.unlock ();
@@ -114,17 +155,30 @@ DeferredConnectionSender::pollIterationEnd ()
 	}
 	glob_output_queue.remove (deferred_sender);
 	glob_output_queue_mutex.unlock ();
+#endif
+	DeferredConnectionSender * const deferred_sender = processing_queue.iter_next (iter);
 
 	// The only place where 'deferred_sender' may be removed from the queue
 	// is its destructor, which won't be called because 'deferred_sender' is
 	// refed here.
 	deferred_sender->mutex.lock ();
 
+#if 0
+// Deprecated.
 	assert (deferred_sender->in_output_queue);
 	deferred_sender->in_output_queue = false;
+#endif
 
-	if (!deferred_sender->conn_sender_impl.sendPendingMessages ()) {
-	    logE_ (_func, exc->toString());
+	AsyncIoResult const res = deferred_sender->conn_sender_impl.sendPendingMessages ();
+	if (res == AsyncIoResult::Error ||
+	    res == AsyncIoResult::Eof)
+	{
+	    deferred_sender->ready_for_output = false;
+
+	    // exc is NULL for Eof.
+	    if (res == AsyncIoResult::Error)
+		logE_ (_func, exc->toString());
+
 	    if (deferred_sender->frontend && deferred_sender->frontend->closed) {
 		deferred_sender->mutex.unlock ();
 		deferred_sender->frontend.call (deferred_sender->frontend->closed, /*(*/ exc /*)*/);
@@ -140,11 +194,20 @@ DeferredConnectionSender::pollIterationEnd ()
 	    continue;
 	}
 
+	if (res == AsyncIoResult::Again)
+	    deferred_sender->ready_for_output = false;
+	else
+	    deferred_sender->ready_for_output = true;
+
 	// At this point, conn_sender_impl has either sent all data, or it has
 	// gotten EAGAIN from writev. In either case, we should have removed
 	// deferred_sender from glob_output_queue.
 
-	deferred_sender->closeIfNeeded ();
+	extra_iteration_needed = deferred_sender->conn_sender_impl.processingBarrierHit();
+
+	if (deferred_sender->closeIfNeeded ())
+	    extra_iteration_needed = false;
+
 	// 'deferred_sender->mutex' has been unlocked by closeIfNeeded().
 	{
 	    Object * const coderef_container = deferred_sender->getCoderefContainer();
@@ -152,6 +215,12 @@ DeferredConnectionSender::pollIterationEnd ()
 		coderef_container->unref ();
 	}
     }
+
+    glob_output_queue_mutex.lock ();
+    glob_output_queue_processing = false;
+    glob_output_queue_mutex.unlock ();
+
+    return extra_iteration_needed;
 }
 
 DeferredConnectionSender::~DeferredConnectionSender ()
@@ -159,12 +228,20 @@ DeferredConnectionSender::~DeferredConnectionSender ()
     // Doing lock/unlock to ensure that ~ConnectionSenderImpl() will see correct
     // data.
     mutex.lock();
+
+#if 0
+// Deprecated.
     // Removing the sender from glob_output_queue if it is in the queue.
     if (in_output_queue) {
 	glob_output_queue_mutex.lock ();
 	glob_output_queue.remove (this);
 	glob_output_queue_mutex.unlock ();
     }
+#endif
+    // Currently, DeferredConnectionSender cannot be destroyed while it is
+    // in glob_output_queue, because it is referenced while it is in the queue.
+    assert (!in_output_queue);
+
     mutex.unlock();
 }
 

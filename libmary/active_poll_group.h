@@ -32,7 +32,9 @@ public:
     struct Frontend {
 	// pollIterationBegin is not called when poll() returns (poll timeout/error).
 	void (*pollIterationBegin) (void *cb_data);
-	void (*pollIterationEnd)   (void *cb_data);
+	// If returns 'true', then there's more work to do in pollIterationEnd(),
+	// and the next poll iteration will be performed with zero timeout.
+	bool (*pollIterationEnd)   (void *cb_data);
     };
 
 protected:
