@@ -114,6 +114,7 @@ public:
 	  ready_for_output (true),
 	  in_output_queue (false)
     {
+	conn_sender_impl.setFrontend (&frontend);
     }
 
     ~DeferredConnectionSender ();

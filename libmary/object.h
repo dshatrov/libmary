@@ -81,7 +81,8 @@ public:
 	DeletionSubscriptionKey () : del_sbn (NULL) {}
     };
 
-protected:
+// protected:
+public:
     // Beware that size of pthread_mutex_t is 24 bytes on 32-bit platforms and
     // 40 bytes on 64-bit ones. We definitely do not want more than one mutex
     // per object, which is already too much overhead.

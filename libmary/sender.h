@@ -53,7 +53,10 @@ public:
     };
 
     struct Frontend {
-	void (*sendStateChanged) (SendState send_state);
+	// This callback is called with Sender::mutex held, which means that
+	// it is forbidden to call any methods of Sender from the callback.
+	void (*sendStateChanged) (SendState  send_state,
+				  void      *cb_data);
 
 	void (*closed) (Exception *exc_,
 			void      *cb_data);

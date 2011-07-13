@@ -31,9 +31,19 @@ namespace M {
 class ConnectionSenderImpl
 {
 private:
+    mt_const Cb<Sender::Frontend> *frontend;
+
     mt_const Connection *conn;
 
+    // Hard queue length limit must be less or equal to soft limit.
+    mt_const Count soft_msg_limit;
+    mt_const Count hard_msg_limit;
+
+    Sender::SendState send_state;
+    bool overloaded;
+
     Sender::MessageList msg_list;
+    Count num_msg_entries;
 
     Sender::MessageEntry *processing_barrier;
     bool processing_barrier_hit;
@@ -42,6 +52,8 @@ private:
 
     Size send_header_sent;
     Size send_cur_offset;
+
+    void setSendState (Sender::SendState new_state);
 
     void resetSendingState ();
 
@@ -79,9 +91,21 @@ public:
 	return sending_message || !msg_list.isEmpty ();
     }
 
-    void setConnection (Connection * const conn)
+    mt_const void setConnection (Connection * const conn)
     {
 	this->conn = conn;
+    }
+
+    mt_const void setFrontend (Cb<Sender::Frontend> * const frontend)
+    {
+	this->frontend = frontend;
+    }
+
+    mt_const void setLimits (Count const soft_msg_limit,
+			     Count const hard_msg_limit)
+    {
+	this->soft_msg_limit = soft_msg_limit;
+	this->hard_msg_limit = hard_msg_limit;
     }
 
     ConnectionSenderImpl ();

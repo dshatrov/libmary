@@ -67,6 +67,7 @@ public:
 	  close_after_flush (false),
 	  ready_for_output (true)
     {
+	conn_sender_impl.setFrontend (&frontend);
     }
 
     ~ImmediateConnectionSender ();

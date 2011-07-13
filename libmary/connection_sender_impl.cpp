@@ -34,6 +34,20 @@ LogGroup libMary_logGroup_hexdump ("hexdump", LogLevel::N);
 }
 
 void
+ConnectionSenderImpl::setSendState (Sender::SendState const new_state)
+{
+    if (new_state == send_state)
+	return;
+
+    send_state = new_state;
+    if (frontend
+	&& (*frontend)->sendStateChanged)
+    {
+	frontend->call ((*frontend)->sendStateChanged, /* ( */ new_state /* ) */);
+    }
+}
+
+void
 ConnectionSenderImpl::resetSendingState ()
 {
   // We get here every time a complete message has been send.
@@ -104,11 +118,16 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 	       InternalException))
 {
     for (;;) {
-	if (!gotDataToSend() ||
-	    processingBarrierHit())
-	{
+	if (!gotDataToSend()) {
+	    if (send_state == Sender::ConnectionOverloaded)
+		setSendState (Sender::ConnectionReady);
+
+	    overloaded = false;
 	    return AsyncIoResult::Normal;
 	}
+
+	if (processingBarrierHit())
+	    return AsyncIoResult::Normal;
 
 	// TODO Count num_iovs
 	Size num_iovs = 0;
@@ -152,14 +171,18 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 #endif
 
 	Size num_written = 0;
-// Deprecated	for (;;) {
 	{
 	    bool tmp_processing_barrier_hit = processing_barrier_hit;
 	    processing_barrier_hit = false;
 
 	    AsyncIoResult const res = conn->writev (iovs, num_iovs, &num_written);
-	    if (res == AsyncIoResult::Again)
+	    if (res == AsyncIoResult::Again) {
+		if (send_state == Sender::ConnectionReady)
+		    setSendState (Sender::ConnectionOverloaded);
+
+		overloaded = true;
 		return AsyncIoResult::Again;
+	    }
 
 	    if (res == AsyncIoResult::Error)
 		return AsyncIoResult::Error;
@@ -173,11 +196,10 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 
 	    // Normal_Again is not handled specially here yet.
 
-#if 0
-// Deprecated.
-	    if (num_written > 0)
-		break;
-#endif
+	    // Note that we can get "num_written == 0" here in two cases:
+	    //   a) writev() syscall returned EINTR;
+	    //   b) there was nothing to send.
+	    // That's why we do not do a usual EINTR loop here.
 	}
 
 	sendPendingMessages_vector (false /* count_iovs */,
@@ -415,8 +437,24 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 
 	if (react) {
 	    if (msg_sent_completely) {
+	      // This is the only place where messages are removed from the queue.
+
 		msg_list.remove (msg_entry);
 		Sender::deleteMessageEntry (msg_entry);
+		--num_msg_entries;
+
+		if (send_state == Sender::QueueSoftLimit ||
+		    send_state == Sender::QueueHardLimit)
+		{
+		    if (num_msg_entries < soft_msg_limit) {
+			if (overloaded)
+			    setSendState (Sender::ConnectionOverloaded);
+			else
+			    setSendState (Sender::ConnectionReady);
+		    } else
+		    if (num_msg_entries < hard_msg_limit)
+			setSendState (Sender::QueueSoftLimit);
+		}
 
 		resetSendingState ();
 
@@ -513,11 +551,23 @@ ConnectionSenderImpl::queueMessage (Sender::MessageEntry * const mt_nonnull msg_
 	}
     }
 
+    ++num_msg_entries;
+    if (num_msg_entries >= hard_msg_limit)
+	setSendState (Sender::QueueHardLimit);
+    else
+    if (num_msg_entries >= soft_msg_limit)
+	setSendState (Sender::QueueSoftLimit);
+
     msg_list.append (msg_entry);
 }
 
 ConnectionSenderImpl::ConnectionSenderImpl ()
     : conn (NULL),
+      soft_msg_limit (1024),
+      hard_msg_limit (4096),
+      send_state (Sender::ConnectionReady),
+      overloaded (false),
+      num_msg_entries (0),
       processing_barrier (NULL),
       processing_barrier_hit (false),
       sending_message (false),
