@@ -25,7 +25,7 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_http_service    ("http_service",    LogLevel::D);
+LogGroup libMary_logGroup_http_service ("http_service", LogLevel::N);
 }
 
 HttpServer::Frontend const
@@ -308,7 +308,7 @@ HttpService::accepted (void *_self)
 {
     HttpService * const self = static_cast <HttpService*> (_self);
 
-    logD_ (_func);
+    logD (http_service, _func);
 
     for (;;) {
 	if (!self->acceptOneConnection ())

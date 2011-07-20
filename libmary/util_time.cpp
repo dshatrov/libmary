@@ -79,12 +79,12 @@ mt_throws Result updateTime ()
     if (new_seconds >= _libMary_time_seconds)
 	_libMary_time_seconds = new_seconds;
     else
-	logW_ (_func, "seconds backwards: ", new_seconds, " (was ", _libMary_time_seconds);
+	logW_ (_func, "seconds backwards: ", new_seconds, " (was ", _libMary_time_seconds, ")");
 
     if (new_microseconds >= _libMary_time_microseconds)
 	_libMary_time_microseconds = new_microseconds;
     else
-	logW_ (_func, "microseconds backwards: ", new_microseconds, " (was ", _libMary_time_microseconds);
+	logW_ (_func, "microseconds backwards: ", new_microseconds, " (was ", _libMary_time_microseconds, ")");
 
 //    logD_ (_func, "_libMary_time_seconds: ", _libMary_time_seconds, ", _libMary_time_microseconds: ", _libMary_time_microseconds);
 

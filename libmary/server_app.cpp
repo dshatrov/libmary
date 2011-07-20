@@ -26,6 +26,10 @@
 
 namespace M {
 
+namespace {
+LogGroup libMary_logGroup_server_app ("server_app", LogLevel::D);
+}
+
 ActivePollGroup::Frontend ServerApp::poll_frontend = {
     pollIterationBegin,
     pollIterationEnd
@@ -43,7 +47,7 @@ ServerApp::doTimerIteration ()
 void
 ServerApp::firstTimerAdded (void * const _self)
 {
-    logD_ (_func_);
+    logD (server_app, _func_);
     ServerApp * const self = static_cast <ServerApp*> (_self);
     self->select_poll_group.trigger ();
 }

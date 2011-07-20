@@ -25,6 +25,10 @@
 
 namespace M {
 
+namespace {
+LogGroup libMary_logGroup_timers ("timers", LogLevel::N);
+}
+
 Timers::TimerKey
 Timers::addTimer_microseconds (TimerCallback * const cb,
 			       void          * const cb_data,
@@ -36,7 +40,7 @@ Timers::addTimer_microseconds (TimerCallback * const cb,
     timer->periodical = periodical;
     timer->due_time = getTimeMicroseconds() + time_microseconds;
 
-    logD_ (_func, "getTimeMicroseconds(): ", getTimeMicroseconds(), ", due_time: ", timer->due_time);
+    logD (timers, _func, "getTimeMicroseconds(): ", getTimeMicroseconds(), ", due_time: ", timer->due_time);
 
     mutex.lock ();
 
@@ -166,7 +170,7 @@ Timers::processTimers ()
     while (!chain->timer_list.isEmpty () && chain->nearest_time <= cur_time) {
 	Time const cur_nearest_time = chain->nearest_time;
 
-	logD_ (_func, "cur_nearest_time: ", cur_nearest_time, ", cur_time: ", cur_time);
+	logD (timers, _func, "cur_nearest_time: ", cur_nearest_time, ", cur_time: ", cur_time);
 
 	Timer * const timer = chain->timer_list.getFirst ();
 	chain->timer_list.remove (timer);

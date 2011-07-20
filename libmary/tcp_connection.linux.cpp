@@ -36,6 +36,10 @@
 
 namespace M {
 
+namespace {
+LogGroup libMary_logGroup_tcp_conn ("tcp_conn", LogLevel::N);
+}
+
 PollGroup::Pollable const TcpConnection::pollable = {
     processEvents,
     getFd,
@@ -386,7 +390,7 @@ TcpConnection::connect (IpAddress const &addr)
 	if (res == 0) {
 	    connected = true;
 	    if (frontend && frontend->connected) {
-		logD_ (_func, "Calling frontend->connected");
+		logD (tcp_conn, _func, "Calling frontend->connected");
 		frontend.call (frontend->connected, /*(*/ (Exception*) NULL /* exc */ /*)*/);
 	    }
 	} else
@@ -395,7 +399,7 @@ TcpConnection::connect (IpAddress const &addr)
 		continue;
 
 	    if (errno == EINPROGRESS) {
-		logD_ (_func, "EINPROGRESS");
+		logD (tcp_conn, _func, "EINPROGRESS");
 		break;
 	    }
 
@@ -417,7 +421,7 @@ TcpConnection::connect (IpAddress const &addr)
 
 TcpConnection::~TcpConnection ()
 {
-    logD_ (_func, "0x", fmt_hex, (UintPtr) this);
+    logD (tcp_conn, _func, "0x", fmt_hex, (UintPtr) this);
 
     if (fd != -1) {
 	for (;;) {

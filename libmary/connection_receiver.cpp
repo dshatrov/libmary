@@ -159,7 +159,7 @@ void
 ConnectionReceiver::processError (Exception * const exc_,
 				  void      * const _self)
 {
-    logD_ (_func_);
+//    logD_ (_func_);
     ConnectionReceiver * const self = static_cast <ConnectionReceiver*> (_self);
 
     if (self->error_reported) {
