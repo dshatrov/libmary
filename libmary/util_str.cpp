@@ -164,7 +164,7 @@ mt_throws Result strToInt32_safe (char const * const cstr,
 				  Int32 * const ret_val,
 				  int const base)
 {
-    if (*cstr == 0) {
+    if (!cstr || *cstr == 0) {
 	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
 	return Result::Failure;
     }
@@ -223,7 +223,7 @@ mt_throws Result strToInt64_safe (char const * const cstr,
 				  Int64 * const ret_val,
 				  int const base)
 {
-    if (*cstr == 0) {
+    if (!cstr || *cstr == 0) {
 	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
 	return Result::Failure;
     }
@@ -280,7 +280,7 @@ mt_throws Result strToUint32_safe (char const *cstr,
 				   Uint32 * const ret_val,
 				   int const base)
 {
-    if (*cstr == 0) {
+    if (!cstr || *cstr == 0) {
 	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
 	return Result::Failure;
     }
@@ -333,7 +333,7 @@ mt_throws Result strToUint64_safe (char const *cstr,
 				   Uint64 * const ret_val,
 				   int const base)
 {
-    if (*cstr == 0) {
+    if (!cstr || *cstr == 0) {
 	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
 	return Result::Failure;
     }
@@ -385,7 +385,7 @@ mt_throws Result strToUint64_safe (ConstMemory const &mem_,
 mt_throws Result strToDouble_safe (char const * const cstr,
 				   double * const ret_val)
 {
-    if (*cstr == 0) {
+    if (!cstr || *cstr == 0) {
 	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
 	return Result::Failure;
     }
