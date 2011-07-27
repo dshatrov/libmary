@@ -107,14 +107,20 @@ ComparisonResult compare (ConstMemory const &left,
 	    return ComparisonResult::Equal;
 	}
 
-	return (ComparisonResult::Value) res;
+	if (res > 0)
+	    return ComparisonResult::Greater;
+
+	return ComparisonResult::Less;
     }
 
     int const res = memcmp (left.mem(), right.mem(), right.len());
     if (res == 0)
 	return ComparisonResult::Less;
 
-    return (ComparisonResult::Value) res;
+    if (res > 0)
+	return ComparisonResult::Greater;
+
+    return ComparisonResult::Less;
 }
 
 unsigned long strToUlong (ConstMemory const &mem)

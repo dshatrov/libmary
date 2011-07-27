@@ -438,7 +438,14 @@ ComparisonResult compare (ConstMemory const &left,
 			  char const (&right) [N])
 {
     Size const tocompare = left.len() <= (N - 1) ? left.len() : (N - 1);
-    return (ComparisonResult::Value) memcmp (left.mem(), right, tocompare);
+    int const res = memcmp (left.mem(), right, tocompare);
+    if (res == 0)
+	return ComparisonResult::Equal;
+
+    if (res > 0)
+	return ComparisonResult::Greater;
+
+    return ComparisonResult::Less;
 }
 
 ComparisonResult compare (ConstMemory const &left,
