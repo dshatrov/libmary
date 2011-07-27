@@ -51,6 +51,7 @@ HttpServer::processRequestLine (ConstMemory const &_mem)
     Byte const *path_beg = (Byte const *) memchr (mem.mem(), 32 /* SP */, mem.len());
     if (!path_beg) {
 	logE_ (_func, "Bad request (1) \"", mem, "\"");
+	hexdump (logs, mem);
 	return Result::Failure;
     }
 
@@ -68,6 +69,7 @@ HttpServer::processRequestLine (ConstMemory const &_mem)
     Byte const * const path_end = (Byte const *) memchr (path_beg, 32 /* SP */, mem.len() - path_offs);
     if (!path_end) {
 	logE_ (_func, "Bad request (2) \"", mem, "\"");
+	hexdump (logs, mem);
 	return Result::Failure;
     }
 
@@ -148,6 +150,7 @@ HttpServer::processHeaderField (ConstMemory const &mem)
     Byte const * const header_name_end = (Byte const *) memchr (mem.mem(), ':', mem.len());
     if (!header_name_end) {
 	logE_ (_func, "bad header line: ", mem);
+	hexdump (logs, mem);
 	return;
     }
 
@@ -198,7 +201,8 @@ HttpServer::receiveRequestLine (ConstMemory const &_mem,
 				bool * const mt_nonnull ret_header_parsed)
 {
     logD (http, _func, _mem.len(), " bytes");
-//    hexdump (logs, _mem);
+    if (logLevelOn (http, LogLevel::Debug))
+	hexdump (logs, _mem);
 
     *ret_accepted = 0;
     *ret_header_parsed = false;
@@ -207,7 +211,7 @@ HttpServer::receiveRequestLine (ConstMemory const &_mem,
 
     Size field_offs = 0;
     for (;;) {
-	logD (http, _func, "iteration");
+	logD (http, _func, "iteration, mem.len(): ", mem.len(), ", recv_pos: ", recv_pos);
 
 	assert (mem.len() >= recv_pos);
 	if (mem.len() == recv_pos) {
@@ -219,7 +223,8 @@ HttpServer::receiveRequestLine (ConstMemory const &_mem,
 	for (;;) {
 	    Byte const * const cr_ptr = (Byte const *) memchr (mem.mem() + recv_pos, 13 /* CR */, mem.len() - recv_pos);
 	    if (!cr_ptr) {
-		recv_pos += mem.len();
+		recv_pos = mem.len();
+		logD (http, _func, "returning Again #1, recv_pos: ", recv_pos);
 		return Receiver::ProcessInputResult::Again;
 	    }
 
@@ -229,7 +234,8 @@ HttpServer::receiveRequestLine (ConstMemory const &_mem,
 	    // This means that we need 3 symbols of lookahead.
 	    if (mem.len() - (cr_pos + 1) < 3) {
 		// Leaving CR unaccepted for the next input event.
-		recv_pos += cr_pos;
+		recv_pos = cr_pos;
+		logD (http, _func, "returning Again #2, recv_pos: ", recv_pos);
 		return Receiver::ProcessInputResult::Again;
 	    }
 
@@ -246,6 +252,7 @@ HttpServer::receiveRequestLine (ConstMemory const &_mem,
 	  // CR at cr_pos does not end header field.
 	  // Searching for another one.
 	    recv_pos = cr_pos + 1;
+	    logD (http, _func, "new recv_pos: ", recv_pos);
 	}
 
 	if (req_state == RequestState::RequestLine) {
