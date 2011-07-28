@@ -188,7 +188,7 @@ mt_throws Result strToInt32_safe (char const * const cstr,
     {
 	// Note that MT-safe errno implies useless overhead of accessing
 	// thread-local storage.
-	if (errno != 0) {
+	if (errno == EINVAL || errno == ERANGE) {
 	    exc_throw <PosixException> (errno);
 	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
 	    return Result::Failure;
@@ -245,7 +245,7 @@ mt_throws Result strToInt64_safe (char const * const cstr,
     if (llong_val == LLONG_MIN ||
 	llong_val == LLONG_MAX)
     {
-	if (errno != 0) {
+	if (errno == EINVAL || errno == ERANGE) {
 	    exc_throw <PosixException> (errno);
 	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
 	    return Result::Failure;
@@ -300,7 +300,7 @@ mt_throws Result strToUint32_safe (char const *cstr,
     }
 
     if (ulong_val == ULONG_MAX) {
-	if (errno != 0) {
+	if (errno == EINVAL || errno == ERANGE) {
 	    exc_throw <PosixException> (errno);
 	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
 	    return Result::Failure;
@@ -353,7 +353,7 @@ mt_throws Result strToUint64_safe (char const *cstr,
     }
 
     if (ullong_val == ULLONG_MAX) {
-	if (errno != 0) {
+	if (errno == EINVAL || errno == ERANGE) {
 	    exc_throw <PosixException> (errno);
 	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
 	    return Result::Failure;
@@ -408,7 +408,7 @@ mt_throws Result strToDouble_safe (char const * const cstr,
 	double_val == -HUGE_VAL ||
 	double_val ==  HUGE_VAL)
     {
-	if (errno != 0) {
+	if (errno == ERANGE) {
 	    exc_throw <PosixException> (errno);
 	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
 	    return Result::Failure;
