@@ -21,13 +21,15 @@
 #define __LIBMARY__UTIL_NET__H__
 
 
+#include <libmary/types.h>
+
 #ifndef PLATFORM_WIN32
 #include <netinet/in.h>
 #else
 #include <Winsock2.h>
 #endif
 
-#include <libmary/types.h>
+#include <libmary/log.h>
 
 
 namespace M {
@@ -76,11 +78,20 @@ Result serviceToPort (ConstMemory const &service,
     {
 	ConstMemory host;
 	ConstMemory port;
-	if (!splitHostPort (hostname, &host, &port))
+	if (!splitHostPort (hostname, &host, &port)) {
+	    logE_ (_func, "no colon found in hostname: ", hostname);
 	    return Result::Failure;
+	}
 
 	return setIpAddress (host, port, ret_addr);
     }
+
+    // @allow_any - If 'true', then set host to INADDR_ANY when @hostname is empty.
+    Result setIpAddress_default (ConstMemory const &hostname,
+				 ConstMemory const &default_host,
+				 Uint16      const &default_port,
+				 bool               allow_any_host,
+				 IpAddress         *ret_addr);
 
     static inline Result setIpAddress (ConstMemory const &host,
 				       ConstMemory const &service,
@@ -131,8 +142,10 @@ Result serviceToPort (ConstMemory const &service,
     {
 	ConstMemory host;
 	ConstMemory port;
-	if (!splitHostPort (hostname, &host, &port))
+	if (!splitHostPort (hostname, &host, &port)) {
+	    logE_ (_func, "no colon found in hostname: ", hostname);
 	    return Result::Failure;
+	}
 
 	return setIpAddress (host, port, ret_addr);
     }

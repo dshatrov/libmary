@@ -44,10 +44,8 @@ Result splitHostPort (ConstMemory const &hostname,
 	*ret_port = ConstMemory ();
 
     void const * const colon = memchr (hostname.mem(), ':', hostname.len());
-    if (colon == NULL) {
-	logE_ (_func, "no colon found in hostname: ", hostname);
+    if (colon == NULL)
 	return Result::Failure;
-    }
 
     if (ret_host)
 	*ret_host = hostname.region (0, (Byte const*) colon - hostname.mem());
@@ -230,6 +228,42 @@ Result serviceToPort (ConstMemory const &service,
 	*ret_port = port;
 
     return Result::Success;
+}
+
+Result setIpAddress_default (ConstMemory   const &hostname,
+			     ConstMemory   const &default_host,
+			     Uint16        const &default_port,
+			     bool          const  allow_any_host,
+			     IpAddress   * const  ret_addr)
+{
+    if (hostname.isNull()) {
+      // Empty hostname (without a colon).
+	logE_ (_func, "empty hostname");
+	return Result::Failure;
+    }
+
+    ConstMemory host;
+    ConstMemory port;
+    if (!splitHostPort (hostname, &host, &port)) {
+      // @hostname contains only host part. Using default port number.
+	return setIpAddress (hostname, default_port, ret_addr);
+    }
+
+    if (host.isNull() && !allow_any_host) {
+	logE_ (_func, "empty host");
+	return Result::Failure;
+    }
+
+    if (port.isNull()) {
+	if (host.isNull()) {
+	  // ":" - default address case.
+	    return setIpAddress (default_host, default_port, ret_addr);
+	}
+
+	return setIpAddress (host, default_port, ret_addr);
+    }
+
+    return setIpAddress (host, port, ret_addr);
 }
 
 void setIpAddress (Uint32 const ip_addr,
