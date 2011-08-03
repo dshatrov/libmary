@@ -124,6 +124,9 @@ public:
 	// We've got the data and we know for sure that the following call to
 	// read() will return EAGAIN.
 	Normal_Again,
+	// Normal_Eof is usually returned when we've received Hup event for
+	// the connection, but there was some data to read.
+	Normal_Eof,
 	Again,
 	Eof,
 	Error

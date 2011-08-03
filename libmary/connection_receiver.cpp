@@ -50,7 +50,7 @@ ConnectionReceiver::doProcessInput ()
 	AsyncIoResult io_res;
 	{
 	    io_res = conn->read (Memory (recv_buf + recv_buf_pos, toread), &nread);
-	    logD (msg, _func, "read(): ", toString (io_res));
+	    logD (msg, _func, "read(): ", io_res);
 	    switch (io_res) {
 		case AsyncIoResult::Again: {
 		    // TODO if (recv_buf_pos >= recv_buf_len) then error.
@@ -72,6 +72,7 @@ ConnectionReceiver::doProcessInput ()
 		} break;
 		case AsyncIoResult::Normal:
 		case AsyncIoResult::Normal_Again:
+		case AsyncIoResult::Normal_Eof:
 		  // No-op
 		    break;
 		default:
@@ -145,6 +146,12 @@ ConnectionReceiver::doProcessInput ()
 
 	if (io_res == AsyncIoResult::Normal_Again)
 	    return;
+
+	if (io_res == AsyncIoResult::Normal_Eof) {
+	    if (frontend && frontend->processEof)
+		frontend.call (frontend->processEof);
+	    return;
+	}
     } // for (;;)
 }
 

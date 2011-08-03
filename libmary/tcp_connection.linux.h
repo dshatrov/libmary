@@ -43,6 +43,11 @@ private:
     // (by connect()).
     bool connected;
 
+    // Synchronized by processEvents() and also used by read(). This implies
+    // that read() must be called from the same thread as processEvents(),
+    // which is not very pleasant.
+    bool hup_received;
+
     Cb<Frontend> frontend;
     Cb<PollGroup::Feedback> feedback;
 
@@ -120,12 +125,7 @@ public:
 	connected = true;
     }
 
-    TcpConnection (Object * const coderef_container)
-	: DependentCodeReferenced (coderef_container),
-	  fd (-1),
-	  connected (false)
-    {
-    }
+    TcpConnection (Object *coderef_container);
 
     ~TcpConnection ();
 };

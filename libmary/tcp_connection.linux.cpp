@@ -56,8 +56,8 @@ TcpConnection::processEvents (Uint32   const event_flags,
 //    logD_ (_func, "Connection::frontend: 0x", fmt_hex, (uintptr_t) Connection::frontend);
 
     if (event_flags & PollGroup::Hup) {
-      // TODO remember eof
 	logD_ (_func, "0x", fmt_hex, (UintPtr) self, " Hup");
+	self->hup_received = true;
     }
 
     if (event_flags & PollGroup::Output) {
@@ -127,7 +127,9 @@ TcpConnection::processEvents (Uint32   const event_flags,
 	    self->output_frontend.call (self->output_frontend->processOutput);
     }
 
-    if (event_flags & PollGroup::Input) {
+    if (event_flags & PollGroup::Input ||
+	event_flags & PollGroup::Hup)
+    {
 	if (self->input_frontend && self->input_frontend->processInput)
 	    self->input_frontend.call (self->input_frontend->processInput);
     }
@@ -212,8 +214,12 @@ TcpConnection::read (Memory const &mem,
     if (ret_nread)
 	*ret_nread = (Size) res;
 
-    if ((Size) res < len)
-	return AsyncIoResult::Normal_Again;
+    if ((Size) res < len) {
+	if (hup_received)
+	    return AsyncIoResult::Normal_Eof;
+	else
+	    return AsyncIoResult::Normal_Again;
+    }
 
     return AsyncIoResult::Normal;
 }
@@ -417,6 +423,14 @@ TcpConnection::connect (IpAddress const &addr)
     }
 
     return Result::Success;
+}
+
+TcpConnection::TcpConnection (Object * const coderef_container)
+    : DependentCodeReferenced (coderef_container),
+      fd (-1),
+      connected (false),
+      hup_received (false)
+{
 }
 
 TcpConnection::~TcpConnection ()
