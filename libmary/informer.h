@@ -107,6 +107,11 @@ protected:
 		    VoidFunction         inform_cb,
 		    void                *inform_cb_data);
 
+    // May unlock and lock 'mutex' in the process.
+    void informAll_unlocked (ProxyInformCallback  mt_nonnull proxy_inform_cb,
+			     VoidFunction         inform_cb,
+			     void                *inform_cb_data);
+
     SubscriptionKey subscribeVoid (CallbackPtr     cb_ptr,
 				   void           *cb_data,
 				   VirtReferenced *ref_data,
@@ -202,6 +207,13 @@ public:
 		    void           * const inform_cb_data)
     {
 	GenericInformer::informAll (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
+    }
+
+    // May unlock and lock 'mutex' in the process.
+    void informAll_unlocked (InformCallback    const inform_cb,
+			     void            * const inform_cb_data)
+    {
+	GenericInformer::informAll_unlocked (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
     }
 
     SubscriptionKey subscribe (T                const cb,

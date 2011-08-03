@@ -22,6 +22,9 @@
 
 namespace M {
 
+// Informer is a helper object for signaling asynchronous events in MT-safe
+// manner.
+
 void
 GenericInformer::releaseSubscription (Subscription * const mt_nonnull sbn)
 {
@@ -53,7 +56,15 @@ GenericInformer::informAll (ProxyInformCallback   const mt_nonnull proxy_inform_
 			    void                * const inform_cb_data)
 {
     mutex->lock ();
+    informAll_unlocked (proxy_inform_cb, inform_cb, inform_cb_data);
+    mutex->unlock ();
+}
 
+void
+GenericInformer::informAll_unlocked (ProxyInformCallback   const mt_nonnull proxy_inform_cb,
+				     VoidFunction          const inform_cb,
+				     void                * const inform_cb_data)
+{
     ++traversing;
 
     Subscription *sbn = sbn_list.getFirst();
@@ -114,8 +125,6 @@ GenericInformer::informAll (ProxyInformCallback   const mt_nonnull proxy_inform_
 	    sbn = next_sbn;
 	}
     }
-
-    mutex->unlock ();
 }
 
 GenericInformer::SubscriptionKey
