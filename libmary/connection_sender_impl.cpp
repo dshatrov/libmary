@@ -76,9 +76,11 @@ ConnectionSenderImpl::resetSendingState ()
     if (cur_msg->type == Sender::MessageEntry::Pages) {
 	Sender::MessageEntry_Pages * const msg_pages = static_cast <Sender::MessageEntry_Pages*> (cur_msg);
 	send_cur_offset = msg_pages->msg_offset;
+	logD (send, _func, "msg_pages->msg_offset: ", msg_pages->msg_offset);
     } else {
 	send_cur_offset = 0;
     }
+    logD (send, _func, "send_cur_offset: ", send_cur_offset);
 }
 
 void
@@ -105,6 +107,7 @@ ConnectionSenderImpl::sendPendingMessages ()
 	if (!msg_list.getFirst())
 	    return AsyncIoResult::Normal;
 
+	logD (send, _func, "calling resetSendingState()");
 	resetSendingState ();
     }
 
@@ -165,8 +168,10 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 	// Dump of all iovs.
 	if (defaultLogLevelOn (LogLevel::Debug)) {
 	    logD (writev, _func, "iovs:");
-	    for (Count i = 0; i < num_iovs; ++i)
+	    for (Count i = 0; i < num_iovs; ++i) {
 		logD (writev, "    #", i, ": 0x", (UintPtr) iovs [i].iov_base, ": ", iovs [i].iov_len);
+		hexdump (logs, ConstMemory ((Byte const *) iovs [i].iov_base, iovs [i].iov_len));
+	    }
 	}
 #endif
 
@@ -372,20 +377,28 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 			}
 
 			if (fill_iovs) {
-			    if (first_page && first_entry) {
-				logD (writev, _func, "#", i, ": first page, first entry");
+			    if (first_page) {
+				if (first_entry) {
+				    logD (writev, _func, "#", i, ": first page, first entry");
 
-				assert (send_cur_offset < page->data_len);
-				iovs [i].iov_base = page->getData() + send_cur_offset;
-				iovs [i].iov_len = page->data_len - send_cur_offset;
-				++i;
+				    assert (send_cur_offset < page->data_len);
+				    iovs [i].iov_base = page->getData() + send_cur_offset;
+				    iovs [i].iov_len = page->data_len - send_cur_offset;
+				} else {
+				    logD (writev, _func, "#", i, ": first page");
+
+				    assert (msg_pages->msg_offset < page->data_len);
+				    iovs [i].iov_base = page->getData() + msg_pages->msg_offset;
+				    iovs [i].iov_len = page->data_len - msg_pages->msg_offset;
+				}
 			    } else {
 				logD (writev, _func, "#", i);
 
 				iovs [i].iov_base = page->getData();
 				iovs [i].iov_len = page->data_len;
-				++i;
 			    }
+
+			    ++i;
 			}
 
 			if (react) {
@@ -456,6 +469,7 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 			setSendState (Sender::QueueSoftLimit);
 		}
 
+		logD (send, _func, "calling resetSendingState()");
 		resetSendingState ();
 
 		if (msg_entry == processing_barrier) {
