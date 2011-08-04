@@ -35,7 +35,8 @@ class EmptyBase {};
 // Evil macro to save a few keystrokes for logE_ (_func, ...)
 
 // _func2 and _func3 are a workaround to stringify __LINE__.
-#define _func3(line) __FILE__ ":" #line ":", __func__
+#define _func3(line) __FILE__ ":" #line, ConstMemory ("    ", sizeof (#line) < 5 ? 5 - sizeof (#line) : 0), ":", __func__
+// No line padding  #define _func3(line) __FILE__ ":" #line ":", __func__
 #define _func2(line) _func3(line)
 
 #define _func  _func2(__LINE__), ": "
