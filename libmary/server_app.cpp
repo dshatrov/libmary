@@ -27,7 +27,7 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_server_app ("server_app", LogLevel::D);
+LogGroup libMary_logGroup_server_app ("server_app", LogLevel::N);
 }
 
 ActivePollGroup::Frontend ServerApp::poll_frontend = {
