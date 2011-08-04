@@ -57,6 +57,7 @@
 #define mt_iface_end(a)
 
 #define mt_async
+#define mt_unsafe
 
 // Reviewed (YY.MM.DD)
 #define mt_rev(a)
