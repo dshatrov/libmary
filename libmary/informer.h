@@ -138,6 +138,7 @@ public:
     ~GenericInformer ();
 };
 
+// Informer for structs with callbacks.
 template <class T>
 class Informer_ : public GenericInformer
 {
@@ -160,6 +161,13 @@ public:
 		    void           * const inform_cb_data)
     {
 	GenericInformer::informAll (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
+    }
+
+    // May unlock and lock 'mutex' in the process.
+    void informAll_unlocked (InformCallback    const inform_cb,
+			     void            * const inform_cb_data)
+    {
+	GenericInformer::informAll_unlocked (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
     }
 
     SubscriptionKey subscribe (T              * const ev_struct,
@@ -185,6 +193,7 @@ public:
     }
 };
 
+// Informer for direct callbacks.
 template <class T>
 class Informer : public GenericInformer
 {
