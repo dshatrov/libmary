@@ -402,16 +402,28 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 			}
 
 			if (react) {
-			    if (first_page && first_entry) {
-				assert (send_cur_offset < page->data_len);
-				if (num_written < page->data_len - send_cur_offset) {
-				    send_cur_offset += num_written;
-				    num_written = 0;
-				    msg_sent_completely = false;
-				    break;
-				}
+			    if (first_page) {
+				if (first_entry) {
+				    assert (send_cur_offset < page->data_len);
+				    if (num_written < page->data_len - send_cur_offset) {
+					send_cur_offset += num_written;
+					num_written = 0;
+					msg_sent_completely = false;
+					break;
+				    }
 
-				num_written -= page->data_len - send_cur_offset;
+				    num_written -= page->data_len - send_cur_offset;
+				} else {
+				    assert (msg_pages->msg_offset < page->data_len);
+				    if (num_written < page->data_len - msg_pages->msg_offset) {
+					send_cur_offset += num_written;
+					num_written = 0;
+					msg_sent_completely = false;
+					break;
+				    }
+
+				    num_written -= page->data_len - msg_pages->msg_offset;
+				}
 			    } else {
 				if (num_written < page->data_len) {
 				    send_cur_offset = num_written;
