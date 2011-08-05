@@ -199,14 +199,6 @@ private:
     Object& operator = (Object const &);
     Object (Object const &);
 
-protected:
-    DeletionSubscriptionKey addDeletionCallback_unlocked (DeletionCallback  cb,
-							  void             *cb_data,
-							  Referenced       *ref_data,
-							  Object           *guard_obj);
-
-    void removeDeletionCallback_unlocked (DeletionSubscriptionKey mt_nonnull sbn);
-
 public:
   mt_iface (CodeReferenced)
 
@@ -217,12 +209,20 @@ public:
 
   mt_iface_end (CodeReferenced)
 
-    // TODO There's no need in passing Ref<Object> here (and in other places).
-
     mt_locked DeletionSubscriptionKey addDeletionCallback (DeletionCallback  cb,
 							   void             *cb_data,
 							   Referenced       *ref_data,
 							   Object           *guard_obj);
+
+    DeletionSubscriptionKey addDeletionCallback_unlocked (DeletionCallback  cb,
+							  void             *cb_data,
+							  Referenced       *ref_data,
+							  Object           *guard_obj);
+
+    mt_locked DeletionSubscriptionKey addDeletionCallback_mutualUnlocked (DeletionCallback  cb,
+									  void             *cb_data,
+									  Referenced       *ref_data,
+									  Object           *guard_obj);
 
     // TODO Is it really necessary to create a new DeletionCallback object for
     // mutual deletion callbacks? Perhaps the existing DeletionCallback object
@@ -232,7 +232,17 @@ public:
 								    Referenced       *ref_data,
 								    Object           *guard_obj);
 
+    mt_locked DeletionSubscriptionKey addDeletionCallbackNonmutual_unlocked (DeletionCallback  cb,
+									     void             *cb_data,
+									     Referenced       *ref_data,
+									     Object           *guard_obj);
+
     void removeDeletionCallback (DeletionSubscriptionKey mt_nonnull sbn);
+
+    void removeDeletionCallback_unlocked (DeletionSubscriptionKey mt_nonnull sbn);
+
+    // Should be called when when state mutex of the subscriber is locked.
+    void removeDeletionCallback_mutualUnlocked (DeletionSubscriptionKey mt_nonnull sbn);
 
     Object ()
     {

@@ -31,7 +31,7 @@ GenericInformer::releaseSubscription (Subscription * const mt_nonnull sbn)
     if (sbn->weak_code_ref.isValid()) {
 	CodeRef const code_ref = sbn->weak_code_ref;
 	if (code_ref)
-	    code_ref->removeDeletionCallback (sbn->del_sbn);
+	    code_ref->removeDeletionCallback_mutualUnlocked (sbn->del_sbn);
     }
 
     sbn->ref_data = NULL;
@@ -139,6 +139,8 @@ GenericInformer::subscribeVoid (CallbackPtr      const cb_ptr,
     sbn->oneshot = false;
 
     if (coderef_container) {
+	// TODO It would be more effective lock 'mutex' earlier and call
+	// addDeletionCallback_mutualUnlocked() here.
 	sbn->del_sbn = coderef_container->addDeletionCallback (
 		subscriberDeletionCallback, sbn, NULL /* ref_data */, getCoderefContainer());
     } else {
@@ -164,7 +166,9 @@ GenericInformer::subscribeVoid_unlocked (CallbackPtr      const cb_ptr,
     sbn->oneshot = false;
 
     if (coderef_container) {
-	sbn->del_sbn = coderef_container->addDeletionCallback (
+	// 'mutex' always points to 'getCoderefContainer()->mutex'. This means
+	// that we must use addDeletionCallback_mutualUnlocked() here.
+	sbn->del_sbn = coderef_container->addDeletionCallback_mutualUnlocked (
 		subscriberDeletionCallback, sbn, NULL /* ref_data */, getCoderefContainer());
     } else {
 	sbn->del_sbn = NULL;

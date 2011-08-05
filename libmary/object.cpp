@@ -217,6 +217,26 @@ Object::mutualDeletionCallback (void * const mt_nonnull _sbn)
     delete sbn;
 }
 
+mt_locked Object::DeletionSubscriptionKey
+Object::addDeletionCallback (DeletionCallback   const cb,
+			     void             * const cb_data,
+			     Referenced       * const ref_data,
+			     Object           * const guard_obj)
+{
+    DeletionSubscription * const sbn = new DeletionSubscription (cb, cb_data, ref_data, guard_obj);
+    assert (sbn);
+    sbn->obj = this;
+    {
+      StateMutexLock l (&mutex);
+	if (guard_obj && guard_obj != this) {
+	    sbn->mutual_sbn = guard_obj->addDeletionCallbackNonmutual (
+		    mutualDeletionCallback, sbn, NULL /* ref_data */, getCoderefContainer() /* equivalent to 'this' */);
+	}
+	deletion_subscription_list.append (sbn);
+    }
+    return sbn;
+}
+
 Object::DeletionSubscriptionKey
 Object::addDeletionCallback_unlocked (DeletionCallback   const cb,
 				      void             * const cb_data,
@@ -238,10 +258,10 @@ Object::addDeletionCallback_unlocked (DeletionCallback   const cb,
 }
 
 mt_locked Object::DeletionSubscriptionKey
-Object::addDeletionCallback (DeletionCallback   const cb,
-			     void             * const cb_data,
-			     Referenced       * const ref_data,
-			     Object           * const guard_obj)
+Object::addDeletionCallback_mutualUnlocked (DeletionCallback   const cb,
+					    void             * const cb_data,
+					    Referenced       * const ref_data,
+					    Object           * const guard_obj)
 {
     DeletionSubscription * const sbn = new DeletionSubscription (cb, cb_data, ref_data, guard_obj);
     assert (sbn);
@@ -249,7 +269,7 @@ Object::addDeletionCallback (DeletionCallback   const cb,
     {
       StateMutexLock l (&mutex);
 	if (guard_obj && guard_obj != this) {
-	    sbn->mutual_sbn = guard_obj->addDeletionCallbackNonmutual (
+	    sbn->mutual_sbn = guard_obj->addDeletionCallbackNonmutual_unlocked (
 		    mutualDeletionCallback, sbn, NULL /* ref_data */, getCoderefContainer() /* equivalent to 'this' */);
 	}
 	deletion_subscription_list.append (sbn);
@@ -273,6 +293,38 @@ Object::addDeletionCallbackNonmutual (DeletionCallback   const cb,
     return sbn;
 }
 
+mt_locked Object::DeletionSubscriptionKey
+Object::addDeletionCallbackNonmutual_unlocked (DeletionCallback   const cb,
+					       void             * const cb_data,
+					       Referenced       * const ref_data,
+					       Object           * const guard_obj)
+{
+    DeletionSubscription * const sbn = new DeletionSubscription (cb, cb_data, ref_data, guard_obj);
+    assert (sbn);
+    sbn->obj = this;
+
+    deletion_subscription_list.append (sbn);
+
+    return sbn;
+}
+
+void
+Object::removeDeletionCallback (DeletionSubscriptionKey const mt_nonnull sbn)
+{
+    {
+      StateMutexLock l (&mutex);
+	deletion_subscription_list.remove (sbn);
+    }
+
+    if (sbn->mutual_sbn) {
+	Ref<Object> peer_obj = sbn->weak_peer_obj.getRef ();
+	if (peer_obj)
+	    peer_obj->removeDeletionCallback (sbn->mutual_sbn);
+    }
+
+    delete sbn;
+}
+
 void
 Object::removeDeletionCallback_unlocked (DeletionSubscriptionKey const mt_nonnull sbn)
 {
@@ -288,7 +340,7 @@ Object::removeDeletionCallback_unlocked (DeletionSubscriptionKey const mt_nonnul
 }
 
 void
-Object::removeDeletionCallback (DeletionSubscriptionKey const mt_nonnull sbn)
+Object::removeDeletionCallback_mutualUnlocked (DeletionSubscriptionKey const mt_nonnull sbn)
 {
     {
       StateMutexLock l (&mutex);
@@ -298,7 +350,7 @@ Object::removeDeletionCallback (DeletionSubscriptionKey const mt_nonnull sbn)
     if (sbn->mutual_sbn) {
 	Ref<Object> peer_obj = sbn->weak_peer_obj.getRef ();
 	if (peer_obj)
-	    peer_obj->removeDeletionCallback (sbn->mutual_sbn);
+	    peer_obj->removeDeletionCallback_unlocked (sbn->mutual_sbn);
     }
 
     delete sbn;
