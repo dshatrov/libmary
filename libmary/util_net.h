@@ -24,7 +24,10 @@
 #include <libmary/types.h>
 
 #ifndef PLATFORM_WIN32
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #else
 #include <Winsock2.h>
 #endif
