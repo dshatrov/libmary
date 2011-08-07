@@ -22,7 +22,7 @@
 
 
 #include <libmary/types.h>
-#include <malloc.h>
+#include <stdlib.h>
 
 
 namespace M {
