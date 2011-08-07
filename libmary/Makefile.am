@@ -15,6 +15,10 @@ else
     COMMON_CFLAGS += -rdynamic -pthread
 endif
 
+if LIBMARY_ENABLE_EPOLL
+    COMMON_CFLAGS += -DLIBMARY_ENABLE_EPOLL
+endif
+
 if LIBMARY_USE_SELECT
     COMMON_CFLAGS += -DLIBMARY_USE_SELECT
 endif
@@ -130,14 +134,19 @@ mary_linux_target_headers =	\
 	util_posix.h		\
 	native_file.linux.h	\
 	tcp_connection.linux.h	\
-	tcp_server.linux.h	\
-	epoll_poll_group.h
+	tcp_server.linux.h
 
 mary_win32_target_headers =	\
 	win32.h			\
 	native_file_win32.h	\
 	tcp_connection.win32.h	\
 	tcp_server.win32.h
+
+if LIBMARY_ENABLE_EPOLL
+    mary_linux_target_headers += epoll_poll_group.h
+else
+    mary_private_headers += epoll_poll_group.h
+endif
 
 if PLATFORM_WIN32
     mary_target_headers  += $(mary_win32_target_headers)
@@ -235,8 +244,7 @@ mary_linux_sources =			\
 	util_posix.cpp			\
 	native_file.linux.cpp		\
 	tcp_connection.linux.cpp	\
-	tcp_server.linux.cpp		\
-	epoll_poll_group.cpp
+	tcp_server.linux.cpp
 
 mary_win32_sources =			\
 	native_file.win32.cpp		\
@@ -244,6 +252,12 @@ mary_win32_sources =			\
 	tcp_server.win32.cpp
 
 mary_extra_dist =
+
+if LIBMARY_ENABLE_EPOLL
+    mary_linux_sources += epoll_poll_group.cpp
+else
+    mary_extra_dist += epoll_poll_group.cpp
+endif
 
 if PLATFORM_WIN32
     libmary_1_0_la_SOURCES += $(mary_win32_sources)
