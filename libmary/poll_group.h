@@ -74,7 +74,7 @@ public:
 namespace M {
     // TODO Rename DefaultPollGroup to DefaultActivePollGroup
     //      and move this into active_poll_group.h
-#if defined (PLATFORM_WIN32) || defined (LIBMARY_USE_SELECT)
+#if defined (PLATFORM_WIN32) || defined (LIBMARY_USE_SELECT) || !defined (LIBMARY_ENABLE_EPOLL)
     class SelectPollGroup;
     typedef SelectPollGroup DefaultPollGroup;
 #else
