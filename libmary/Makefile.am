@@ -15,6 +15,10 @@ else
     COMMON_CFLAGS += -rdynamic -pthread
 endif
 
+if LIBMARY_USE_SELECT
+    COMMON_CFLAGS += -DLIBMARY_USE_SELECT
+endif
+
 AM_CFLAGS = -std=c99 $(COMMON_CFLAGS)
 AM_CXXFLAGS = -std=c++0x $(COMMON_CFLAGS)
 

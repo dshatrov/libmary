@@ -21,6 +21,13 @@ case "$host" in
 esac
 AM_CONDITIONAL(PLATFORM_WIN32, test x$platform_win32 = xyes)
 
+AC_ARG_WITH([select],
+	    AC_HELP_STRING([--with-select=@<:@yes/no@:>@],
+			   [use select() syscall for event polling by default [default=no]]),
+	    [with_select=$withval],
+	    [with_select="no"])
+AM_CONDITIONAL(LIBMARY_USE_SELECT, test x$with_select = xyes)
+
 AC_CONFIG_FILES([Makefile
 		 libmary/Makefile
 		 libmary-1.0.pc])
