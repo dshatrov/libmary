@@ -41,6 +41,7 @@ ConnectionSenderImpl::setSendState (Sender::SendState const new_state)
 
     send_state = new_state;
     if (frontend
+	&& (*frontend)
 	&& (*frontend)->sendStateChanged)
     {
 	frontend->call ((*frontend)->sendStateChanged, /* ( */ new_state /* ) */);
@@ -188,6 +189,8 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 	    if (res == AsyncIoResult::Again) {
 		if (send_state == Sender::ConnectionReady)
 		    setSendState (Sender::ConnectionOverloaded);
+
+		logD (send, _func, "connection overloaded");
 
 		overloaded = true;
 		return AsyncIoResult::Again;
