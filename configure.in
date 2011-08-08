@@ -47,7 +47,6 @@ fi
 # libmary_config.h is for external configuration and should be included
 # by external headers when necessary.
 #
-touch libmary_config.h.in
 AC_CONFIG_HEADERS([local_config.h libmary/libmary_config.h])
 
 AC_CONFIG_FILES([Makefile
