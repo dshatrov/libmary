@@ -258,18 +258,19 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 
 	    elapsed_microsec = cur_microsec - start_microsec;
 
-//	    logD_ (_func, "timeout_microsec: ", timeout_microsec == (Uint64) -1 ? toString ("-1") : toString (timeout_microsec), ", elapsed_microsec: ", elapsed_microsec);
+	    logD (select, _func, "timeout_microsec: ", timeout_microsec == (Uint64) -1 ? toString ("-1") : toString (timeout_microsec), ", "
+		  "elapsed_microsec: ", elapsed_microsec);
 
 	    bool null_timeout = true;
 	    struct timeval timeout_val;
 	    if (!got_deferred_tasks) {
-		null_timeout = false;
 		if (timeout_microsec != (Uint64) -1) {
+		    null_timeout = false;
 		    if (timeout_microsec > elapsed_microsec) {
 			timeout_val.tv_sec = (timeout_microsec - elapsed_microsec) / 1000000;
 			timeout_val.tv_usec = (timeout_microsec - elapsed_microsec) % 1000000;
 
-//			logD_ (_func, "tv_sec: ", timeout_val.tv_sec, ", tv_usec: ", timeout_val.tv_usec);
+			logD (select, _func, "tv_sec: ", timeout_val.tv_sec, ", tv_usec: ", timeout_val.tv_usec);
 		    } else {
 			timeout_val.tv_sec = 0;
 			timeout_val.tv_usec = 0;
