@@ -17,6 +17,8 @@
 */
 
 
+#include "local_config.h"
+
 #include <libmary/log.h>
 
 #include <libmary/http_service.h>

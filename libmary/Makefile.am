@@ -14,13 +14,13 @@ else
     COMMON_CFLAGS += -rdynamic
 endif
 
-if LIBMARY_ENABLE_EPOLL
-    COMMON_CFLAGS += -DLIBMARY_ENABLE_EPOLL
-endif
+#if LIBMARY_ENABLE_EPOLL
+#    COMMON_CFLAGS += -DLIBMARY_ENABLE_EPOLL
+#endif
 
-if LIBMARY_USE_SELECT
-    COMMON_CFLAGS += -DLIBMARY_USE_SELECT
-endif
+#if LIBMARY_USE_SELECT
+#    COMMON_CFLAGS += -DLIBMARY_USE_SELECT
+#endif
 
 AM_CFLAGS = -std=gnu99 $(COMMON_CFLAGS)
 AM_CXXFLAGS = -std=gnu++0x $(COMMON_CFLAGS)
@@ -31,6 +31,8 @@ mary_private_headers =		\
 	libmary_thread_local.h
 
 mary_target_headers =			\
+	libmary_config.h		\
+					\
 	libmary.h			\
 	util_base.h			\
 	util_str_base.h			\
@@ -156,6 +158,8 @@ BUILT_SOURCES = $(MARY_GENFILES)
 CLEANFILES = $(MARY_GENFILES)
 nodist_libmary_1_0_la_SOURCES = $(MARY_GENFILES)
 
+DISTCLEANFILES = libmary_config.h
+
 if PLATFORM_WIN32
 native_file.h: native_file.win32.h
 	ln -s native_file.win32.h native_file.h
@@ -243,7 +247,7 @@ mary_win32_sources =			\
 	tcp_connection.win32.cpp	\
 	tcp_server.win32.cpp
 
-mary_extra_dist =
+mary_extra_dist = libmary_config.h.in
 
 if LIBMARY_ENABLE_EPOLL
     mary_linux_sources += epoll_poll_group.cpp

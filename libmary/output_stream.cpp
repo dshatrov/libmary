@@ -17,6 +17,8 @@
 */
 
 
+#include "local_config.h"
+
 #include <libmary/util_common.h>
 
 #include <libmary/output_stream.h>

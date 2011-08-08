@@ -4,6 +4,8 @@
 # It is this simple because I don't (yet?) get what else could this script do.
 #    - DMS
 
+touch local_config.h.in
+
 aclocal                   || exit 1
 libtoolize --copy --force || exit 1
 autoconf                  || exit 1

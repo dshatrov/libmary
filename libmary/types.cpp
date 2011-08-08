@@ -17,6 +17,8 @@
 */
 
 
+#include "local_config.h"
+
 #include <libmary/types.h>
 
 

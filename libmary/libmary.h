@@ -21,6 +21,8 @@
 #define __LIBMARY__LIBMARY__H__
 
 
+#include <libmary/libmary_config.h>
+
 #include <libmary/annotations.h>
 #include <libmary/types_base.h>
 #include <libmary/types.h>

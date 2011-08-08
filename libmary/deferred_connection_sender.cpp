@@ -17,6 +17,8 @@
 */
 
 
+#include "local_config.h"
+
 #include <libmary/log.h>
 
 #include <libmary/deferred_connection_sender.h>

@@ -17,6 +17,8 @@
 */
 
 
+#include "local_config.h"
+
 #include <errno.h>
 #include <sys/stat.h>
 #include <dirent.h>

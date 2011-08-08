@@ -17,6 +17,8 @@
 */
 
 
+#include "local_config.h"
+
 #include <time.h>
 #include <errno.h>
 #include <unistd.h>

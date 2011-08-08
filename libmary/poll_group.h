@@ -21,6 +21,7 @@
 #define __LIBMARY__POLL_GROUP__H__
 
 
+#include <libmary/libmary_config.h>
 #include <libmary/types.h>
 #include <libmary/cb.h>
 #include <libmary/exception.h>

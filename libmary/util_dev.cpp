@@ -17,6 +17,8 @@
 */
 
 
+#include "local_config.h"
+
 #include <libmary/util_str.h>
 #include <libmary/log.h>
 
