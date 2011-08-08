@@ -122,6 +122,8 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 {
     for (;;) {
 	if (!gotDataToSend()) {
+	    logD (send, _func, "no data to send");
+
 	    if (send_state == Sender::ConnectionOverloaded)
 		setSendState (Sender::ConnectionReady);
 
@@ -129,8 +131,10 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 	    return AsyncIoResult::Normal;
 	}
 
-	if (processingBarrierHit())
+	if (processingBarrierHit()) {
+	    logD (send, _func, "processing barrier hit");
 	    return AsyncIoResult::Normal;
+	}
 
 	// TODO Count num_iovs
 	Size num_iovs = 0;
@@ -247,7 +251,9 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 	return;
     }
 
-    if (!processing_barrier) {
+    if (enable_processing_barrier
+	&& !processing_barrier)
+    {
 	if (gotDataToSend())
 	    processing_barrier_hit = true;
 
@@ -484,7 +490,9 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 		logD (send, _func, "calling resetSendingState()");
 		resetSendingState ();
 
-		if (msg_entry == processing_barrier) {
+		if (enable_processing_barrier
+		    && msg_entry == processing_barrier)
+		{
 		    processing_barrier = NULL;
 
 		    if (gotDataToSend())
@@ -494,14 +502,20 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 		}
 	    } else {
 		assert (gotDataToSend());
-		if (msg_entry == processing_barrier)
+		if (enable_processing_barrier
+		    && msg_entry == processing_barrier)
+		{
 		    processing_barrier_hit = true;
+		}
 
 		break;
 	    }
 	} else {
-	    if (msg_entry == processing_barrier)
+	    if (enable_processing_barrier
+		&& msg_entry == processing_barrier)
+	    {
 		break;
+	    }
 	}
 
 	first_entry = false;
@@ -587,13 +601,14 @@ ConnectionSenderImpl::queueMessage (Sender::MessageEntry * const mt_nonnull msg_
     msg_list.append (msg_entry);
 }
 
-ConnectionSenderImpl::ConnectionSenderImpl ()
+ConnectionSenderImpl::ConnectionSenderImpl (bool const enable_processing_barrier)
     : conn (NULL),
       soft_msg_limit (1024),
       hard_msg_limit (4096),
       send_state (Sender::ConnectionReady),
       overloaded (false),
       num_msg_entries (0),
+      enable_processing_barrier (enable_processing_barrier),
       processing_barrier (NULL),
       processing_barrier_hit (false),
       sending_message (false),

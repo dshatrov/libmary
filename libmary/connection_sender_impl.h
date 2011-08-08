@@ -45,6 +45,7 @@ private:
     Sender::MessageList msg_list;
     Count num_msg_entries;
 
+    bool enable_processing_barrier;
     Sender::MessageEntry *processing_barrier;
     bool processing_barrier_hit;
 
@@ -108,7 +109,7 @@ public:
 	this->hard_msg_limit = hard_msg_limit;
     }
 
-    ConnectionSenderImpl ();
+    ConnectionSenderImpl (bool enable_processing_barrier);
 
     ~ConnectionSenderImpl ();
 };
