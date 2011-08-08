@@ -199,17 +199,20 @@ DeferredConnectionSender::pollIterationEnd ()
 	else
 	    deferred_sender->ready_for_output = true;
 
+	// vvv FIXME Wrong comment because of extra_iteartion_needed vvv
+	//
 	// At this point, conn_sender_impl has either sent all data, or it has
 	// gotten EAGAIN from writev. In either case, we should have removed
 	// deferred_sender from glob_output_queue.
 
 	extra_iteration_needed = deferred_sender->conn_sender_impl.processingBarrierHit();
+//	logD_ (_func, "extra_iteration_needed: ", extra_iteration_needed ? "true" : "false");
 
 	if (deferred_sender->closeIfNeeded ())
 	    extra_iteration_needed = false;
 
 	// 'deferred_sender->mutex' has been unlocked by closeIfNeeded().
-	{
+	if (!extra_iteration_needed) {
 	    Object * const coderef_container = deferred_sender->getCoderefContainer();
 	    if (coderef_container)
 		coderef_container->unref ();
@@ -220,6 +223,7 @@ DeferredConnectionSender::pollIterationEnd ()
     glob_output_queue_processing = false;
     glob_output_queue_mutex.unlock ();
 
+//    logD_ (_func, "extra_iteration_needed: ", extra_iteration_needed ? "true" : "false");
     return extra_iteration_needed;
 }
 
