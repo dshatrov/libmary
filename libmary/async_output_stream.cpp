@@ -17,8 +17,6 @@
 */
 
 
-#include "local_config.h"
-
 #include <libmary/async_output_stream.h>
 
 

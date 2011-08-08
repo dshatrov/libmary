@@ -17,8 +17,6 @@
 */
 
 
-#include "local_config.h"
-
 #include <errno.h>
 #include <cctype>
 #include <cstring>

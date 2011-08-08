@@ -1,6 +1,7 @@
 COMMON_CFLAGS =				\
 	-ggdb				\
 	-Wno-long-long -Wall -Wextra	\
+	-include "local_config.h"	\
 	$(THIS_CFLAGS)
 
 COMMON_CFLAGS += -DLIBMARY_MTSAFE -DLIBMARY_TLOCAL=__thread

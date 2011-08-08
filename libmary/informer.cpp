@@ -17,8 +17,6 @@
 */
 
 
-#include "local_config.h"
-
 #include <libmary/informer.h>
 
 

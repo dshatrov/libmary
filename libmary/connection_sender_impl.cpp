@@ -17,8 +17,6 @@
 */
 
 
-#include "local_config.h"
-
 #include <libmary/types.h>
 #include <libmary/util_dev.h>
 #include <libmary/log.h>

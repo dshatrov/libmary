@@ -42,7 +42,9 @@ if test "x$with_select" = "xyes"; then
 fi
 
 # local_config.h is for local configuration and should not be used in external
-# headers. Every libmary source file (*.cpp, *.c) must #include "config.h"
+# headers. Every libmary source file (*.cpp, *.c) must include local_config.h
+# This is acheived by specifying -include "local_config.h" compilation option
+# in libmary/Makefile.am
 #
 # libmary_config.h is for external configuration and should be included
 # by external headers when necessary.

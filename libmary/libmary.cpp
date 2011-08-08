@@ -17,8 +17,6 @@
 */
 
 
-#include "local_config.h"
-
 #include <libmary/libmary.h>
 
 #include <libmary/libmary_thread_local.h>

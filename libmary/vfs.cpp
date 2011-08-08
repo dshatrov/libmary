@@ -17,8 +17,6 @@
 */
 
 
-#include "local_config.h"
-
 #include <libmary/util_base.h>
 #include <libmary/vfs_posix.h>
 

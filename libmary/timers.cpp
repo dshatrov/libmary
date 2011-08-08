@@ -17,8 +17,6 @@
 */
 
 
-#include "local_config.h"
-
 #include <libmary/log.h>
 #include <libmary/util_time.h>
 

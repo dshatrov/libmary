@@ -17,8 +17,6 @@
 */
 
 
-#include "local_config.h"
-
 #include <limits.h>
 #include <errno.h>
 #include <sys/types.h>
