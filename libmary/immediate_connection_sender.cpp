@@ -49,7 +49,6 @@ ImmediateConnectionSender::processOutput (void * const _self)
     ImmediateConnectionSender * const self = static_cast <ImmediateConnectionSender*> (_self);
 
     self->mutex.lock ();
-    self->conn_sender_impl.markProcessingBarrier ();
     AsyncIoResult const res = self->conn_sender_impl.sendPendingMessages ();
     if (res == AsyncIoResult::Error ||
 	res == AsyncIoResult::Eof)
@@ -92,7 +91,6 @@ ImmediateConnectionSender::flush ()
 	return;
     }
 
-    conn_sender_impl.markProcessingBarrier ();
     AsyncIoResult const res = conn_sender_impl.sendPendingMessages ();
     if (res == AsyncIoResult::Error ||
 	res == AsyncIoResult::Eof)

@@ -64,6 +64,7 @@ public:
 
     ImmediateConnectionSender (Object * const coderef_container)
 	: DependentCodeReferenced (coderef_container),
+	  conn_sender_impl (false /* enable_processing_barrier */),
 	  close_after_flush (false),
 	  ready_for_output (true)
     {
