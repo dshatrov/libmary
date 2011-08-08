@@ -110,6 +110,7 @@ public:
     DeferredConnectionSender (Object * const coderef_container)
 	: DependentCodeReferenced (coderef_container),
 	  deferred_reg (NULL),
+	  conn_sender_impl (true /* enable_processing_barrier */),
 	  close_after_flush (false),
 	  ready_for_output (true),
 	  in_output_queue (false)
