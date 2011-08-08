@@ -215,10 +215,12 @@ TcpConnection::read (Memory const &mem,
 	*ret_nread = (Size) res;
 
     if ((Size) res < len) {
-	if (hup_received)
+	if (hup_received) {
 	    return AsyncIoResult::Normal_Eof;
-	else
+	} else {
+	    requestInput ();
 	    return AsyncIoResult::Normal_Again;
+	}
     }
 
     return AsyncIoResult::Normal;
