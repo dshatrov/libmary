@@ -308,7 +308,7 @@ HttpService::accepted (void *_self)
 {
     HttpService * const self = static_cast <HttpService*> (_self);
 
-    logD (http_service, _func);
+    logD (http_service, _func_);
 
     for (;;) {
 	if (!self->acceptOneConnection ())
