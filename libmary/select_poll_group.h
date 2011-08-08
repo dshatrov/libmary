@@ -78,7 +78,8 @@ private:
 
     DeferredProcessor deferred_processor;
 
-    // Accessed from the same thread only.
+    // Accessed from the same thread only. Can be considered mt_const after
+    // the first call to poll().
     LibMary_ThreadLocal *poll_tlocal;
 
     mt_throws Result triggerPipeWrite ();

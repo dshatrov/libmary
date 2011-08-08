@@ -35,14 +35,17 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_time    ("time",    LogLevel::N);
-LogGroup libMary_logGroup_connerr ("connerr", LogLevel::D);
-LogGroup libMary_logGroup_iters   ("iters",   LogLevel::N);
+LogGroup libMary_logGroup_select  ("select",         LogLevel::N);
+LogGroup libMary_logGroup_time    ("select_time",    LogLevel::N);
+LogGroup libMary_logGroup_connerr ("select_connerr", LogLevel::D);
+LogGroup libMary_logGroup_iters   ("select_iters",   LogLevel::N);
 }
 
 mt_throws Result
 SelectPollGroup::triggerPipeWrite ()
 {
+    logD (select, _func_);
+
     for (;;) {
 	ssize_t const res = write (trigger_pipe [1], "A", 1);
 	if (res == -1) {
@@ -76,11 +79,14 @@ SelectPollGroup::triggerPipeWrite ()
 void
 SelectPollGroup::requestInput (void * const _pollable_entry)
 {
+    logD (select, _func_);
+
     PollableEntry * const pollable_entry = static_cast <PollableEntry*> (_pollable_entry);
     // We assume that the poll group is always available when requestInput()
     // is called.
     SelectPollGroup * const self = pollable_entry->select_poll_group;
 
+    assert (self->poll_tlocal);
     if (self->poll_tlocal && self->poll_tlocal == libMary_getThreadLocal()) {
 	pollable_entry->need_input = true;
     } else {
@@ -89,6 +95,7 @@ SelectPollGroup::requestInput (void * const _pollable_entry)
 	if (self->triggered) {
 	    self->mutex.unlock ();
 	} else {
+	    self->triggered = true;
 	    self->mutex.unlock ();
 	    self->triggerPipeWrite ();
 	}
@@ -98,11 +105,14 @@ SelectPollGroup::requestInput (void * const _pollable_entry)
 void
 SelectPollGroup::requestOutput (void * const _pollable_entry)
 {
+    logD (select, _func_);
+
     PollableEntry * const pollable_entry = static_cast <PollableEntry*> (_pollable_entry);
     // We assume that the poll group is always available when requestOutput()
     // is called.
     SelectPollGroup * const self = pollable_entry->select_poll_group;
 
+    assert (self->poll_tlocal);
     if (self->poll_tlocal && self->poll_tlocal == libMary_getThreadLocal()) {
 	pollable_entry->need_output = true;
     } else {
@@ -111,6 +121,7 @@ SelectPollGroup::requestOutput (void * const _pollable_entry)
 	if (self->triggered) {
 	    self->mutex.unlock ();
 	} else {
+	    self->triggered = true;
 	    self->mutex.unlock ();
 	    self->triggerPipeWrite ();
 	}
@@ -128,6 +139,10 @@ SelectPollGroup::addPollable (CbDesc<Pollable> const &pollable,
 			      DeferredProcessor::Registration * const ret_reg)
 {
     PollableEntry * const pollable_entry = new PollableEntry;
+
+    logD (select, _func, "cb_data: 0x", fmt_hex, (UintPtr) pollable.cb_data, ", "
+	  "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry);
+
     pollable_entry->select_poll_group = this;
     pollable_entry->valid = true;
     pollable_entry->pollable = pollable;
@@ -163,6 +178,8 @@ SelectPollGroup::removePollable (PollableKey const mt_nonnull key)
 {
     PollableEntry * const pollable_entry = static_cast <PollableEntry*> (key);
 
+    logD (select, _func, "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry);
+
     mutex.lock ();
     pollable_entry->valid = false;
     pollable_list.remove (pollable_entry);
@@ -188,6 +205,8 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
     SelectedList selected_list;
     fd_set rfds, wfds, efds;
     for (;;) {
+	logD (select, _func, "iteration");
+
 	FD_ZERO (&rfds);
 	FD_ZERO (&wfds);
 	FD_ZERO (&efds);
@@ -211,10 +230,14 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		    largest_fd = pollable_entry->fd;
 
 		FD_SET (pollable_entry->fd, &efds);
-		if (pollable_entry->need_input)
+		if (pollable_entry->need_input) {
+		    logD (select, _func, "adding pollable_entry 0x", fmt_hex, (UintPtr) pollable_entry, " to rfds");
 		    FD_SET (pollable_entry->fd, &rfds);
-		if (pollable_entry->need_output)
+		}
+		if (pollable_entry->need_output) {
+		    logD (select, _func, "adding pollable_entry 0x", fmt_hex, (UintPtr) pollable_entry, " to wfds");
 		    FD_SET (pollable_entry->fd, &wfds);
+		}
 
 		selected_list.append (pollable_entry);
 		pollable_entry->ref ();
@@ -253,6 +276,7 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		    }
 		}
 	    } else {
+		logD (select, "got deferred tasks");
 		null_timeout = false;
 		timeout_val.tv_sec = 0;
 		timeout_val.tv_usec = 0;
@@ -308,11 +332,13 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		    if (FD_ISSET (pollable_entry->fd, &rfds)) {
 			pollable_entry->need_input = false;
 			event_flags |= Input;
+			logD (select, _func, "Input");
 		    }
 
 		    if (FD_ISSET (pollable_entry->fd, &wfds)) {
 			pollable_entry->need_output = false;
 			event_flags |= Output;
+			logD (select, _func, "Output");
 		    }
 
 		    if (FD_ISSET (pollable_entry->fd, &efds)) {
@@ -321,11 +347,13 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		    }
 
 		    if (event_flags) {
-			logD (iters, _func, "notifying pollable 0x", fmt_hex, (UintPtr) pollable_entry->pollable.getWeakObject());
+			logD (iters, _func, "notifying pollable_entry 0x", fmt_hex, (UintPtr) pollable_entry, ", "
+			      "pollable 0x", fmt_hex, (UintPtr) pollable_entry->pollable.getWeakObject());
 			mutex.unlock ();
 			pollable_entry->pollable.call (pollable_entry->pollable->processEvents, /*(*/ event_flags /*)*/);
 			mutex.lock ();
-			logD (iters, _func, "notified pollable 0x", fmt_hex, (UintPtr) pollable_entry->pollable.getWeakObject());
+			logD (iters, _func, "notified pollable_entry 0x", fmt_hex, (UintPtr) pollable_entry, ", "
+			      "pollable 0x", fmt_hex, (UintPtr) pollable_entry->pollable.getWeakObject());
 		    }
 		}
 
@@ -405,6 +433,8 @@ _select_interrupted:
 mt_throws Result
 SelectPollGroup::trigger ()
 {
+    logD (select, _func_);
+
     mutex.lock ();
     if (triggered) {
 	mutex.unlock ();
@@ -419,6 +449,8 @@ SelectPollGroup::trigger ()
 mt_throws Result
 SelectPollGroup::open ()
 {
+    logD (select, _func_);
+
     if (!posix_createNonblockingPipe (&trigger_pipe))
 	return Result::Failure;
 
@@ -439,6 +471,8 @@ SelectPollGroup::SelectPollGroup (Object * const coderef_container)
 
 SelectPollGroup::~SelectPollGroup ()
 {
+    logD (select, _func_);
+
     mutex.lock ();
     {
 	PollableList::iter iter (pollable_list);
