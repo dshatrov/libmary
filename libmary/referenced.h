@@ -24,6 +24,9 @@
 #include <libmary/types.h>
 #include <libmary/atomic.h>
 #include <libmary/virt_referenced.h>
+#include <libmary/avl_tree.h>
+#include <libmary/util_base.h>
+#include <libmary/debug.h>
 
 
 namespace M {
@@ -37,6 +40,13 @@ class Referenced : public virtual VirtReferenced
 private:
     AtomicInt refcount;
 
+#ifdef LIBMARY_REF_TRACING
+    mt_const bool traced;
+
+    void traceRef ();
+    void traceUnref ();
+#endif
+
 protected:
     virtual void last_unref ()
     {
@@ -44,13 +54,29 @@ protected:
     }
 
 public:
+#ifdef LIBMARY_REF_TRACING
+    mt_const void trace ()
+    {
+	traced = true;
+    }
+#endif
+
     void libMary_ref ()
     {
 	refcount.inc ();
+
+#ifdef LIBMARY_REF_TRACING
+	if (traced)
+	    traceRef ();
+#endif
     }
 
     void libMary_unref ()
     {
+#ifdef LIBMARY_REF_TRACING
+	if (traced)
+	    traceUnref ();
+#endif
 	if (refcount.decAndTest ())
 	    last_unref ();
     }

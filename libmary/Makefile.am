@@ -25,6 +25,7 @@ mary_private_headers =		\
 
 mary_target_headers =			\
 	libmary_config.h		\
+	debug.h				\
 					\
 	libmary.h			\
 	util_base.h			\
@@ -195,6 +196,7 @@ libmary_1_0_la_SOURCES =		\
 					\
 	state_mutex.cpp			\
 					\
+	referenced.cpp			\
 	object.cpp			\
 					\
 	libmary_thread_local.cpp	\
