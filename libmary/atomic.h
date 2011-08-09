@@ -55,6 +55,16 @@ public:
     int fetchAdd (int const a)
     {
 	return (int) g_atomic_int_exchange_and_add (&value, a);
+
+#if 0
+// Alternate version.
+	for (;;) {
+	    gint const old = g_atomic_int_get (&value);
+	    if (g_atomic_int_compare_and_exchange (&value, old, old + a))
+		return old;
+	}
+	// unreachable
+#endif
     }
 
     bool compareAndExchange (int const old_value,
