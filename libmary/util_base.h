@@ -57,6 +57,7 @@ void unreachable_ (ConstMemory const &mem,
  * in case of using MyCpp. */
 
 extern Mutex _libMary_library_mutex;
+extern Mutex _libMary_helper_mutex;
 
 /*m Aquires the lock that is used to protect non-reentrant library calls
  * (mainly for glibc calls). */
@@ -71,6 +72,18 @@ static inline void libraryUnlock ()
 {
     _libMary_library_mutex.unlock ();
 }
+
+static inline void helperLock ()
+{
+    _libMary_helper_mutex.lock ();
+}
+
+static inline void helperUnlock ()
+{
+    _libMary_helper_mutex.unlock ();
+}
+
+char* rawCollectBacktrace ();
 
 }
 
