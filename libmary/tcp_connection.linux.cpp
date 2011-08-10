@@ -19,6 +19,8 @@
 
 #include <libmary/types.h>
 
+#include <cstdio>
+
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -39,6 +41,10 @@ namespace M {
 namespace {
 LogGroup libMary_logGroup_tcp_conn ("tcp_conn", LogLevel::N);
 }
+
+#ifdef LIBMARY_TCP_CONNECTION_NUM_INSTANCES
+AtomicInt TcpConnection::num_instances;
+#endif
 
 PollGroup::Pollable const TcpConnection::pollable = {
     processEvents,
@@ -433,11 +439,17 @@ TcpConnection::TcpConnection (Object * const coderef_container)
       connected (false),
       hup_received (false)
 {
+#ifdef LIBMARY_TCP_CONNECTION_NUM_INSTANCES
+    fprintf (stderr, "TcpConnection(): num_instances: %d\n", num_instances.fetchAdd (1) + 1);
+#endif
 }
 
 TcpConnection::~TcpConnection ()
 {
-    logD (tcp_conn, _func, "0x", fmt_hex, (UintPtr) this);
+#ifdef LIBMARY_TCP_CONNECTION_NUM_INSTANCES
+    logD (tcp_conn, _func, "num_instances: ", num_instances.fetchAdd (-1) - 1, ", "
+	  "this: 0x", fmt_hex, (UintPtr) this);
+#endif
 
     if (fd != -1) {
 	for (;;) {

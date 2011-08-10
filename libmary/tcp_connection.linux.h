@@ -24,6 +24,7 @@
 #include <libmary/code_referenced.h>
 #include <libmary/connection.h>
 #include <libmary/poll_group.h>
+#include <libmary/debug.h>
 
 
 namespace M {
@@ -36,6 +37,10 @@ public:
 	void (*connected) (Exception *exc_ mt_exc_kind ((IoException, InternalException)),
 			   void *cb_data);
     };
+
+#ifdef LIBMARY_TCP_CONNECTION_NUM_INSTANCES
+    static AtomicInt num_instances;
+#endif
 
 private:
     int fd;
