@@ -71,10 +71,9 @@ private:
 
     StateMutex mutex;
 
-    mt_mutex (mutex) void toGlobOutputQueue ();
+    mt_mutex (mutex) mt_unlocks (mutex) void toGlobOutputQueue (bool add_ref);
 
-    // Returns 'true' if the sender has been closed.
-    mt_mutex (mutex) mt_unlocks bool closeIfNeeded ();
+    mt_mutex (mutex) mt_unlocks (mutex) void closeIfNeeded ();
 
     static Connection::OutputFrontend const conn_output_frontend;
 
