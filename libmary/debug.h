@@ -24,6 +24,12 @@
 // Trace ref/unref operations for objects marked with Referenced::trace() call.
 //#define LIBMARY_REF_TRACING
 
+//#define LIBMARY_TCP_CONNECTION_NUM_INSTANCES
+
+//#define LIBMARY_DELETION_QUEUE__PRINT_NUM_ENTRIES
+
+//#ifdef LIBMARY_TRACE_SELECT_FDS
+
 
 #endif /* __LIBMARY__DEBUG__H__ */
 
