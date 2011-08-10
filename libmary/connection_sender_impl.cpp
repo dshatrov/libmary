@@ -29,7 +29,7 @@ namespace M {
 namespace {
 LogGroup libMary_logGroup_send    ("send",    LogLevel::N);
 LogGroup libMary_logGroup_writev  ("writev",  LogLevel::N);
-LogGroup libMary_logGroup_close   ("close",   LogLevel::D);
+LogGroup libMary_logGroup_close   ("close",   LogLevel::N);
 LogGroup libMary_logGroup_hexdump ("hexdump", LogLevel::N);
 }
 
