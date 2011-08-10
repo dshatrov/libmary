@@ -18,9 +18,14 @@
 
 
 #include <libmary/types.h>
+
+#include <sys/time.h>
+#include <sys/types.h>
+
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+
 #include <sys/select.h>
 
 #include <libmary/log.h>
@@ -160,7 +165,6 @@ SelectPollGroup::addPollable (CbDesc<Pollable> const &pollable,
     // We're counting on the fact that the poll group will always be available
     // when pollable_feedback callbacks are called - that's why we use NULL
     // for coderef_container.
-// Deprecated    pollable->setFeedback (Cb<Feedback> (&pollable_feedback, pollable_entry, getCoderefContainer()), pollable.getCbData());
     pollable->setFeedback (
 	    Cb<Feedback> (&pollable_feedback, pollable_entry, NULL /* coderef_container */),
 	    pollable.cb_data);
@@ -215,8 +219,6 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	FD_SET (trigger_pipe [0], &rfds);
 	// We hope for the better and don't subscribe for errors on trigger_pipe[*].
 
-	// FIXME There's a limit of 1024 (correct?) fds for a single call to select().
-
 	selected_list.clear ();
 
 #ifdef LIBMARY_TRACE_SELECT_FDS
@@ -230,6 +232,14 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	    PollableList::iter iter (pollable_list);
 	    while (!pollable_list.iter_done (iter)) {
 		PollableEntry * const pollable_entry = pollable_list.iter_next (iter);
+
+		if (pollable_entry->fd >= FD_SETSIZE) {
+		  // The log explodes because of this line.
+		  // select() is useless when we've got many clients connected.
+		    logW_ (_func, "fd ", pollable_entry->fd, " is larger than FD_SETSIZE (", FD_SETSIZE, "). "
+			   "This fd will not be polled");
+		    continue;
+		}
 
 		if (pollable_entry->fd > largest_fd)
 		    largest_fd = pollable_entry->fd;
@@ -323,15 +333,6 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		ret_res = Result::Failure;
 		goto _select_interrupted;
 	    }
-
-#if 0
-// Deprecated.
-	    if (nfds == 0) {
-	      // Timeout expired.
-		got_deferred_tasks = deferred_processor.process ();
-		goto _select_interrupted;
-	    }
-#endif
 
 	    got_deferred_tasks = false;
 	}
