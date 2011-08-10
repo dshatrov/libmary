@@ -17,22 +17,35 @@
 */
 
 
-#include <libmary/log.h>
+#include <libmary/types.h>
+#include <cstdio>
+
+#include <libmary/util_base.h>
 
 #include <libmary/referenced.h>
 
 
 namespace M {
 
-void traceRef ()
+#ifdef LIBMARY_REF_TRACING
+void
+Referenced::traceRef ()
 {
-  // TODO
+    char * const bt = rawCollectBacktrace ();
+    fprintf (stderr, "reftrace:   ref 0x%lx, rc %u\n%s\n",
+	     (unsigned long) this, (unsigned) refcount.get(), bt ? bt : "");
+    delete[] bt;
 }
 
-void traceUnref ()
+void
+Referenced::traceUnref ()
 {
-  // TODO
+    char * const bt = rawCollectBacktrace ();
+    fprintf (stderr, "reftrace: unref 0x%lx, rc %u\n%s\n",
+	     (unsigned long) this, (unsigned) refcount.get(), bt ? bt : "");
+    delete[] bt;
 }
+#endif // LIBMARY_REF_TRACING
 
 }
 

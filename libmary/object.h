@@ -179,6 +179,11 @@ private:
 	if (obj->refcount.fetchAdd (1) == 0)
 	    ++shadow->lastref_cnt;
 
+#ifdef LIBMARY_REF_TRACING
+	if (obj->traced)
+	    obj->traceRef ();
+#endif
+
 	return obj;
     }
 

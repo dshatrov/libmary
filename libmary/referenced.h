@@ -40,6 +40,7 @@ class Referenced : public virtual VirtReferenced
 private:
     AtomicInt refcount;
 
+protected:
 #ifdef LIBMARY_REF_TRACING
     mt_const bool traced;
 
@@ -47,7 +48,6 @@ private:
     void traceUnref ();
 #endif
 
-protected:
     virtual void last_unref ()
     {
 	delete this;
@@ -55,7 +55,7 @@ protected:
 
 public:
 #ifdef LIBMARY_REF_TRACING
-    mt_const void trace ()
+    mt_const void traceReferences ()
     {
 	traced = true;
     }
@@ -119,11 +119,17 @@ public:
     Referenced (Referenced const &)
 	: VirtReferenced (),
 	  refcount (1)
+#ifdef LIBMARY_REF_TRACING
+	  , traced (false)
+#endif
     {
     }
 
     Referenced ()
 	: refcount (1)
+#ifdef LIBMARY_REF_TRACING
+	  , traced (false)
+#endif
     {
     }
 
