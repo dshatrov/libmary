@@ -219,6 +219,11 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 
 	selected_list.clear ();
 
+#ifdef LIBMARY_TRACE_SELECT_FDS
+	Count num_rfds = 0;
+	Count num_wfds = 0;
+	Count num_efds = 0;
+#endif
 	{
 	  StateMutexLock l (&mutex);
 
@@ -230,19 +235,33 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		    largest_fd = pollable_entry->fd;
 
 		FD_SET (pollable_entry->fd, &efds);
+#ifdef LIBMARY_TRACE_SELECT_FDS
+		++num_efds;
+#endif
 		if (pollable_entry->need_input) {
 		    logD (select, _func, "adding pollable_entry 0x", fmt_hex, (UintPtr) pollable_entry, " to rfds");
 		    FD_SET (pollable_entry->fd, &rfds);
+
+#ifdef LIBMARY_TRACE_SELECT_FDS
+		    ++num_rfds;
+#endif
 		}
 		if (pollable_entry->need_output) {
 		    logD (select, _func, "adding pollable_entry 0x", fmt_hex, (UintPtr) pollable_entry, " to wfds");
 		    FD_SET (pollable_entry->fd, &wfds);
+
+#ifdef LIBMARY_TRACE_SELECT_FDS
+		    ++num_wfds;
+#endif
 		}
 
 		selected_list.append (pollable_entry);
 		pollable_entry->ref ();
 	    }
 	}
+#ifdef LIBMARY_TRACE_SELECT_FDS
+	logD_ (_func, "rfds: ", num_rfds, ", wfds: ", num_wfds, ", efds: ", num_efds);
+#endif
 
 	Time elapsed_microsec;
 	int nfds = 0;
@@ -320,14 +339,18 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	if (frontend)
 	    frontend.call (frontend->pollIterationBegin);
 
-	if (nfds > 0) {
+	// This condition is wrong because we must iterate over selected_list
+	// to unref pollable entries in any case.
+	/* if (nfds > 0) */ {
 	    SelectedList::iter iter (selected_list);
 	    while (!selected_list.iter_done (iter)) {
 		PollableEntry * const pollable_entry = selected_list.iter_next (iter);
 
 		mutex.lock ();
 
-		if (pollable_entry->valid) {
+		if (nfds > 0 &&
+		    pollable_entry->valid)
+		{
 		    Uint32 event_flags = 0;
 
 		    if (FD_ISSET (pollable_entry->fd, &rfds)) {
