@@ -19,6 +19,7 @@
 
 #include <libmary/types.h>
 #include <new>
+#include <cstdio>
 
 #include <libmary/log.h>
 
@@ -284,7 +285,10 @@ PagePool::setMinPages (Count const min_pages)
 {
     mutex.lock ();
 
-    if (min_pages >= this->min_pages) {
+    Count const old_min_pages = this->min_pages;
+    this->min_pages = min_pages;
+
+    if (min_pages < old_min_pages) {
 	while (num_pages > min_pages &&
 	       first_spare_page)
 	{
@@ -301,6 +305,9 @@ PagePool::setMinPages (Count const min_pages)
 	}
     } else {
 	while (num_pages < min_pages) {
+//	    fprintf (stderr, "allocating %lu bytes, num_pages: %lu\n",
+//		     (unsigned long) (sizeof (Page) + page_size), (unsigned long) num_pages);
+
 	    Page * const page = new (new Byte [sizeof (Page) + page_size]) Page (0);
 	    assert (page);
 
@@ -324,6 +331,9 @@ PagePool::PagePool (Size  const page_size,
 {
     Page *prv_page = NULL;
     for (Count i = 0; i < min_pages; ++i) {
+//	fprintf (stderr, "allocating %lu bytes #%lu\n",
+//		 (unsigned long) (sizeof (Page) + page_size), (unsigned long) i);
+
 	Page * const page = new (new Byte [sizeof (Page) + page_size]) Page (0 /* TODO: Set to 1 for testing (should be 0) */);
 	assert (page);
 	if (!first_spare_page)

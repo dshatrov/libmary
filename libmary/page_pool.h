@@ -170,7 +170,7 @@ public:
 
 private:
     mt_const Size const page_size;
-    mt_const Count const min_pages;
+    mt_const Count min_pages;
 
     Count num_pages;
 
