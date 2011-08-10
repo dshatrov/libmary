@@ -17,16 +17,16 @@
 */
 
 
+#include <libmary/types.h>
+#include <cstdio>
+
 #include <libmary/libmary_thread_local.h>
+#include <libmary/debug.h>
 
 #include <libmary/deletion_queue.h>
 
 
 #define DEBUG(a)
-
-#if DEBUG(1) + 0
-#include <cstdio>
-#endif
 
 
 namespace M {
@@ -36,6 +36,14 @@ namespace M {
  * to the last element in the queue in thread-local storage. This allows
  * us to append elements to the end of the queue efficiently.
  */
+
+// TODO Check that objects can't get into deletion queue in non-libmary threads.
+
+#ifdef LIBMARY_DELETION_QUEUE__PRINT_NUM_ENTRIES
+namespace {
+AtomicInt deletion_queue_num_entries;
+}
+#endif
 
 void
 deletionQueue_append (Object * const obj)
@@ -49,6 +57,10 @@ deletionQueue_append (Object * const obj)
     )
 
     LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
+
+#ifdef LIBMARY_DELETION_QUEUE__PRINT_NUM_ENTRIES
+    fprintf (stderr, "deletionQueue_append: num_entries: %d\n", deletion_queue_num_entries.fetchAdd (1) + 1);
+#endif
 
     Object * const last = tlocal->deletion_queue;
     if (last == NULL) {
@@ -93,6 +105,10 @@ deletionQueue_process ()
     }
     tlocal->deletion_queue_processing = true;
 
+#ifdef LIBMARY_DELETION_QUEUE__PRINT_NUM_ENTRIES
+    fprintf (stderr, "deletionQueue_process: num_entries: %d\n", deletion_queue_num_entries.get());
+#endif
+
     for (;;) {
 	Object * const last = tlocal->deletion_queue;
 	if (last == NULL) {
@@ -118,6 +134,9 @@ deletionQueue_process ()
 	    printf ("0x%lx %s: deleting\n", (unsigned long) obj, _func_name);
 	)
 	obj->do_delete ();
+#ifdef LIBMARY_DELETION_QUEUE__PRINT_NUM_ENTRIES
+	fprintf (stderr, "deletionQueue_process: -obj, num_entries: %d\n", deletion_queue_num_entries.fetchAdd (-1) - 1);
+#endif
     }
 
     tlocal->deletion_queue_processing = false;
