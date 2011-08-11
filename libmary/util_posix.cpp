@@ -100,5 +100,37 @@ mt_throws Result commonTriggerPipeWrite (int const fd)
     return Result::Success;
 }
 
+mt_throws Result commonTriggerPipeRead (int const fd)
+{
+    for (;;) {
+	Byte buf [128];
+	ssize_t const res = read (fd, buf, sizeof (buf));
+	if (res == -1) {
+	    if (errno == EINTR)
+		continue;
+
+	    if (errno == EAGAIN || errno == EWOULDBLOCK)
+		break;
+
+	    exc_throw <PosixException> (errno);
+	    exc_push <InternalException> (InternalException::BackendError);
+	    logE_ (_func, "read() failed (trigger pipe): ", errnoString (errno));
+	    return Result::Failure;
+	} else
+	if (res < 0 || (Size) res > sizeof (buf)) {
+	    exc_throw <InternalException> (InternalException::BackendMalfunction);
+	    logE_ (_func, "read(): unexpected return value (trigger pipe): ", res);
+	    return Result::Failure;
+	}
+
+	if ((Size) res < sizeof (buf)) {
+	  // Optimizing away an extra read() syscall.
+	    break;
+	}
+    }
+
+    return Result::Success;
+}
+
 }
 

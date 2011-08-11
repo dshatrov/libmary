@@ -304,6 +304,12 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		logE_ (_func, "select() failed: ", errnoString (errno));
 		ret_res = Result::Failure;
 		goto _select_interrupted;
+	    } else
+	    if (nfds < 0) {
+		logE_ (_func, "unexpected return value from select(): ", nfds);
+		exc_throw <InternalException> (InternalException::BackendMalfunction);
+		ret_res = Result::Failure;
+		goto _select_interrupted;
 	    }
 
 	    got_deferred_tasks = false;
@@ -315,11 +321,11 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	// This condition is wrong because we must iterate over selected_list
 	// to unref pollable entries in any case.
 	/* if (nfds > 0) */ {
+	    mutex.lock ();
+
 	    SelectedList::iter iter (selected_list);
 	    while (!selected_list.iter_done (iter)) {
 		PollableEntry * const pollable_entry = selected_list.iter_next (iter);
-
-		mutex.lock ();
 
 		if (nfds > 0 &&
 		    pollable_entry->valid)
@@ -328,18 +334,18 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 
 		    if (FD_ISSET (pollable_entry->fd, &rfds)) {
 			pollable_entry->need_input = false;
-			event_flags |= Input;
+			event_flags |= PollGroup::Input;
 			logD (select, _func, "Input");
 		    }
 
 		    if (FD_ISSET (pollable_entry->fd, &wfds)) {
 			pollable_entry->need_output = false;
-			event_flags |= Output;
+			event_flags |= PollGroup::Output;
 			logD (select, _func, "Output");
 		    }
 
 		    if (FD_ISSET (pollable_entry->fd, &efds)) {
-			event_flags |= Error;
+			event_flags |= PollGroup::Error;
 			logE (connerr, _func, "Error, weak object: 0x", fmt_hex, (UintPtr) pollable_entry->pollable.getWeakObject());
 		    }
 
@@ -355,9 +361,9 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		}
 
 		pollable_entry->unref ();
-
-		mutex.unlock ();
 	    }
+
+	    mutex.unlock ();
 	} // if (nfds > 0)
 
 	if (frontend) {
@@ -371,34 +377,8 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	    got_deferred_tasks = true;
 
 	if (FD_ISSET (trigger_pipe [0], &rfds)) {
-	    for (;;) {
-		Byte buf [128];
-		ssize_t const res = read (trigger_pipe [0], buf, sizeof (buf));
-		if (res == -1) {
-		    if (errno == EINTR)
-			continue;
-
-		    if (errno == EAGAIN || errno == EWOULDBLOCK)
-			break;
-
-		    exc_throw <PosixException> (errno);
-		    exc_push <InternalException> (InternalException::BackendError);
-		    logE_ (_func, "read() failed (trigger pipe): ", errnoString (errno));
-		    ret_res = Result::Failure;
-		    goto _select_interrupted;
-		} else
-		if (res < 0 || (Size) res > sizeof (buf)) {
-		    exc_throw <InternalException> (InternalException::BackendMalfunction);
-		    logE_ (_func, "read(): unexpected return value (trigger pipe): ", res);
-		    ret_res = Result::Failure;
-		    goto _select_interrupted;
-		}
-
-		if ((Size) res < sizeof (buf)) {
-		  // Optimizing away an extra read() syscall.
-		    break;
-		}
-	    }
+	    if (!commonTriggerPipeRead (trigger_pipe [0]))
+		goto _select_interrupted;
 
 	    mutex.lock ();
 	    triggered = false;

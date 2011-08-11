@@ -250,32 +250,8 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	    got_deferred_tasks = true;
 
 	if (trigger_pipe_ready) {
-	    for (;;) {
-		Byte buf [128];
-		ssize_t const res = read (trigger_pipe [0], buf, sizeof (buf));
-		if (res == -1) {
-		    if (errno == EINTR)
-			continue;
-
-		    if (errno == EAGAIN || errno == EWOULDBLOCK)
-			break;
-
-		    exc_throw <PosixException> (errno);
-		    exc_push <InternalException> (InternalException::BackendError);
-		    logE_ (_func, "read() failed (trigger pipe): ", errnoString (errno));
-		    return Result::Failure;
-		} else
-		if (res < 0 || (Size) res > sizeof (buf)) {
-		    exc_throw <InternalException> (InternalException::BackendMalfunction);
-		    logE_ (_func, "read(): unexpected return value (trigger pipe): ", res);
-		    return Result::Failure;
-		}
-
-		if ((Size) res < sizeof (buf)) {
-		  // Optimizing away an extra read() syscall.
-		    break;
-		}
-	    } // for (;;)
+	    if (!commonTriggerPipeRead (trigger_pipe [0]))
+		return Result::Failure;
 
 	    mutex.lock ();
 	    triggered = false;
