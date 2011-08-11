@@ -84,6 +84,8 @@ enum {
 // Glib macros are more convenient to use because they allow not to abuse
 // standard headers.
 enum {
+    Int_Max = G_MAXINT,
+
     Int8_Max  = G_MAXINT8,
     Int8_Min  = G_MININT8,
 

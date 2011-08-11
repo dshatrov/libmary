@@ -122,7 +122,8 @@ mary_linux_target_headers =	\
 	util_posix.h		\
 	native_file.linux.h	\
 	tcp_connection.linux.h	\
-	tcp_server.linux.h
+	tcp_server.linux.h	\
+	poll_poll_group.h
 
 mary_win32_target_headers =	\
 	win32.h			\
@@ -235,7 +236,8 @@ mary_linux_sources =			\
 	util_posix.cpp			\
 	native_file.linux.cpp		\
 	tcp_connection.linux.cpp	\
-	tcp_server.linux.cpp
+	tcp_server.linux.cpp		\
+	poll_poll_group.cpp
 
 mary_win32_sources =			\
 	native_file.win32.cpp		\

@@ -55,6 +55,9 @@ public:
 
 
 #include <libmary/select_poll_group.h>
+#ifndef PLATFORM_WIN32
+#include <libmary/poll_poll_group.h>
+#endif
 #if !defined (PLATFORM_WIN32) && defined (LIBMARY_ENABLE_EPOLL)
 #include <libmary/epoll_poll_group.h>
 #endif

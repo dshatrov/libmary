@@ -36,9 +36,17 @@ AC_ARG_WITH([select],
 			   [Use select() syscall for event polling by default [default=no]]),
 	    [with_select=$withval],
 	    [with_select="no"])
-#AM_CONDITIONAL(LIBMARY_USE_SELECT, test x$with_select = xyes)
 if test "x$with_select" = "xyes"; then
     AC_DEFINE([LIBMARY_USE_SELECT], [1], [ ])
+fi
+
+AC_ARG_WITH([poll],
+	    AC_HELP_STRING([--with-poll=@<:@yes/no@:>@],
+			   [Use poll() syscall for event polling by default [default=no]]),
+	    [with_poll=$withval],
+	    [with_poll="no"])
+if test "x$with_poll" = "xyes"; then
+    AC_DEFINE([LIBMARY_USE_POLL], [1], [ ])
 fi
 
 # local_config.h is for local configuration and should not be used in external
