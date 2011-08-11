@@ -68,5 +68,37 @@ mt_throws Result posix_createNonblockingPipe (int (*fd) [2])
     return Result::Success;
 }
 
+mt_throws Result commonTriggerPipeWrite (int const fd)
+{
+    for (;;) {
+	ssize_t const res = write (fd, "A", 1);
+	if (res == -1) {
+	    if (errno == EINTR)
+		continue;
+
+	    if (errno == EAGAIN || errno == EWOULDBLOCK)
+		break;
+
+	    exc_throw <PosixException> (errno);
+	    exc_push <InternalException> (InternalException::BackendError);
+	    logE_ (_func, "write() failed: ", errnoString (errno));
+	    return Result::Failure;
+	} else
+	if (res != 1 && res != 0) {
+	    exc_throw <InternalException> (InternalException::BackendMalfunction);
+	    logE_ (_func, "write(): unexpected return value: ", res);
+	    return Result::Failure;
+	}
+
+	// If res is 0, then we don't care, because this means that the pipe is
+	// full of unread data, and the poll group will be triggered by that
+	// data	anyway.
+
+	break;
+    }
+
+    return Result::Success;
+}
+
 }
 

@@ -9,6 +9,8 @@ namespace M {
 
 mt_throws Result posix_createNonblockingPipe (int (*fd) [2]);
 
+mt_throws Result commonTriggerPipeWrite (int fd);
+
 }
 
 

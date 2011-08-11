@@ -50,35 +50,7 @@ mt_throws Result
 SelectPollGroup::triggerPipeWrite ()
 {
     logD (select, _func_);
-
-    for (;;) {
-	ssize_t const res = write (trigger_pipe [1], "A", 1);
-	if (res == -1) {
-	    if (errno == EINTR)
-		continue;
-
-	    if (errno == EAGAIN || errno == EWOULDBLOCK)
-		break;
-
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
-	    logE_ (_func, "write() failed: ", errnoString (errno));
-	    return Result::Failure;
-	} else
-	if (res != 1 && res != 0) {
-	    exc_throw <InternalException> (InternalException::BackendMalfunction);
-	    logE_ (_func, "write(): unexpected return value: ", res);
-	    return Result::Failure;
-	}
-
-	// If res is 0, then we don't care, because this means that the pipe is
-	// full of unread data, and the poll group will be triggered by that
-	// data	anyway.
-
-	break;
-    }
-
-    return Result::Success;
+    return commonTriggerPipeWrite (trigger_pipe [1]);
 }
 
 void
