@@ -205,7 +205,7 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	    while (!pollable_list.iter_done (iter)) {
 		PollableEntry * const pollable_entry = pollable_list.iter_next (iter);
 
-		if (pollable_entry->fd >= FD_SETSIZE) {
+		if (pollable_entry->fd >= (int) FD_SETSIZE) {
 		  // The log explodes because of this line.
 		  // select() is useless when we've got many clients connected.
 		    logW_ (_func, "fd ", pollable_entry->fd, " is larger than FD_SETSIZE (", FD_SETSIZE, "). "
