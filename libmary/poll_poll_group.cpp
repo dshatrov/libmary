@@ -265,10 +265,12 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 		    }
 
 		    if (pollfds [i].revents & POLLIN) {
+			pollable_entry->need_input = false;
 			event_flags |= PollGroup::Input;
 		    }
 
 		    if (pollfds [i].revents & POLLOUT) {
+			pollable_entry->need_output = false;
 			event_flags |= PollGroup::Output;
 		    }
 
@@ -293,7 +295,7 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 
 		++i;
 	    }
-	    assert (i == cur_num_pollables + 1);
+	    assert (i == cur_num_pollables);
 
 	    mutex.unlock ();
 	}
