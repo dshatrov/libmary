@@ -94,7 +94,7 @@ SelectPollGroup::requestOutput (void * const _pollable_entry)
 	pollable_entry->need_output = true;
     } else {
 	self->mutex.lock ();
-	pollable_entry->need_input = true;
+	pollable_entry->need_output = true;
 	if (self->triggered) {
 	    self->mutex.unlock ();
 	} else {
