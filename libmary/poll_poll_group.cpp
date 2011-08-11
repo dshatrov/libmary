@@ -175,7 +175,12 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 		selected_list.append (pollable_entry);
 		pollfds [cur_num_pollables].fd = pollable_entry->fd;
 
-		pollfds [cur_num_pollables].events = POLLRDHUP;
+		pollfds [cur_num_pollables].events =
+#ifdef __linux__
+			POLLRDHUP;
+#else
+			0;
+#endif
 
 		if (pollable_entry->need_input)
 		    pollfds [cur_num_pollables].events |= POLLIN;
@@ -241,7 +246,11 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 
 	bool trigger_pipe_ready = false;
 	{
-	    if (pollfds [0].revents & (POLLIN | POLLERR | POLLHUP | POLLRDHUP))
+	    if (pollfds [0].revents & (POLLIN | POLLERR | POLLHUP
+#ifdef __linux__
+			| POLLRDHUP
+#endif
+			))
 		trigger_pipe_ready = true;
 
 	    mutex.lock ();
@@ -274,8 +283,11 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 			event_flags |= PollGroup::Output;
 		    }
 
-		    if (pollfds [i].revents & POLLHUP ||
-			pollfds [i].revents & POLLRDHUP)
+		    if (pollfds [i].revents & POLLHUP
+#ifdef __linux__
+			|| pollfds [i].revents & POLLRDHUP
+#endif
+			)
 		    {
 			event_flags |= PollGroup::Hup;
 		    }
