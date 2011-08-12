@@ -25,7 +25,7 @@
 #include <libmary/code_referenced.h>
 #include <libmary/exception.h>
 #include <libmary/timers.h>
-#include <libmary/select_poll_group.h>
+#include <libmary/active_poll_group.h>
 //#include <libmary/deferred_processor.h>
 
 

@@ -65,6 +65,7 @@ EpollPollGroup::addPollable (CbDesc<Pollable> const &pollable,
     {
 	struct epoll_event event;
 	event.events = EPOLLET | EPOLLIN | EPOLLOUT | EPOLLRDHUP;
+	event.data.u64 = 0; // For valgrind.
 	event.data.ptr = pollable_entry;
 	int const res = epoll_ctl (efd, EPOLL_CTL_ADD, pollable_entry->fd, &event);
 	if (res == -1) {
@@ -299,6 +300,7 @@ EpollPollGroup::open ()
     {
 	struct epoll_event event;
 	event.events = EPOLLET | EPOLLIN | EPOLLRDHUP;
+	event.data.u64 = 0; // For valgrind.
 	event.data.ptr = NULL; // 'NULL' tells that this is trigger pipe.
 	int const res = epoll_ctl (efd, EPOLL_CTL_ADD, trigger_pipe [0], &event);
 	if (res == -1) {

@@ -146,12 +146,16 @@ TcpServer::accept (TcpConnection * const mt_nonnull tcp_connection)
 	    }
 
 	    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+//		logD_ (_func, "AGAIN");
 		requestInput ();
 		return AcceptResult::NotAccepted;
 	    }
 
 	    exc_throw <PosixException> (errno);
 	    exc_push <InternalException> (InternalException::BackendError);
+
+	    logE_ (_func, "accept() failed: ", errnoString (errno));
+
 	    return AcceptResult::Error;
 	}
 
