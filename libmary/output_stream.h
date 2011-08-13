@@ -124,13 +124,19 @@ private:
     mt_throws Result do_print_ (char * const str,
 				Format const & /* fmt */)
     {
-	return writeFull (ConstMemory (str, strlen (str)), NULL /* nwritten */);
+	if (str)
+	    return writeFull (ConstMemory (str, strlen (str)), NULL /* nwritten */);
+
+	return Result::Success;
     }
 
     mt_throws Result do_print_ (char const *str,
 				Format const & /* fmt */)
     {
-	return writeFull (ConstMemory (str, strlen (str)), NULL /* nwritten */);
+	if (str)
+	    return writeFull (ConstMemory (str, strlen (str)), NULL /* nwritten */);
+
+	return Result::Success;
     }
 
     mt_throws Result do_print_ (Memory const &mem,
