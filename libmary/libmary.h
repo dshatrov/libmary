@@ -47,6 +47,7 @@
 #include <libmary/atomic.h>
 #include <libmary/mutex.h>
 #include <libmary/state_mutex.h>
+#include <libmary/cond.h>
 
 #include <libmary/basic_referenced.h>
 #include <libmary/virt_referenced.h>

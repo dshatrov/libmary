@@ -36,7 +36,13 @@ public:
 
     void unlock ();
 
-    // TODO get_glib_mutex for Cond
+    /* For internal use only:
+     * should not be expected to be present in future versions. */
+    GMutex* get_glib_mutex ()
+    {
+	return mutex.get_glib_mutex();
+    }
+
 };
 
 class StateMutexLock

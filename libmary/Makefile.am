@@ -64,6 +64,7 @@ mary_target_headers =			\
 	atomic.h			\
 	mutex.h				\
 	state_mutex.h			\
+	cond.h				\
 					\
 	basic_referenced.h		\
 	virt_referenced.h		\
@@ -196,6 +197,7 @@ libmary_1_0_la_SOURCES =		\
 	page_pool.cpp			\
 					\
 	state_mutex.cpp			\
+	cond.cpp			\
 					\
 	referenced.cpp			\
 	object.cpp			\
