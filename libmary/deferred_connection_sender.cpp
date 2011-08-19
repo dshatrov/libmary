@@ -21,7 +21,9 @@
 #include <sys/uio.h>
 #include <errno.h>
 
+#ifdef LIBMARY_ENABLE_MWRITEV
 #include <libmary/mwritev.h>
+#endif
 #include <libmary/log.h>
 
 #include <libmary/deferred_connection_sender.h>
