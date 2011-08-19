@@ -21,14 +21,14 @@
 #define __LIBMARY__CONNECTION_SENDER_IMPL__H__
 
 
+#include <libmary/libmary_config.h>
 #include <libmary/connection.h>
 #include <libmary/sender.h>
 
 
 namespace M {
 
-// Not MT-safe (calls to all methods must be synchronized externally).
-class ConnectionSenderImpl
+mt_unsafe class ConnectionSenderImpl
 {
 private:
     mt_const Cb<Sender::Frontend> *frontend;
@@ -76,6 +76,15 @@ public:
 
     mt_throws AsyncIoResult sendPendingMessages ();
 
+#ifdef LIBMARY_ENABLE_MWRITEV
+    void sendPendingMessages_fillIovs (Count        *ret_num_iovs,
+				       struct iovec *ret_iovs,
+				       Count         max_iovs);
+
+    void sendPendingMessages_react (AsyncIoResult res,
+				    Size          num_written);
+#endif
+
     void markProcessingBarrier ()
     {
 	processing_barrier = msg_list.getLast ();
@@ -96,6 +105,13 @@ public:
     {
 	this->conn = conn;
     }
+
+#ifdef LIBMARY_ENABLE_MWRITEV
+    Connection* getConnection ()
+    {
+	return conn;
+    }
+#endif
 
     mt_const void setFrontend (Cb<Sender::Frontend> * const frontend)
     {

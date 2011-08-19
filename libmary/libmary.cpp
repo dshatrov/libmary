@@ -27,6 +27,10 @@
 #include <libmary/posix.h>
 #endif
 
+#ifdef LIBMARY_ENABLE_MWRITEV
+#include <libmary/mwritev.h>
+#endif
+
 
 namespace M {
 
@@ -72,6 +76,10 @@ void libMaryInit ()
     libMary_win32Init ();
 #else
     libMary_posixInit ();
+#endif
+
+#ifdef LIBMARY_ENABLE_MWRITEV
+    libMary_mwritevInit ();
 #endif
 }
 

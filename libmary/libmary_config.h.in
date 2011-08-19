@@ -15,5 +15,7 @@
 #define LIBMARY_USE_POLL 1
 #endif
 
+#undef LIBMARY_ENABLE_MWRITEV
+
 #endif /* __LIBMARY__LIBMARY_CONFIG__H__ */
 

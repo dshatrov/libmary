@@ -31,6 +31,7 @@ LogGroup libMary_logGroup_send    ("send",    LogLevel::N);
 LogGroup libMary_logGroup_writev  ("writev",  LogLevel::N);
 LogGroup libMary_logGroup_close   ("close",   LogLevel::N);
 LogGroup libMary_logGroup_hexdump ("hexdump", LogLevel::N);
+LogGroup libMary_logGroup_mwritev ("sender_impl_mwritev", LogLevel::N);
 }
 
 void
@@ -115,6 +116,84 @@ ConnectionSenderImpl::sendPendingMessages ()
     logD (send, _func, "calling sendPendingMessages_writev()");
     return sendPendingMessages_writev ();
 }
+
+#ifdef LIBMARY_ENABLE_MWRITEV
+void
+ConnectionSenderImpl::sendPendingMessages_fillIovs (Count        *ret_num_iovs,
+						    struct iovec *ret_iovs,
+						    Count         max_iovs)
+{
+    processing_barrier_hit = false;
+
+    if (!sending_message) {
+	if (!msg_list.getFirst())
+	    return;
+
+	logD (send, _func, "calling resetSendingState()");
+	resetSendingState ();
+    }
+
+    if (!gotDataToSend()) {
+	logD (mwritev, _func, "no data to send");
+
+	if (send_state == Sender::ConnectionOverloaded)
+	    setSendState (Sender::ConnectionReady);
+
+	overloaded = false;
+	return;
+    }
+
+    if (processingBarrierHit()) {
+	logD (mwritev, _func, "processing barrier hit");
+	return;
+    }
+
+    sendPendingMessages_vector (false /* count_iovs */,
+				true  /* fill_iovs */,
+				false /* react */,
+				ret_num_iovs,
+				ret_iovs,
+				IOV_MAX <= max_iovs ? IOV_MAX : max_iovs /* num_iovs */,
+				0     /* num_written */);
+}
+
+void
+ConnectionSenderImpl::sendPendingMessages_react (AsyncIoResult res,
+						 Size          num_written)
+{
+    if (res != AsyncIoResult::Normal)
+	processing_barrier_hit = false;
+
+    if (res == AsyncIoResult::Again) {
+	logD (mwritev, _func, "connection overloaded");
+
+	if (send_state == Sender::ConnectionReady)
+	    setSendState (Sender::ConnectionOverloaded);
+
+	overloaded = true;
+	return;
+    }
+
+    Count num_iovs; // dummy arg
+    sendPendingMessages_vector (false /* count_iovs */,
+				false /* fill_iovs */,
+				true  /* react */,
+				&num_iovs,
+				NULL  /* iovs */,
+				Count_Max /* num_iovs */,
+				num_written);
+
+    if (!gotDataToSend()) {
+	logD (mwritev, _func, "connection ready");
+
+	if (send_state == Sender::ConnectionOverloaded)
+	    setSendState (Sender::ConnectionReady);
+
+	overloaded = false;
+	return;
+    }
+}
+#endif // LIBMARY_ENABLE_MWRITEV
 
 AsyncIoResult
 ConnectionSenderImpl::sendPendingMessages_writev ()

@@ -138,6 +138,12 @@ else
     mary_private_headers += epoll_poll_group.h
 endif
 
+if LIBMARY_ENABLE_MWRITEV
+    mary_linux_target_headers += mwritev.h
+else
+    mary_private_headers += mwritev.h
+endif
+
 if PLATFORM_WIN32
     mary_target_headers  += $(mary_win32_target_headers)
     mary_private_headers += $(mary_linux_target_headers)
@@ -252,6 +258,12 @@ if LIBMARY_ENABLE_EPOLL
     mary_linux_sources += epoll_poll_group.cpp
 else
     mary_extra_dist += epoll_poll_group.cpp
+endif
+
+if LIBMARY_ENABLE_MWRITEV
+    mary_linux_sources += mwritev.cpp
+else
+    mary_extra_dist += mwritev.cpp
 endif
 
 if PLATFORM_WIN32

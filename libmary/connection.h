@@ -21,6 +21,7 @@
 #define __LIBMARY__CONNECTION__H__
 
 
+#include <libmary/libmary_config.h>
 #include <libmary/types.h>
 #include <libmary/cb.h>
 #include <libmary/async_input_stream.h>
@@ -60,6 +61,10 @@ public:
     //      close (); // <- Не асинхронный. Асинхронным занимаается Sender.
     //                // НО нужно помнить о SO_LINGER, хотя он здесь и не нужен.
     virtual mt_throws Result close () = 0;
+
+#ifdef LIBMARY_ENABLE_MWRITEV
+    virtual int getFd () = 0;
+#endif
 
     void setInputFrontend (Cb<InputFrontend> const &input_frontend)
     {

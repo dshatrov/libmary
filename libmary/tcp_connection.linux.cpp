@@ -36,6 +36,15 @@
 #include <libmary/tcp_connection.h>
 
 
+// TEST
+//#define LIBMARY_TEST_MWRITEV
+
+
+#ifdef LIBMARY_TEST_MWRITEV
+#include <libmary/mwritev.h>
+#endif
+
+
 namespace M {
 
 namespace {
@@ -283,7 +292,28 @@ TcpConnection::writev (struct iovec * const iovs,
     if (ret_nwritten)
 	*ret_nwritten = 0;
 
+#ifndef LIBMARY_TEST_MWRITEV
     ssize_t const res = ::writev (fd, iovs, num_iovs);
+#else
+    ssize_t res;
+    {
+	int w_fd = fd;
+	struct iovec *w_iovs = iovs;
+	int w_num_iovs = num_iovs;
+	int w_res;
+	if (!libMary_mwritev (1, &w_fd, &w_iovs, &w_num_iovs, &w_res)) {
+	    res = -1;
+	    errno = EINVAL;
+	} else {
+	    if (w_res >= 0) {
+		res = w_res;
+	    } else {
+		res = -1;
+		errno = -w_res;
+	    }
+	}
+    }
+#endif
     if (res == -1) {
 	if (errno == EAGAIN || errno == EWOULDBLOCK) {
 	    requestOutput ();

@@ -21,6 +21,7 @@
 #define __LIBMARY__TCP_CONNECTION__LINUX__H__
 
 
+#include <libmary/libmary_config.h>
 #include <libmary/code_referenced.h>
 #include <libmary/connection.h>
 #include <libmary/poll_group.h>
@@ -104,7 +105,17 @@ public:
 
     mt_iface_end (AsyncOutputStream)
 
+    // Note that close() closes the file descriptor, which may cause races
+    // if the connection object is still in use, i.e. it is referenced and
+    // read/write methods may potentially be called.
     mt_throws Result close ();
+
+#ifdef LIBMARY_ENABLE_MWRITEV
+    int getFd ()
+    {
+	return fd;
+    }
+#endif
 
   mt_iface_end (Connection)
 

@@ -17,9 +17,14 @@
 */
 
 
+#include <libmary/libmary_config.h>
 #include <libmary/deferred_connection_sender.h>
 #include <libmary/util_time.h>
 #include <libmary/log.h>
+
+#ifdef LIBMARY_ENABLE_MWRITEV
+#include <libmary/mwritev.h>
+#endif
 
 #include <libmary/server_app.h>
 
@@ -63,6 +68,10 @@ bool
 ServerApp::pollIterationEnd (void * const /* _self */)
 {
 //    logD_ (_func_);
+#ifdef LIBMARY_ENABLE_MWRITEV
+    if (libMary_mwritevAvailable())
+	return DeferredConnectionSender::pollIterationEnd_mwritev ();
+#endif
     return DeferredConnectionSender::pollIterationEnd ();
 }
 

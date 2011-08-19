@@ -103,7 +103,10 @@ enum {
     Uint8_Max  = G_MAXUINT8,
     Uint16_Max = G_MAXUINT16,
     Uint32_Max = G_MAXUINT32,
-    Uint64_Max = G_MAXUINT64
+    Uint64_Max = G_MAXUINT64,
+
+    Size_Max  = G_MAXSIZE,
+    Count_Max = G_MAXSIZE
 };
 
 typedef Uint8 Byte;

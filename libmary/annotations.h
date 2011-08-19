@@ -49,6 +49,7 @@
 #define mt_mutex(a)
 #define mt_unlocks(a)
 #define mt_unlocks_locks(a)
+#define mt_sync(a)
 
 #define mt_caller_exc_none
 #define mt_exc_kind(a)

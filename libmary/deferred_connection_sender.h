@@ -21,6 +21,7 @@
 #define __LIBMARY__DEFERRED_CONNECTION_SENDER__H__
 
 
+#include <libmary/libmary_config.h>
 #include <libmary/intrusive_list.h>
 #include <libmary/connection.h>
 #include <libmary/sender.h>
@@ -105,6 +106,10 @@ public:
     // Call this method once before entering select/epoll syscall every time.
     // Returns 'true' if there's still more data to send.
     static bool pollIterationEnd ();
+
+#ifdef LIBMARY_ENABLE_MWRITEV
+    static bool pollIterationEnd_mwritev ();
+#endif
 
     DeferredConnectionSender (Object * const coderef_container)
 	: DependentCodeReferenced (coderef_container),
