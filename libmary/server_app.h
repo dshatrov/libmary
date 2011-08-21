@@ -38,6 +38,8 @@ private:
     DefaultPollGroup select_poll_group;
 //    DeferredProcessor deferred_processor;
 
+    AtomicInt should_stop;
+
     void doTimerIteration ();
 
     static void firstTimerAdded (void *_self);
@@ -72,6 +74,8 @@ public:
     mt_throws Result init ();
 
     mt_throws Result run ();
+
+    void stop ();
 
     ServerApp (Object * const coderef_container)
 	: DependentCodeReferenced (coderef_container),

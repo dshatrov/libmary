@@ -94,9 +94,18 @@ ServerApp::run ()
 	    return Result::Failure;
 
 // Deprecated.	doTimerIteration ();
+
+	if (should_stop.get())
+	    break;
     }
 
     return Result::Success;
+}
+
+void
+ServerApp::stop ()
+{
+    should_stop.set (1);
 }
 
 }
