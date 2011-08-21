@@ -65,7 +65,7 @@ void libMary_posixInit ()
 
     // Blocking SIGPIPE for write()/writev().
     {
-	logD_ (_func, "blocking SIGPIPE");
+//	logD_ (_func, "blocking SIGPIPE");
 
 	struct sigaction act;
 	memset (&act, 0, sizeof (act));
