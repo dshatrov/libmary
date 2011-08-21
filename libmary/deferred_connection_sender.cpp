@@ -312,6 +312,11 @@ DeferredConnectionSender::pollIterationEnd_mwritev ()
 	    Count total_iovs = 0;
 	    ProcessingQueue::iter iter = start_iter;
 	    while (!processing_queue.iter_done (iter)) {
+		if (fd_idx >= Mwritev_MaxFds) {
+		    logD_ (_func, "max fds");
+		    break;
+		}
+
 		DeferredConnectionSender * const deferred_sender = processing_queue.iter_next (iter);
 
 		mwritev_fds [fd_idx] = deferred_sender->conn_sender_impl.getConnection()->getFd();
@@ -340,7 +345,7 @@ DeferredConnectionSender::pollIterationEnd_mwritev ()
 		++fd_idx;
 
 		if (Mwritev_MaxTotalIovs - total_iovs < Mwritev_MaxIovsPerFd) {
-		    logD (mwritev, _func, "max total iovs");
+		    logD_ (_func, "max total iovs");
 		    break;
 		}
 	    }
@@ -365,7 +370,9 @@ DeferredConnectionSender::pollIterationEnd_mwritev ()
 	fd_idx = 0;
 	{
 	    ProcessingQueue::iter iter = start_iter;
-	    while (!processing_queue.iter_done (iter)) {
+	    while (!processing_queue.iter_done (iter) &&
+		   iter != next_iter)
+	    {
 		DeferredConnectionSender * const deferred_sender = processing_queue.iter_next (iter);
 
 		bool eintr = false;
@@ -401,8 +408,10 @@ DeferredConnectionSender::pollIterationEnd_mwritev ()
 		    deferred_sender->ready_for_output = false;
 
 		    // exc is NULL for Eof.
-		    if (async_res == AsyncIoResult::Error)
+		    if (async_res == AsyncIoResult::Error) {
+			exc_throw <PosixException> (-posix_res);
 			logE_ (_func, exc->toString());
+		    }
 
 		    if (deferred_sender->frontend && deferred_sender->frontend->closed) {
 			deferred_sender->mutex.unlock ();
