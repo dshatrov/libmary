@@ -209,6 +209,16 @@ public:
     public:
 	iter () {}
 	iter (IntrusiveList &list) { list.iter_begin (*this); }
+
+	bool operator == (iter const &iter) const
+	{
+	    return cur == iter.cur;
+	}
+
+	bool operator != (iter const &iter) const
+	{
+	    return cur != iter.cur;
+	}
     };
 
     void iter_begin (iter &iter) const
