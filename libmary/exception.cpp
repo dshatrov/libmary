@@ -17,12 +17,14 @@
 */
 
 
+#include <libmary/libmary_config.h>
+
 #include <libmary/exception.h>
 
 
 namespace M {
 
-#if defined LIBMARY_MTSAFE && !defined LIBMARY_TLOCAL
+#if defined LIBMARY_MT_SAFE && !defined LIBMARY_TLOCAL
 ExcWrapper exc;
 #else
 #ifdef LIBMARY_TLOCAL

@@ -24,7 +24,11 @@
 
 namespace M {
 
+#ifdef LIBMARY_MT_SAFE
 static GPrivate *tlocal_gprivate = NULL;
+#else
+LibMary_ThreadLocal _libMary_tlocal;
+#endif
 
 LibMary_ThreadLocal::LibMary_ThreadLocal ()
     : deletion_queue (NULL),
@@ -49,6 +53,8 @@ LibMary_ThreadLocal::~LibMary_ThreadLocal ()
 #endif
 }
 
+#ifdef LIBMARY_MT_SAFE
+// TODO Make use of LIBMARY_TLOCAL (native tlocal keyword)
 LibMary_ThreadLocal*
 libMary_getThreadLocal ()
 {
@@ -61,7 +67,9 @@ libMary_getThreadLocal ()
 
     return tlocal;
 }
+#endif
 
+#ifdef LIBMARY_MT_SAFE
 static void
 tlocal_destructor (gpointer const _tlocal)
 {
@@ -69,11 +77,14 @@ tlocal_destructor (gpointer const _tlocal)
     if (tlocal)
 	delete tlocal;
 }
+#endif
 
 void
 libMary_threadLocalInit ()
 {
+#ifdef LIBMARY_MT_SAFE
     tlocal_gprivate = g_private_new (tlocal_destructor);
+#endif
 }
 
 }

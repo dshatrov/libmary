@@ -21,6 +21,18 @@ case "$host" in
 esac
 AM_CONDITIONAL(PLATFORM_WIN32, test x$platform_win32 = xyes)
 
+AC_ARG_ENABLE([mt-safe],
+	      AC_HELP_STRING([--disable-mt-safe],
+			     [Disable MT-safety]),
+	      [enable_mt_safe=$enable_mt_safe],
+	      [enable_mt_safe="yes"])
+AM_CONDITIONAL([LIBMARY_MT_SAFE], test "x$enable_mt_safe" = "xyes")
+if test "x$enable_mt_safe" = "xyes"; then
+    AC_DEFINE([LIBMARY_MT_SAFE], [1], [ ])
+    LIBMARY_GTHREAD_DEP="gthread-2.0"
+fi
+AC_SUBST(LIBMARY_GTHREAD_DEP)
+
 AC_ARG_ENABLE([epoll],
 	      AC_HELP_STRING([--disable-epoll],
 			     [Disable epoll]),

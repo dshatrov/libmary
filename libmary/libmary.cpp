@@ -52,22 +52,13 @@ void libMaryInit ()
 	initialized = true;
     }
 
-#if 0
-// Deprecated
-    // TODO myCppInit() should be immune to being called multiple times
-    //      (with respect to g_thread_init() as well).
-    MyCpp::myCppInit ();
-#endif
-
+#ifdef LIBMARY_MT_SAFE
     if (!g_thread_get_initialized ())
 	g_thread_init (NULL);
-
-#if 0
-#if defined LIBMARY_MTSAFE && !defined LIBMARY_TLOCAL
-#else
-#error This is wrong!
-    _libMary_exc_buf = new ExceptionBuffer (1024 /* alloc_len */);
 #endif
+
+#if !defined LIBMARY_MT_SAFE && !defined LIBMARY_TLOCAL
+    _libMary_exc_buf = new ExceptionBuffer (1024 /* alloc_len */);
 #endif
 
     libMary_threadLocalInit ();

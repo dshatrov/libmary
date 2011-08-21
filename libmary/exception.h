@@ -20,9 +20,11 @@
 #ifndef __LIBMARY__EXCEPTION__H__
 #define __LIBMARY__EXCEPTION__H__
 
+#include <libmary/types.h>
 #include <cstdlib>
 #include <new>
 
+#include <libmary/libmary_config.h>
 #include <libmary/string.h>
 #include <libmary/ref.h>
 #include <libmary/libmary_thread_local.h>
@@ -59,7 +61,7 @@ public:
 
 // TODO Use __FILE__, __LINE__ and __func__ with exceptions.
 
-#if defined LIBMARY_MTSAFE && !defined LIBMARY_TLOCAL // thread-local
+#if defined LIBMARY_MT_SAFE && !defined LIBMARY_TLOCAL // thread-local
 
 class ExcWrapper
 {
@@ -245,7 +247,7 @@ static inline void exc_unblock ()
 #endif // thread-local
 
 #if 0 // Deprecated macros
-#ifdef LIBMARY_MTSAFE
+#ifdef LIBMARY_MT_SAFE
 #define exc_push(a)								\
 	do {									\
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();	\
@@ -266,7 +268,7 @@ static inline void exc_unblock ()
 	} while (0)
 #endif
 
-#ifdef LIBMARY_MTSAFE
+#ifdef LIBMARY_MT_SAFE
 #define exc_throw(a)								\
 	do {									\
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();	\
@@ -285,7 +287,7 @@ static inline void exc_unblock ()
 	} while (0)
 #endif
 
-#ifdef LIBMARY_MTSAFE
+#ifdef LIBMARY_MT_SAFE
 #define exc_block(tlocal)	\
 	(++tlocal->exc_block)
 #define exc_unblock(tlocal)			\

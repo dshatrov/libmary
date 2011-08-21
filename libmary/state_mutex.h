@@ -21,6 +21,7 @@
 #define __LIBMARY__STATE_MUTEX__H__
 
 
+#include <libmary/libmary_config.h>
 #include <libmary/mutex.h>
 
 
@@ -29,62 +30,85 @@ namespace M {
 class StateMutex
 {
 private:
+#ifdef LIBMARY_MT_SAFE
     Mutex mutex;
+#endif
 
 public:
     void lock ();
 
     void unlock ();
 
+#ifdef LIBMARY_MT_SAFE
     /* For internal use only:
      * should not be expected to be present in future versions. */
     GMutex* get_glib_mutex ()
     {
 	return mutex.get_glib_mutex();
     }
-
+#endif
 };
 
 class StateMutexLock
 {
 private:
+#ifdef LIBMARY_MT_SAFE
     StateMutex * const mutex;
+#endif
 
     StateMutexLock& operator = (StateMutexLock const &);
     StateMutexLock (StateMutexLock const &);
 
 public:
+#ifdef LIBMARY_MT_SAFE
     StateMutexLock (StateMutex * const mutex)
 	: mutex (mutex)
     {
 	mutex->lock ();
     }
+#else
+    StateMutexLock (StateMutex * const /* mutex */)
+    {
+    }
+#endif
 
+#ifdef LIBMARY_MT_SAFE
     ~StateMutexLock ()
     {
 	mutex->unlock ();
     }
+#endif
 };
 
 class StateMutexUnlock
 {
 private:
+#ifdef LIBMARY_MT_SAFE
     StateMutex * const mutex;
+#endif
 
     StateMutexUnlock& operator = (StateMutexUnlock const &);
     StateMutexUnlock (StateMutexUnlock const &);
 
 public:
+#ifdef LIBMARY_MT_SAFE
     StateMutexUnlock (StateMutex * const mutex)
 	: mutex (mutex)
     {
 	mutex->unlock ();
     }
+#else
+    StateMutexUnlock (StateMutex * const /* mutex */)
+    {
+    }
+#endif
 
+#ifdef LIBMARY_MT_SAFE
     ~StateMutexUnlock ()
     {
 	mutex->lock ();
     }
+#endif
 };
 
 }

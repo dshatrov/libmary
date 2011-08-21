@@ -64,7 +64,6 @@ mary_target_headers =			\
 	atomic.h			\
 	mutex.h				\
 	state_mutex.h			\
-	cond.h				\
 					\
 	basic_referenced.h		\
 	virt_referenced.h		\
@@ -117,6 +116,12 @@ mary_target_headers =			\
 	module_init.h			\
 					\
 	server_app.h
+
+if LIBMARY_MT_SAFE
+mary_target_headers += cond.h
+else
+mary_private_headers += cond.h
+endif
 
 mary_linux_target_headers =	\
 	posix.h			\
@@ -203,7 +208,6 @@ libmary_1_0_la_SOURCES =		\
 	page_pool.cpp			\
 					\
 	state_mutex.cpp			\
-	cond.cpp			\
 					\
 	referenced.cpp			\
 	object.cpp			\
@@ -239,6 +243,14 @@ libmary_1_0_la_SOURCES =		\
 					\
 	server_app.cpp
 
+mary_extra_dist = libmary_config.h.in
+
+if LIBMARY_MT_SAFE
+libmary_1_0_la_SOURCES += cond.cpp
+else
+mary_extra_dist += cond.cpp
+endif
+
 mary_linux_sources =			\
 	posix.cpp			\
 	util_posix.cpp			\
@@ -251,8 +263,6 @@ mary_win32_sources =			\
 	native_file.win32.cpp		\
 	tcp_connection.win32.cpp	\
 	tcp_server.win32.cpp
-
-mary_extra_dist = libmary_config.h.in
 
 if LIBMARY_ENABLE_EPOLL
     mary_linux_sources += epoll_poll_group.cpp

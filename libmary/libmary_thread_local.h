@@ -62,8 +62,19 @@ public:
     ~LibMary_ThreadLocal ();
 };
 
+#ifndef LIBMARY_MT_SAFE
+extern LibMary_ThreadLocal _libMary_tlocal;
+#endif
+
+#ifdef LIBMARY_MT_SAFE
 // Never returns NULL.
 LibMary_ThreadLocal* libMary_getThreadLocal ();
+#else
+static inline LibMary_ThreadLocal* libMary_getThreadLocal ()
+{
+    return &_libMary_tlocal;
+}
+#endif
 
 void libMary_threadLocalInit ();
 

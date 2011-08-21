@@ -21,7 +21,12 @@
 #define __LIBMARY__MUTEX__H__
 
 
+#include <libmary/libmary_config.h>
+
+#include <libmary/types.h>
+#ifdef LIBMARY_MT_SAFE
 #include <glib/gthread.h>
+#endif
 
 
 namespace M {
@@ -30,78 +35,110 @@ namespace M {
 class Mutex
 {
 private:
+#ifdef LIBMARY_MT_SAFE
     GStaticMutex mutex;
+#endif
 
 public:
     /*m Locks the mutex. */
     void lock ()
     {
+#ifdef LIBMARY_MT_SAFE
 	g_static_mutex_lock (&mutex);
+#endif
     }
 
     /*m Unlocks the mutex. */
     void unlock ()
     {
+#ifdef LIBMARY_MT_SAFE
 	g_static_mutex_unlock (&mutex);
+#endif
     }
 
+#ifdef LIBMARY_MT_SAFE
     /* For internal use only:
      * should not be expected to be present in future versions. */
     GMutex* get_glib_mutex ()
     {
 	return g_static_mutex_get_mutex (&mutex);
     }
+#endif
 
+#ifdef LIBMARY_MT_SAFE
     Mutex ()
     {
 	g_static_mutex_init (&mutex);
     }
+#endif
 
+#ifdef LIBMARY_MT_SAFE
     ~Mutex ()
     {
 	g_static_mutex_free (&mutex);
     }
+#endif
 };
 
 class MutexLock
 {
 private:
+#ifdef LIBMARY_MT_SAFE
     Mutex * const mutex;
+#endif
 
     MutexLock& operator = (MutexLock const &);
     MutexLock (MutexLock const &);
 
 public:
+#ifdef LIBMARY_MT_SAFE
     MutexLock (Mutex * const mutex)
 	: mutex (mutex)
     {
 	mutex->lock ();
     }
+#else
+    MutexLock (Mutex * const /* mutex */)
+    {
+    }
+#endif
 
     ~MutexLock ()
     {
+#ifdef LIBMARY_MT_SAFE
 	mutex->unlock ();
+#endif
     }
 };
 
 class MutexUnlock
 {
 private:
+#ifdef LIBMARY_MT_SAFE
     Mutex * const mutex;
+#endif
 
     MutexUnlock& operator = (MutexUnlock const &);
     MutexUnlock (MutexUnlock const &);
 
 public:
+#ifdef LIBMARY_MT_SAFE
     MutexUnlock (Mutex * const mutex)
 	: mutex (mutex)
     {
 	mutex->unlock ();
     }
+#else
+    MutexUnlock (Mutex * const /* mutex */)
+    {
+    }
+#endif
 
     ~MutexUnlock ()
     {
+#ifdef LIBMARY_MT_SAFE
 	mutex->lock ();
+#endif
     }
 };
 

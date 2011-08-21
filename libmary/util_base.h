@@ -23,10 +23,6 @@
 
 #include <cstdlib>
 
-#include <libmary/types_base.h>
-#include <libmary/memory.h>
-#include <libmary/mutex.h>
-
 
 //#define unreachable_point(file, line, str) (unreachable_ (file ":" #line str))
 //#define unreachable() (unreachable_point (__FILE__, __LINE__, ": unreachable point reached\n"))
@@ -37,6 +33,12 @@
 
 // Version of assert() which is never optimized out.
 #define assert_hard(a) do { assert (a); if (!(a)) abort (); } while (0)
+
+
+#include <libmary/types_base.h>
+#include <libmary/memory.h>
+#include <libmary/mutex.h>
+
 
 namespace M {
 
