@@ -38,6 +38,7 @@
 
 // TEST
 //#define LIBMARY_TEST_MWRITEV
+//#define LIBMARY_TEST_MWRITEV_SINGLE
 
 
 #ifdef LIBMARY_TEST_MWRITEV
@@ -296,12 +297,17 @@ TcpConnection::writev (struct iovec * const iovs,
     ssize_t const res = ::writev (fd, iovs, num_iovs);
 #else
     ssize_t res;
-    {
+    if (libMary_mwritevAvailable()) {
+#ifndef LIBMARY_TEST_MWRITEV_SINGLE
 	int w_fd = fd;
 	struct iovec *w_iovs = iovs;
 	int w_num_iovs = num_iovs;
 	int w_res;
 	if (!libMary_mwritev (1, &w_fd, &w_iovs, &w_num_iovs, &w_res)) {
+#else
+	int w_res;
+	if (!libMary_mwritevSingle (fd, iovs, num_iovs, &w_res)) {
+#endif
 	    res = -1;
 	    errno = EINVAL;
 	} else {
@@ -312,6 +318,8 @@ TcpConnection::writev (struct iovec * const iovs,
 		errno = -w_res;
 	    }
 	}
+    } else {
+	res = ::writev (fd, iovs, num_iovs);
     }
 #endif
     if (res == -1) {
