@@ -355,7 +355,11 @@ PagePool::~PagePool ()
 {
     mutex.lock ();
 
-    assert (!stats.num_busy_pages);
+    if (stats.num_busy_pages) {
+	logW_ (_func, stats.num_busy_pages, " busy pages lost");
+	// Not freeing any pages (debugging mode).
+	return;
+    }
 
     Page *cur_page = first_spare_page;
     while (cur_page) {
