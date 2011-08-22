@@ -90,6 +90,7 @@ public:
 
       mt_throws AsyncIoResult read (Memory const &mem,
 				    Size *ret_nread,
+				    // TODO @ret_eof is deprecated,
 				    bool *ret_eof = NULL);
 
     mt_iface_end (AsyncInputStream)
