@@ -103,12 +103,12 @@ public:
     }
 #endif
 
+#ifdef LIBMARY_MT_SAFE
     ~MutexLock ()
     {
-#ifdef LIBMARY_MT_SAFE
 	mutex->unlock ();
-#endif
     }
+#endif
 };
 
 class MutexUnlock
@@ -134,12 +134,12 @@ public:
     }
 #endif
 
+#ifdef LIBMARY_MT_SAFE
     ~MutexUnlock ()
     {
-#ifdef LIBMARY_MT_SAFE
 	mutex->lock ();
-#endif
     }
+#endif
 };
 
 }
