@@ -54,7 +54,11 @@ protected:
 					 VoidFunction  inform_cb,
 					 void         *inform_data);
 
-    class Subscription : public IntrusiveListElement<>
+    class SubscriptionList_name;
+    class SubscriptionInvalidationList_name;
+
+    class Subscription : public IntrusiveListElement<SubscriptionList_name>,
+			 public IntrusiveListElement<SubscriptionInvalidationList_name>
     {
     public:
 	bool valid;
@@ -81,6 +85,9 @@ protected:
 	}
     };
 
+    typedef IntrusiveList<Subscription, SubscriptionList_name> SubscriptionList;
+    typedef IntrusiveList<Subscription, SubscriptionInvalidationList_name> SubscriptionInvalidationList;
+
 public:
     class SubscriptionKey
     {
@@ -96,7 +103,8 @@ public:
 protected:
     StateMutex * const mutex;
 
-    mt_mutex (mutex) IntrusiveList<Subscription> sbn_list;
+    mt_mutex (mutex) SubscriptionList sbn_list;
+    mt_mutex (mtuex) SubscriptionInvalidationList sbn_invalidation_list;
     mt_mutex (mutex) Count traversing;
 
     void releaseSubscription (Subscription *sbn);

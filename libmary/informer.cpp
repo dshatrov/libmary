@@ -112,6 +112,8 @@ GenericInformer::informAll_unlocked (ProxyInformCallback   const mt_nonnull prox
 
     --traversing;
     if (traversing == 0) {
+#if 0
+// Old variant.
 	sbn = sbn_list.getFirst();
 	while (sbn) {
 	    Subscription * const next_sbn = sbn_list.getNext (sbn);
@@ -124,6 +126,19 @@ GenericInformer::informAll_unlocked (ProxyInformCallback   const mt_nonnull prox
 
 	    sbn = next_sbn;
 	}
+#endif
+	sbn = sbn_invalidation_list.getFirst();
+	while (sbn) {
+	    Subscription * const next_sbn = sbn_invalidation_list.getNext (sbn);
+	    assert (!sbn->valid);
+
+	    releaseSubscription (sbn);
+	    sbn_list.remove (sbn);
+	    delete sbn;
+
+	    sbn = next_sbn;
+	}
+	sbn_invalidation_list.clear ();
     }
 }
 
@@ -183,6 +198,7 @@ void
 GenericInformer::unsubscribe (SubscriptionKey const sbn_key)
 {
     mutex->lock ();
+    sbn_key.sbn->valid = false;
     if (traversing == 0) {
 	releaseSubscription (sbn_key.sbn);
 	sbn_list.remove (sbn_key.sbn);
@@ -190,22 +206,27 @@ GenericInformer::unsubscribe (SubscriptionKey const sbn_key)
 	delete sbn_key.sbn;
 	return;
     }
+    sbn_invalidation_list.append (sbn_key.sbn);
     mutex->unlock ();
 }
 
 void
 GenericInformer::unsubscribe_unlocked (SubscriptionKey const sbn_key)
 {
+    sbn_key.sbn->valid = false;
     if (traversing == 0) {
 	releaseSubscription (sbn_key.sbn);
 	sbn_list.remove (sbn_key.sbn);
 	delete sbn_key.sbn;
     }
+    sbn_invalidation_list.append (sbn_key.sbn);
 }
 
 GenericInformer::~GenericInformer ()
 {
     mutex->lock ();
+
+    assert (sbn_invalidation_list.isEmpty());
 
     Subscription *sbn = sbn_list.getFirst();
     while (sbn) {
