@@ -25,10 +25,20 @@
 
 #include <new>
 
+#include <libmary/libmary_config.h>
 #include <libmary/cb.h>
 #include <libmary/exception.h>
 #include <libmary/intrusive_list.h>
 #include <libmary/page_pool.h>
+
+
+// M::VSlab is a grow-only data structure. Be warned.
+#define LIBMARY_SENDER_VSLAB
+
+
+#ifdef LIBMARY_SENDER_VSLAB
+#include <libmary/vslab.h>
+#endif
 
 
 namespace M {
@@ -81,11 +91,31 @@ public:
 
     typedef IntrusiveList <MessageEntry, MessageList_name> MessageList;
 
+#ifdef LIBMARY_SENDER_VSLAB
+    static void deleteMessageEntry (MessageEntry * const mt_nonnull msg_entry)
+    {
+	MessageEntry_Pages * const msg_pages = static_cast <MessageEntry_Pages*> (msg_entry);
+
+	msg_pages->page_pool->msgUnref (msg_pages->first_page);
+	if (msg_pages->vslab_key) {
+#ifdef LIBMARY_MT_SAFE
+	  MutexLock msg_vslab_l (msg_vslab_mutex);
+#endif
+	    msg_vslab.free (msg_pages->vslab_key);
+	} else {
+	    delete[] (Byte*) msg_pages;
+	}
+    }
+#else
     static void deleteMessageEntry (MessageEntry * mt_nonnull msg_entry);
+#endif
 
     class MessageEntry_Pages : public MessageEntry
     {
 	friend void Sender::deleteMessageEntry (MessageEntry * mt_nonnull msg_entry);
+#ifdef LIBMARY_SENDER_VSLAB
+	friend class VSlab<MessageEntry_Pages>;
+#endif
 
     private:
 	MessageEntry_Pages ()
@@ -104,6 +134,10 @@ public:
 	PagePool::Page *first_page;
 	Size msg_offset;
 
+#ifdef LIBMARY_SENDER_VSLAB
+	VSlab<MessageEntry_Pages>::AllocKey vslab_key;
+#endif
+
 	Byte* getHeaderData () const
 	{
 	    return (Byte*) this + sizeof (*this);
@@ -111,9 +145,36 @@ public:
 
 	static MessageEntry_Pages* createNew (Size const max_header_len)
 	{
+#ifdef LIBMARY_SENDER_VSLAB
+	    if (max_header_len <= 28 /* TODO Artificial limit (matches Moment::RtmpConnection's needs) */) {
+		VSlab<MessageEntry_Pages>::AllocKey vslab_key;
+		MessageEntry_Pages *msg_pages;
+		{
+#ifdef LIBMARY_MT_SAFE
+		  MutexLock msg_vslab_l (msg_vslab_mutex);
+#endif
+		    msg_pages = msg_vslab.alloc (sizeof (MessageEntry_Pages) + max_header_len, &vslab_key);
+		}
+		msg_pages->vslab_key = vslab_key;
+		return msg_pages;
+	    } else {
+		MessageEntry_Pages * const msg_pages = new (new Byte [sizeof (MessageEntry_Pages) + max_header_len]) MessageEntry_Pages;
+		msg_pages->vslab_key = NULL;
+		return msg_pages;
+	    }
+#else
 	    return new (new Byte [sizeof (MessageEntry_Pages) + max_header_len]) MessageEntry_Pages;
+#endif
 	}
     };
+
+#ifdef LIBMARY_SENDER_VSLAB
+    typedef VSlab<MessageEntry_Pages> MsgVSlab;
+    static MsgVSlab msg_vslab;
+#ifdef LIBMARY_MT_SAFE
+    static Mutex msg_vslab_mutex;
+#endif
+#endif
 
 protected:
     mt_const Cb<Frontend> frontend;

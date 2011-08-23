@@ -24,6 +24,14 @@
 
 namespace M {
 
+#ifdef LIBMARY_SENDER_VSLAB
+Sender::MsgVSlab Sender::msg_vslab (1 << 16 /* prealloc, 64К messages */ /* TODO Preallocate less */);
+#ifdef LIBMARY_MT_SAFE
+Mutex Sender::msg_vslab_mutex;
+#endif
+#endif
+
+#ifndef LIBMARY_SENDER_VSLAB
 void
 Sender::deleteMessageEntry (MessageEntry * const mt_nonnull msg_entry)
 {
@@ -39,6 +47,7 @@ Sender::deleteMessageEntry (MessageEntry * const mt_nonnull msg_entry)
 	    unreachable ();
     }
 }
+#endif
 
 }
 
