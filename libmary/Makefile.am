@@ -60,6 +60,8 @@ mary_target_headers =			\
 	hash.h				\
 	string_hash.h			\
 	page_pool.h			\
+	vstack.h			\
+	vslab.h				\
 					\
 	atomic.h			\
 	mutex.h				\

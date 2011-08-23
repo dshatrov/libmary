@@ -43,6 +43,8 @@
 #include <libmary/hash.h>
 #include <libmary/string_hash.h>
 #include <libmary/page_pool.h>
+#include <libmary/vstack.h>
+#include <libmary/vslab.h>
 
 #include <libmary/atomic.h>
 #include <libmary/mutex.h>
