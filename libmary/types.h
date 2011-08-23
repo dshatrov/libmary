@@ -24,6 +24,12 @@
 #include <libmary/types_base.h>
 
 
+#ifdef __GNUC__
+#define mt_likely(x)   __builtin_expect(!!(x), 1)
+#define mt_unlikely(x) __builtin_expect(!!(x), 0)
+#endif
+
+
 namespace M {
 
 typedef void (*VoidFunction) (void);
