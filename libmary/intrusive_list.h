@@ -93,24 +93,23 @@ public:
     void append (Element * const mt_nonnull el,
 		 Element * const to_el)
     {
-	if (to_el == NULL) {
+	if (to_el) {
+	    el->next = to_el->next;
+	    el->previous = to_el;
+
+	    if (to_el->next != NULL)
+		to_el->next->previous = el;
+
+	    to_el->next = el;
+
+	    if (to_el == last)
+		last = el;
+	} else {
 	    el->next = NULL;
 	    el->previous = NULL;
 	    first = el;
 	    last  = el;
-	    return;
 	}
-
-	el->next = to_el->next;
-	el->previous = to_el;
-
-	if (to_el->next != NULL)
-	    to_el->next->previous = el;
-
-	to_el->next = el;
-
-	if (to_el == last)
-	    last = el;
     }
 
     void prepend (Element * const mt_nonnull el)
@@ -121,24 +120,23 @@ public:
     void prepend (Element * const mt_nonnull el,
 		  Element * const to_el)
     {
-	if (to_el == NULL) {
+	if (!to_el) {
 	    el->next = NULL;
 	    el->previous = NULL;
 	    first = el;
 	    last  = el;
-	    return;
+	} else {
+	    el->previous = to_el->previous;
+	    el->next = to_el;
+
+	    if (to_el->previous != NULL)
+		to_el->previous->next = el;
+
+	    to_el->previous = el;
+
+	    if (to_el == first)
+		first = el;
 	}
-
-	el->previous = to_el->previous;
-	el->next = to_el;
-
-	if (to_el->previous != NULL)
-	    to_el->previous->next = el;
-
-	to_el->previous = el;
-
-	if (to_el == first)
-	    first = el;
     }
 
     void stealAppend (Element * const tosteal_first,
@@ -285,18 +283,17 @@ public:
     {
 	Element * const el = elementForObj (obj);
 
-	if (first == NULL) {
+	if (first) {
+	    el->previous = first->previous;
+	    first->previous->next = el;
+
+	    el->next = first;
+	    first->previous = el;
+	} else {
 	    el->next = el;
 	    el->previous = el;
 	    first = el;
-	    return;
 	}
-
-	el->previous = first->previous;
-	first->previous->next = el;
-
-	el->next = first;
-	first->previous = el;
     }
 
     void append (T * const mt_nonnull obj,
@@ -304,20 +301,19 @@ public:
     {
 	Element * const el = elementForObj (obj);
 
-	if (to_obj == NULL) {
+	if (to_obj) {
+	    Element * const to_el = elementForObj (to_obj);
+
+	    el->next = to_el->next;
+	    to_el->next->previous = el;
+
+	    el->previous = to_el;
+	    to_el->next = el;
+	} else {
 	    el->next = el;
 	    el->previous = el;
 	    first = el;
-	    return;
 	}
-
-	Element * const to_el = elementForObj (to_obj);
-
-	el->next = to_el->next;
-	to_el->next->previous = el;
-
-	el->previous = to_el;
-	to_el->next = el;
     }
 
     void prepend (T * const mt_nonnull obj)
@@ -333,39 +329,37 @@ public:
     {
 	Element * const el = elementForObj (obj);
 
-	if (to_obj == NULL) {
+	if (!to_obj) {
 	    el->next = el;
 	    el->previous = el;
 	    first = el;
-	    return;
+	} else {
+	    Element * const to_el = elementForObj (to_obj);
+
+	    el->previous = to_el->previous;
+	    to_el->previous->next = el;
+
+	    el->next = to_el;
+	    to_el->previous = el;
+
+	    if (first == to_el)
+		first = el;
 	}
-
-	Element * const to_el = elementForObj (to_obj);
-
-	el->previous = to_el->previous;
-	to_el->previous->next = el;
-
-	el->next = to_el;
-	to_el->previous = el;
-
-	if (first == to_el)
-	    first = el;
     }
 
     void remove (T * const mt_nonnull obj)
     {
 	Element * const el = elementForObj (obj);
 
-	if (el->next == el) {
+	if (el->next != el) {
+	    el->previous->next = el->next;
+	    el->next->previous = el->previous;
+
+	    if (el == first)
+		first = el->next;
+	} else {
 	    first = NULL;
-	    return;
 	}
-
-	el->previous->next = el->next;
-	el->next->previous = el->previous;
-
-	if (el == first)
-	    first = el->next;
     }
 
     void clear ()
