@@ -62,6 +62,7 @@ private:
 
     mt_throws AsyncIoResult sendPendingMessages_writev ();
 
+#if 0
     void sendPendingMessages_vector (bool          count_iovs,
 				     bool          fill_iovs,
 				     bool          react,
@@ -69,6 +70,13 @@ private:
 				     struct iovec *iovs,
 				     Count         num_iovs,
 				     Size          num_written);
+#endif
+
+    void sendPendingMessages_vector_fill (Count        *mt_nonnull ret_num_iovs,
+					  struct iovec *mt_nonnull iovs,
+					  Count         num_iovs);
+
+    void sendPendingMessages_vector_react (Count num_iovs);
 
 public:
     // Takes ownership of msg_entry.
