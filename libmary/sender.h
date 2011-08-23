@@ -146,19 +146,20 @@ public:
 	static MessageEntry_Pages* createNew (Size const max_header_len)
 	{
 #ifdef LIBMARY_SENDER_VSLAB
-	    if (max_header_len <= 28 /* TODO Artificial limit (matches Moment::RtmpConnection's needs) */) {
+	    unsigned const vslab_header_len = 28;
+	    if (max_header_len <= vslab_header_len /* TODO Artificial limit (matches Moment::RtmpConnection's needs) */) {
 		VSlab<MessageEntry_Pages>::AllocKey vslab_key;
 		MessageEntry_Pages *msg_pages;
 		{
 #ifdef LIBMARY_MT_SAFE
 		  MutexLock msg_vslab_l (msg_vslab_mutex);
 #endif
-		    msg_pages = msg_vslab.alloc (sizeof (MessageEntry_Pages) + max_header_len, &vslab_key);
+		    msg_pages = msg_vslab.alloc (sizeof (MessageEntry_Pages) + vslab_header_len, &vslab_key);
 		}
 		msg_pages->vslab_key = vslab_key;
 		return msg_pages;
 	    } else {
-		MessageEntry_Pages * const msg_pages = new (new Byte [sizeof (MessageEntry_Pages) + max_header_len]) MessageEntry_Pages;
+		MessageEntry_Pages * const msg_pages = new (new Byte [sizeof (MessageEntry_Pages) + vslab_header_len]) MessageEntry_Pages;
 		msg_pages->vslab_key = NULL;
 		return msg_pages;
 	    }
