@@ -99,7 +99,7 @@ public:
 	msg_pages->page_pool->msgUnref (msg_pages->first_page);
 	if (msg_pages->vslab_key) {
 #ifdef LIBMARY_MT_SAFE
-	  MutexLock msg_vslab_l (msg_vslab_mutex);
+	  MutexLock msg_vslab_l (&msg_vslab_mutex);
 #endif
 	    msg_vslab.free (msg_pages->vslab_key);
 	} else {
@@ -152,7 +152,7 @@ public:
 		MessageEntry_Pages *msg_pages;
 		{
 #ifdef LIBMARY_MT_SAFE
-		  MutexLock msg_vslab_l (msg_vslab_mutex);
+		  MutexLock msg_vslab_l (&msg_vslab_mutex);
 #endif
 		    msg_pages = msg_vslab.alloc (sizeof (MessageEntry_Pages) + vslab_header_len, &vslab_key);
 		}
