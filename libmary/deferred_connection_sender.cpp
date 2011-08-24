@@ -425,6 +425,8 @@ DeferredConnectionSender::pollIterationEnd_mwritev ()
 			if (coderef_container)
 			    coderef_container->unref ();
 		    }
+
+		    ++fd_idx;
 		    continue;
 		}
 
