@@ -316,7 +316,7 @@ HttpService::accepted (void *_self)
     }
 }
 
-void
+mt_mutex (mutex) void
 HttpService::addHttpHandler_rec (Cb<HttpHandler>   const &cb,
 				 ConstMemory       const &path_,
 				 Namespace       * const nsp)

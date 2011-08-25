@@ -73,6 +73,8 @@ private:
     class Namespace : public BasicReferenced
     {
     public:
+	// We use Ref<Namespace> because 'Namespace' is an incomplete type here
+	// (language limitation).
 	typedef StringHash< Ref<Namespace> > NamespaceHash;
 	typedef StringHash<HandlerEntry> HandlerHash;
 
@@ -150,13 +152,13 @@ private:
     static void accepted (void *_self);
   mt_iface_end()
 
-    void addHttpHandler_rec (Cb<HttpHandler> const &cb,
-			     ConstMemory     const &path_,
-			     Namespace             *nsp);
+    mt_mutex (mutex) void addHttpHandler_rec (Cb<HttpHandler> const &cb,
+					      ConstMemory     const &path,
+					      Namespace             *nsp);
 
 public:
     void addHttpHandler (Cb<HttpHandler> const &cb,
-			 ConstMemory     const &path_);
+			 ConstMemory     const &path);
 
     mt_throws Result bind (IpAddress const &addr);
 
