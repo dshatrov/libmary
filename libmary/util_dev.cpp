@@ -110,6 +110,8 @@ hexdump (OutputStream * const mt_nonnull outs,
 
         i += j_limit;
     }
+
+    outs->flush ();
 }
 
 }
