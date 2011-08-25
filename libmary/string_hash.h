@@ -42,6 +42,11 @@ private:
 	      data (data)
 	{
 	}
+
+	Entry (ConstMemory const &mem)
+	    : str (grab (new String (mem)))
+	{
+	}
     };
 
     typedef Hash< Entry,
@@ -71,6 +76,10 @@ public:
 	T getData () const { return entry->data; }
 	T* getDataPtr() const { return &entry->data; }
 	EntryKey () : entry (NULL) {}
+
+	// Methods for C API binding.
+	void *getAsVoidPtr () { return static_cast <void*> (entry); }
+	static EntryKey fromVoidPtr (void *ptr) { return EntryKey (static_cast <Entry*> (ptr)); }
     };
 
     bool isEmpty () const
@@ -82,6 +91,13 @@ public:
 		  T data)
     {
 	Entry * const entry = new Entry (mem, data);
+	hash.add (entry);
+	return entry;
+    }
+
+    EntryKey addEmpty (ConstMemory const &mem)
+    {
+	Entry * const entry = new Entry (mem);
 	hash.add (entry);
 	return entry;
     }
