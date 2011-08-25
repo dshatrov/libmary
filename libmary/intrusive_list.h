@@ -93,7 +93,7 @@ public:
     void append (Element * const mt_nonnull el,
 		 Element * const to_el)
     {
-	if (to_el) {
+	if (mt_likely (to_el)) {
 	    el->next = to_el->next;
 	    el->previous = to_el;
 
@@ -120,7 +120,7 @@ public:
     void prepend (Element * const mt_nonnull el,
 		  Element * const to_el)
     {
-	if (!to_el) {
+	if (mt_likely (!to_el)) {
 	    el->next = NULL;
 	    el->previous = NULL;
 	    first = el;
@@ -172,15 +172,15 @@ public:
 
     void remove (Element * const mt_nonnull el)
     {
-	if (el == first)
-	    first = el->next;
-	else
+	if (mt_likely (el != first))
 	    el->previous->next = el->next;
-
-	if (el == last)
-	    last = el->previous;
 	else
+	    first = el->next;
+
+	if (mt_likely (el != last))
 	    el->next->previous = el->previous;
+	else
+	    last = el->previous;
     }
 
     void clear ()
@@ -283,7 +283,7 @@ public:
     {
 	Element * const el = elementForObj (obj);
 
-	if (first) {
+	if (mt_likely (first)) {
 	    el->previous = first->previous;
 	    first->previous->next = el;
 
@@ -301,7 +301,7 @@ public:
     {
 	Element * const el = elementForObj (obj);
 
-	if (to_obj) {
+	if (mt_likely (to_obj)) {
 	    Element * const to_el = elementForObj (to_obj);
 
 	    el->next = to_el->next;
@@ -329,7 +329,7 @@ public:
     {
 	Element * const el = elementForObj (obj);
 
-	if (!to_obj) {
+	if (mt_likely (!to_obj)) {
 	    el->next = el;
 	    el->previous = el;
 	    first = el;
@@ -351,7 +351,7 @@ public:
     {
 	Element * const el = elementForObj (obj);
 
-	if (el->next != el) {
+	if (mt_likely (el->next != el)) {
 	    el->previous->next = el->next;
 	    el->next->previous = el->previous;
 
