@@ -25,6 +25,7 @@
 #include <libmary/object.h>
 #include <libmary/virt_ref.h>
 #include <libmary/code_ref.h>
+#include <libmary/cb.h>
 #include <libmary/intrusive_list.h>
 
 
@@ -98,7 +99,12 @@ public:
     public:
 	operator bool () const { return sbn; }
 	SubscriptionKey () : sbn (NULL) {}
-    };
+
+ 	// Methods for C API binding.
+	void *getAsVoidPtr () { return static_cast <void*> (sbn); }
+	static SubscriptionKey fromVoidPtr (void *ptr) {
+		return SubscriptionKey (static_cast <Subscription*> (ptr)); }
+   };
 
 protected:
     StateMutex * const mutex;
@@ -189,12 +195,22 @@ public:
 	return subscribeVoid ((void*) ev_struct, cb_data, ref_data, coderef_container);
     }
 
+    SubscriptionKey subscribe (CbDesc<T> const &cb)
+    {
+	return subscribeVoid ((void*) cb.cb, cb.cb_data, NULL /* ref_data */, cb.coderef_container);
+    }
+
     SubscriptionKey subscribe_unlocked (T              * const ev_struct,
 					void           * const cb_data,
 					VirtReferenced * const ref_data,
 					Object         * const coderef_container)
     {
 	return subscribeVoid_unlocked ((void*) ev_struct, cb_data, ref_data, coderef_container);
+    }
+
+    SubscriptionKey subscribe_unlocked (CbDesc<T> const &cb)
+    {
+	return subscribeVoid ((void*) cb.cb, cb.cb_data, NULL /* ref_data */, cb.coderef_container);
     }
 
     Informer_ (Object     * const coderef_container,
@@ -244,12 +260,22 @@ public:
 	return subscribeVoid ((VoidFunction) cb, cb_data, ref_data, coderef_container);
     }
 
+    SubscriptionKey subscribe (CbDesc<T> const &cb)
+    {
+	return subscribeVoid ((VoidFunction) cb.cb, cb.cb_data, NULL /* ref_data */, cb.coderef_container);
+    }
+
     SubscriptionKey subscribe_unlocked (T                const cb,
 					void           * const cb_data,
 					VirtReferenced * const ref_data,
 					Object         * const coderef_container)
     {
 	return subscribeVoid_unlocked ((VoidFunction) cb, cb_data, ref_data, coderef_container);
+    }
+
+    SubscriptionKey subscribe_unlocked (CbDesc<T> const &cb)
+    {
+	return subscribeVoid_unlocked ((VoidFunction) cb.cb, cb.cb_data, NULL /* ref_data */, cb.coderef_container);
     }
 
     Informer (Object     * const coderef_container,
