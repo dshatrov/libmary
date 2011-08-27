@@ -33,9 +33,6 @@ class VirtRef
 private:
     VirtReferenced *ref;
 
-    VirtRef& operator = (VirtRef const &);
-    VirtRef (VirtRef const &);
-
 public:
     VirtReferenced* ptr () const
     {
@@ -61,6 +58,28 @@ public:
 	    ref->virt_ref ();
 
 	return *this;
+    }
+
+    VirtRef& operator = (VirtRef const &virt_ref)
+    {
+	if (this == &virt_ref)
+	    return *this;
+
+	if (ref)
+	    ref->virt_unref ();
+
+	ref = virt_ref.ref;
+	if (ref)
+	    ref->virt_ref ();
+
+	return *this;
+    }
+
+    VirtRef (VirtRef const &virt_ref)
+    {
+	ref = virt_ref.ref;
+	if (ref)
+	    ref->virt_ref ();
     }
 
     VirtRef (VirtReferenced * const ref)
