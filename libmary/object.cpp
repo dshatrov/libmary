@@ -176,6 +176,10 @@ Object::do_delete ()
 	    // We did getRef() after we nullified shadow->weak_ptr in
 	    // last_unref().  sbn->obj was set to point to the peer object.
 	    Object * const peer_obj = sbn->obj;
+	    DEBUG (
+		printf ("0x%lx %s: deletion callback with peer obj: sbn: 0x%lx, peer_obj: 0x%lx, sbn->mutual_sbn: 0x%lx\n",
+			(unsigned long) this, _func_name, (unsigned long) sbn, (unsigned long) peer_obj, (unsigned long) sbn->mutual_sbn.del_sbn);
+	    )
 	    if (peer_obj) {
 		if (sbn->mutual_sbn)
 		    peer_obj->removeDeletionCallback (sbn->mutual_sbn);
@@ -223,8 +227,16 @@ Object::addDeletionCallback (DeletionCallback   const cb,
 			     Referenced       * const ref_data,
 			     Object           * const guard_obj)
 {
+    DEBUG (
+	static char const * const _func_name = "LibMary.Object.addDeletionCallback";
+    )
+
     DeletionSubscription * const sbn = new DeletionSubscription (cb, cb_data, ref_data, guard_obj);
     assert (sbn);
+    DEBUG (
+	printf ("0x%lx %s: sbn: 0x%lx, guard_obj: 0x%lx\n",
+		(unsigned long) this, _func_name, (unsigned long) sbn, (unsigned long) guard_obj);
+    )
     sbn->obj = this;
     {
       StateMutexLock l (&mutex);
@@ -243,11 +255,19 @@ Object::addDeletionCallback_unlocked (DeletionCallback   const cb,
 				      Referenced       * const ref_data,
 				      Object           * const guard_obj)
 {
+    DEBUG (
+	static char const * const _func_name = "LibMary.Object.addDeletionCallback_unlocked";
+    )
+
   // This method is different from addDeletionCallback() in that we allocate
   // memory for DeletionSubscription with state mutex held.
 
     DeletionSubscription * const sbn = new DeletionSubscription (cb, cb_data, ref_data, guard_obj);
     assert (sbn);
+    DEBUG (
+	printf ("0x%lx %s: sbn: 0x%lx, guard_obj: 0x%lx\n",
+		(unsigned long) this, _func_name, (unsigned long) sbn, (unsigned long) guard_obj);
+    )
     sbn->obj = this;
     if (guard_obj && guard_obj != this) {
 	sbn->mutual_sbn = guard_obj->addDeletionCallbackNonmutual (
@@ -263,8 +283,16 @@ Object::addDeletionCallback_mutualUnlocked (DeletionCallback   const cb,
 					    Referenced       * const ref_data,
 					    Object           * const guard_obj)
 {
+    DEBUG (
+	static char const * const _func_name = "LibMary.Object.addDeletionCallback_mutualUnlocked";
+    )
+
     DeletionSubscription * const sbn = new DeletionSubscription (cb, cb_data, ref_data, guard_obj);
     assert (sbn);
+    DEBUG (
+	printf ("0x%lx %s: sbn: 0x%lx, guard_obj: 0x%lx\n",
+		(unsigned long) this, _func_name, (unsigned long) sbn, (unsigned long) guard_obj);
+    )
     sbn->obj = this;
     {
       StateMutexLock l (&mutex);
@@ -283,8 +311,16 @@ Object::addDeletionCallbackNonmutual (DeletionCallback   const cb,
 				      Referenced       * const ref_data,
 				      Object           * const guard_obj)
 {
+    DEBUG (
+	static char const * const _func_name = "LibMary.Object.addDeletionCallbackNonmutual";
+    )
+
     DeletionSubscription * const sbn = new DeletionSubscription (cb, cb_data, ref_data, guard_obj);
     assert (sbn);
+    DEBUG (
+	printf ("0x%lx %s: sbn: 0x%lx, guard_obj: 0x%lx\n",
+		(unsigned long) this, _func_name, (unsigned long) sbn, (unsigned long) guard_obj);
+    )
     sbn->obj = this;
     {
       StateMutexLock l (&mutex);
@@ -299,8 +335,16 @@ Object::addDeletionCallbackNonmutual_unlocked (DeletionCallback   const cb,
 					       Referenced       * const ref_data,
 					       Object           * const guard_obj)
 {
+    DEBUG (
+	static char const * const _func_name = "LibMary.Object.addDeletionCallbackNonmutual_unlocked";
+    )
+
     DeletionSubscription * const sbn = new DeletionSubscription (cb, cb_data, ref_data, guard_obj);
     assert (sbn);
+    DEBUG (
+	printf ("0x%lx %s: sbn: 0x%lx, guard_obj: 0x%lx\n",
+		(unsigned long) this, _func_name, (unsigned long) sbn, (unsigned long) guard_obj);
+    )
     sbn->obj = this;
 
     deletion_subscription_list.append (sbn);
@@ -342,6 +386,14 @@ Object::removeDeletionCallback_unlocked (DeletionSubscriptionKey const mt_nonnul
 void
 Object::removeDeletionCallback_mutualUnlocked (DeletionSubscriptionKey const mt_nonnull sbn)
 {
+    DEBUG (
+	static char const * const _func_name = "LibMary.Object.removeDeletionCallback_mutualUnlocked";
+    )
+
+    DEBUG (
+	printf ("0x%lx %s: sbn: 0x%lx\n", (unsigned long) this, _func_name, (unsigned long) sbn.del_sbn);
+    )
+
     {
       StateMutexLock l (&mutex);
 	deletion_subscription_list.remove (sbn);
