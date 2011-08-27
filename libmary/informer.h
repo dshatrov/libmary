@@ -115,6 +115,8 @@ protected:
 
     void releaseSubscription (Subscription *sbn);
 
+    void releaseSubscriptionFromDestructor (Subscription *sbn);
+
     static void subscriberDeletionCallback (void *_sbn);
 
     void informAll (ProxyInformCallback  mt_nonnull proxy_inform_cb,
@@ -122,9 +124,9 @@ protected:
 		    void                *inform_cb_data);
 
     // May unlock and lock 'mutex' in the process.
-    void informAll_unlocked (ProxyInformCallback  mt_nonnull proxy_inform_cb,
-			     VoidFunction         inform_cb,
-			     void                *inform_cb_data);
+    mt_mutex (mutex) void informAll_unlocked (ProxyInformCallback  mt_nonnull proxy_inform_cb,
+					      VoidFunction         inform_cb,
+					      void                *inform_cb_data);
 
     SubscriptionKey subscribeVoid (CallbackPtr     cb_ptr,
 				   void           *cb_data,
@@ -137,9 +139,14 @@ protected:
 					    Object         *coderef_container);
 
 public:
+    mt_mutex (mutex) bool gotSubscriptions_unlocked ()
+    {
+	return !sbn_list.isEmpty();
+    }
+
     void unsubscribe (SubscriptionKey sbn_key);
 
-    void unsubscribe_unlocked (SubscriptionKey sbn_key);
+    mt_mutex (mutex) void unsubscribe_unlocked (SubscriptionKey sbn_key);
 
     // If @coderef_container is not null, then @mutex should be the state mutex
     // of @coderef_container.
@@ -197,7 +204,7 @@ public:
 
     SubscriptionKey subscribe (CbDesc<T> const &cb)
     {
-	return subscribeVoid ((void*) cb.cb, cb.cb_data, NULL /* ref_data */, cb.coderef_container);
+	return subscribeVoid ((void*) cb.cb, cb.cb_data, cb.ref_data, cb.coderef_container);
     }
 
     SubscriptionKey subscribe_unlocked (T              * const ev_struct,
@@ -210,7 +217,7 @@ public:
 
     SubscriptionKey subscribe_unlocked (CbDesc<T> const &cb)
     {
-	return subscribeVoid ((void*) cb.cb, cb.cb_data, NULL /* ref_data */, cb.coderef_container);
+	return subscribeVoid_unlocked ((void*) cb.cb, cb.cb_data, cb.ref_data, cb.coderef_container);
     }
 
     Informer_ (Object     * const coderef_container,
@@ -262,7 +269,7 @@ public:
 
     SubscriptionKey subscribe (CbDesc<T> const &cb)
     {
-	return subscribeVoid ((VoidFunction) cb.cb, cb.cb_data, NULL /* ref_data */, cb.coderef_container);
+	return subscribeVoid ((VoidFunction) cb.cb, cb.cb_data, cb.ref_data, cb.coderef_container);
     }
 
     SubscriptionKey subscribe_unlocked (T                const cb,
@@ -275,7 +282,7 @@ public:
 
     SubscriptionKey subscribe_unlocked (CbDesc<T> const &cb)
     {
-	return subscribeVoid_unlocked ((VoidFunction) cb.cb, cb.cb_data, NULL /* ref_data */, cb.coderef_container);
+	return subscribeVoid_unlocked ((VoidFunction) cb.cb, cb.cb_data, cb.ref_data, cb.coderef_container);
     }
 
     Informer (Object     * const coderef_container,

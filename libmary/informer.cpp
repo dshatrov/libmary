@@ -38,6 +38,22 @@ GenericInformer::releaseSubscription (Subscription * const mt_nonnull sbn)
 }
 
 void
+GenericInformer::releaseSubscriptionFromDestructor (Subscription * const mt_nonnull sbn)
+{
+    // If the informer has a coderef container, then deletion subscription has
+    // already been released by coderef container's deletion callback.
+    if (!getCoderefContainer()) {
+	if (sbn->weak_code_ref.isValid()) {
+	    CodeRef const code_ref = sbn->weak_code_ref;
+	    if (code_ref)
+		code_ref->removeDeletionCallback_mutualUnlocked (sbn->del_sbn);
+	}
+    }
+
+    sbn->ref_data = NULL;
+}
+
+void
 GenericInformer::subscriberDeletionCallback (void *_sbn)
 {
     Subscription * const sbn = static_cast <Subscription*> (_sbn);
@@ -60,7 +76,7 @@ GenericInformer::informAll (ProxyInformCallback   const mt_nonnull proxy_inform_
     mutex->unlock ();
 }
 
-void
+mt_mutex (mutex) void
 GenericInformer::informAll_unlocked (ProxyInformCallback   const mt_nonnull proxy_inform_cb,
 				     VoidFunction          const inform_cb,
 				     void                * const inform_cb_data)
@@ -232,7 +248,7 @@ GenericInformer::~GenericInformer ()
     while (sbn) {
 	Subscription * const next_sbn = sbn_list.getNext (sbn);
 
-	releaseSubscription (sbn);
+	releaseSubscriptionFromDestructor (sbn);
 	delete sbn;
 
 	sbn = next_sbn;
