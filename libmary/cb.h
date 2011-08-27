@@ -21,6 +21,7 @@
 #define __LIBMARY__CB__H__
 
 
+#include <libmary/virt_ref.h>
 #include <libmary/code_ref.h>
 #include <libmary/libmary_thread_local.h>
 
@@ -40,21 +41,24 @@ template <class T>
 class CbDesc
 {
 public:
-    T const * const cb;
-    void    * const cb_data;
-    Object  * const coderef_container;
+    T const        * const cb;
+    void           * const cb_data;
+    Object         * const coderef_container;
+    VirtReferenced * const ref_data;
 
     T const * operator -> () const
     {
 	return cb;
     }
 
-    CbDesc (T const * const cb,
-	    void    * const cb_data,
-	    Object  * const coderef_container)
-	: cb (cb),
-	  cb_data (cb_data),
-	  coderef_container (coderef_container)
+    CbDesc (T const        * const cb,
+	    void           * const cb_data,
+	    Object         * const coderef_container,
+	    VirtReferenced * const ref_data = NULL)
+	: cb                (cb),
+	  cb_data           (cb_data),
+	  coderef_container (coderef_container),
+	  ref_data          (ref_data)
     {
     }
 };
@@ -64,9 +68,10 @@ class Cb
 {
 private:
     // Frontend/backend.
-    T const *cb;
-    void *cb_data;
-    WeakCodeRef weak_code_ref;
+    T const      *cb;
+    void         *cb_data;
+    WeakCodeRef   weak_code_ref;
+    VirtRef       ref_data;
 
 public:
     // Returns 'true' if the callback has actually been called.
@@ -321,19 +326,22 @@ public:
     //      became more expensive because of Ref<_Shadow> member. Figure out
     //      what's the most effective way to avoid excessive atomic ref/unref
     //      operations.
-    Cb (T const * const cb,
-	void    * const cb_data,
-	Object  * const coderef_container)
-	: cb (cb),
-	  cb_data (cb_data),
-	  weak_code_ref (coderef_container)
+    Cb (T const        * const cb,
+	void           * const cb_data,
+	Object         * const coderef_container,
+	VirtReferenced * const ref_data = NULL)
+	: cb            (cb),
+	  cb_data       (cb_data),
+	  weak_code_ref (coderef_container),
+	  ref_data      (ref_data)
     {
     }
 
     Cb (CbDesc<T> const &cb_desc)
 	: cb            (cb_desc.cb),
 	  cb_data       (cb_desc.cb_data),
-	  weak_code_ref (cb_desc.coderef_container)
+	  weak_code_ref (cb_desc.coderef_container),
+	  ref_data      (cb_desc.ref_data)
     {
     }
 
