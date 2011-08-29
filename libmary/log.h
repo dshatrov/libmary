@@ -159,7 +159,7 @@ extern char const _libMary_loglevel_str_N [5];
 // TODO Inlining this huge switch() statement for every invocation of log() is insane.
 #define _libMary_log_macro(log_func, group, loglevel, ...)			\
 	do {									\
-	    if ((loglevel) >= libMary_logGroup_ ## group .getLogLevel()) {	\
+	    if (mt_unlikely ((loglevel) >= libMary_logGroup_ ## group .getLogLevel())) {	\
 		exc_block ();							\
 		switch (loglevel) {						\
 		    case LogLevel::All:						\
@@ -234,7 +234,7 @@ extern char const _libMary_loglevel_str_N [5];
 
 #define _libMary_log_macro_s(log_func, group, loglevel, loglevel_str, ...)	\
 	do {									\
-	    if ((loglevel) >= libMary_logGroup_ ## group .getLogLevel()) {	\
+	    if (mt_unlikely ((loglevel) >= libMary_logGroup_ ## group .getLogLevel())) {	\
 		exc_block ();							\
 		log_func<loglevel_str> (__VA_ARGS__);				\
 		exc_unblock ();							\
