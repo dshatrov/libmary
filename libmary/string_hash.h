@@ -78,7 +78,7 @@ public:
 	EntryKey () : entry (NULL) {}
 
 	// Methods for C API binding.
-	void *getAsVoidPtr () { return static_cast <void*> (entry); }
+	void *getAsVoidPtr () const { return static_cast <void*> (entry); }
 	static EntryKey fromVoidPtr (void *ptr) { return EntryKey (static_cast <Entry*> (ptr)); }
     };
 

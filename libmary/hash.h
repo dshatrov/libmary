@@ -204,6 +204,15 @@ class Foo {};
 	    : node_iter (hash.node_list)
 	{
 	}
+
+ 	// Methods for C API binding.
+	void *getAsVoidPtr () const { return node_iter.getAsVoidPtr (); }
+	static iter fromVoidPtr (void *ptr)
+	{
+	    iter it;
+	    it.node_iter = IntrusiveList<T>::iter::fromVoidPtr (ptr);
+	    return it;
+	}
     };
 
     void iter_begin (iter &iter) const

@@ -204,6 +204,8 @@ public:
     private:
 	T *cur;
 
+	iter (T * const el) : cur (el) {}
+
     public:
 	iter () {}
 	iter (IntrusiveList &list) { list.iter_begin (*this); }
@@ -217,6 +219,11 @@ public:
 	{
 	    return cur != iter.cur;
 	}
+
+ 	// Methods for C API binding.
+	void *getAsVoidPtr () const { return static_cast <void*> (cur); }
+	static iter fromVoidPtr (void *ptr) {
+		return iter (static_cast <T*> (ptr)); }
     };
 
     void iter_begin (iter &iter) const

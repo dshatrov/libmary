@@ -101,7 +101,7 @@ public:
 	SubscriptionKey () : sbn (NULL) {}
 
  	// Methods for C API binding.
-	void *getAsVoidPtr () { return static_cast <void*> (sbn); }
+	void *getAsVoidPtr () const { return static_cast <void*> (sbn); }
 	static SubscriptionKey fromVoidPtr (void *ptr) {
 		return SubscriptionKey (static_cast <Subscription*> (ptr)); }
    };
