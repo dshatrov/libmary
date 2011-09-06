@@ -44,7 +44,7 @@ public:
 	void (*processInput) (void *cb_data);
 
 	void (*processError) (Exception *exc_,
-			      void *cb_data);
+			      void      *cb_data);
     };
 
     struct OutputFrontend {

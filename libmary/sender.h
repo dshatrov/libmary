@@ -217,7 +217,7 @@ public:
 	sendMessage (msg_pages);
     }
 
-    mt_const void setFrontend (Cb<Frontend> const frontend)
+    mt_const void setFrontend (CbDesc<Frontend> const &frontend)
     {
 	this->frontend = frontend;
     }

@@ -47,7 +47,7 @@ Legend:
     [v] Atomic operations
     [v] Mutex
     [v] StateMutex
-    [ ] Cond
+    [v] Cond
 [*] I/O
     [*] File
         [*] Posix file backend
@@ -56,8 +56,9 @@ Legend:
     [*] Streams
     [v] Printing
     [*] Event notification
-        [ ] epoll backend
+        [v] epoll backend
 	[v] select backend
+	[v] poll packend
 	[ ] Win32 backend
 	[ ] Threaded pollers
     [v] Logging
