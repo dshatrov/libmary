@@ -61,6 +61,14 @@ public:
 	  ref_data          (ref_data)
     {
     }
+
+    CbDesc ()
+	: cb (NULL),
+	  cb_data (NULL),
+	  coderef_container (NULL),
+	  ref_data (NULL)
+    {
+    }
 };
 
 template <class T>
