@@ -32,13 +32,16 @@ Thread::wrapperThreadFunc (gpointer const _self)
     try {
 	self->mutex.lock ();
 	Cb<ThreadFunc> const tmp_cb = self->thread_cb;
-	self->thread_cb.reset ();
 	self->mutex.unlock ();
 
 	tmp_cb.call_ ();
     } catch (...) {
 	logE_ (_func, "unhandled C++ exception");
     }
+
+    self->mutex.lock ();
+    self->thread_cb.reset ();
+    self->mutex.unlock ();
 
     self->unref ();
 
