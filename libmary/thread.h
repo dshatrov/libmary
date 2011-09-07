@@ -1,3 +1,22 @@
+/*  LibMary - C++ library for high-performance network servers
+    Copyright (C) 2011 Dmitry Shatrov
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License as published by the Free Software Foundation; either
+    version 2.1 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+
 #ifndef __LIBMARY__THREAD__H__
 #define __LIBMARY__THREAD__H__
 
@@ -37,8 +56,17 @@ public:
     // Thread callback is reset when the thread exits.
     void setThreadFunc (CbDesc<ThreadFunc> const &cb);
 
-    Thread ()
-	: thread (NULL)
+    void setThreadFunc (Cb<ThreadFunc> const &cb);
+
+    Thread (CbDesc<ThreadFunc> const &thread_cb = CbDesc<ThreadFunc> ())
+	: thread_cb (thread_cb),
+	  thread (NULL)
+    {
+    }
+
+    Thread (Cb<ThreadFunc> const &thread_cb)
+	: thread_cb (thread_cb),
+	  thread (NULL)
     {
     }
 };

@@ -1,3 +1,22 @@
+/*  LibMary - C++ library for high-performance network servers
+    Copyright (C) 2011 Dmitry Shatrov
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License as published by the Free Software Foundation; either
+    version 2.1 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+
 #include <libmary/log.h>
 
 #include <libmary/thread.h>
@@ -13,6 +32,7 @@ Thread::wrapperThreadFunc (gpointer const _self)
     try {
 	self->mutex.lock ();
 	Cb<ThreadFunc> const tmp_cb = self->thread_cb;
+	self->thread_cb.reset ();
 	self->mutex.unlock ();
 
 	tmp_cb.call_ ();
@@ -65,14 +85,16 @@ Thread::join ()
 
     g_thread_join (tmp_thread);
 
-    mutex.lock ();
-    thread_cb.reset ();
-    mutex.unlock ();
-
     return Result::Success;
 }
 
 void Thread::setThreadFunc (CbDesc<ThreadFunc> const &cb)
+{
+  StateMutexLock l (&mutex);
+    this->thread_cb = cb;
+}
+
+void Thread::setThreadFunc (Cb<ThreadFunc> const &cb)
 {
   StateMutexLock l (&mutex);
     this->thread_cb = cb;
