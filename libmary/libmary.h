@@ -51,6 +51,7 @@
 #include <libmary/state_mutex.h>
 #ifdef LIBMARY_MT_SAFE
 #include <libmary/cond.h>
+#include <libmary/thread.h>
 #endif
 
 #include <libmary/basic_referenced.h>

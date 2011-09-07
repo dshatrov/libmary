@@ -120,9 +120,13 @@ mary_target_headers =			\
 	server_app.h
 
 if LIBMARY_MT_SAFE
-mary_target_headers += cond.h
+mary_target_headers +=			\
+	cond.h				\
+	thread.h
 else
-mary_private_headers += cond.h
+mary_private_headers +=			\
+	cond.h				\
+	thread.h
 endif
 
 mary_linux_target_headers =	\
@@ -248,9 +252,13 @@ libmary_1_0_la_SOURCES =		\
 mary_extra_dist = libmary_config.h.in
 
 if LIBMARY_MT_SAFE
-libmary_1_0_la_SOURCES += cond.cpp
+libmary_1_0_la_SOURCES +=		\
+	cond.cpp			\
+	thread.cpp
 else
-mary_extra_dist += cond.cpp
+mary_extra_dist +=			\
+	cond.cpp			\
+	thread.cpp
 endif
 
 mary_linux_sources =			\
