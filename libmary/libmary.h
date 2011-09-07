@@ -36,6 +36,7 @@
 
 #include <libmary/array.h>
 #include <libmary/array_holder.h>
+#include <libmary/list.h>
 #include <libmary/intrusive_list.h>
 #include <libmary/avl_tree.h>
 #include <libmary/intrusive_avl_tree.h>
@@ -52,6 +53,7 @@
 #ifdef LIBMARY_MT_SAFE
 #include <libmary/cond.h>
 #include <libmary/thread.h>
+#include <libmary/multi_thread.h>
 #endif
 
 #include <libmary/basic_referenced.h>

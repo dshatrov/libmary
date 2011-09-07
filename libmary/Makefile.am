@@ -53,6 +53,7 @@ mary_target_headers =			\
 					\
 	array.h				\
 	array_holder.h			\
+	list.h				\
 	intrusive_list.h		\
 	avl_tree.h			\
 	intrusive_avl_tree.h		\
@@ -119,14 +120,15 @@ mary_target_headers =			\
 					\
 	server_app.h
 
+mary_mtsafe_headers = 			\
+	cond.h				\
+	thread.h			\
+	multi_thread.h
+
 if LIBMARY_MT_SAFE
-mary_target_headers +=			\
-	cond.h				\
-	thread.h
+mary_target_headers += $(mary_mtsafe_headers)
 else
-mary_private_headers +=			\
-	cond.h				\
-	thread.h
+mary_private_headers += $(mary_mtsafe_headers)
 endif
 
 mary_linux_target_headers =	\
@@ -251,14 +253,15 @@ libmary_1_0_la_SOURCES =		\
 
 mary_extra_dist = libmary_config.h.in
 
+mary_mtsafe_sources =			\
+	cond.cpp			\
+	thread.cpp			\
+	multi_thread.cpp
+
 if LIBMARY_MT_SAFE
-libmary_1_0_la_SOURCES +=		\
-	cond.cpp			\
-	thread.cpp
+libmary_1_0_la_SOURCES += $(mary_mtsafe_sources)
 else
-mary_extra_dist +=			\
-	cond.cpp			\
-	thread.cpp
+mary_extra_dist += $(mary_mtsafe_sources)
 endif
 
 mary_linux_sources =			\
