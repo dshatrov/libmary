@@ -322,6 +322,14 @@ public:
 	return *this;
     }
 
+    void reset ()
+    {
+	cb = NULL;
+	cb_data = NULL;
+	weak_code_ref = NULL;
+	ref_data = NULL;
+    }
+
     // TODO After introduction of coderef containers, copying Cb<>'s around
     //      became more expensive because of Ref<_Shadow> member. Figure out
     //      what's the most effective way to avoid excessive atomic ref/unref
