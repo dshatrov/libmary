@@ -533,6 +533,54 @@ public:
     {
 	clear ();
     }
+
+// _________________________________ Iterator __________________________________
+
+    class iter
+    {
+	friend class List;
+
+    private:
+	Element *cur;
+
+	iter (Element * const el) : cur (el) {}
+
+    public:
+	iter () {}
+	iter (List &list) { list.iter_begin (*this); }
+
+	bool operator == (iter const &iter) const
+	{
+	    return cur == iter.cur;
+	}
+
+	bool operator != (iter const &iter) const
+	{
+	    return cur != iter.cur;
+	}
+
+ 	// Methods for C API binding.
+	void *getAsVoidPtr () const { return static_cast <void*> (cur); }
+	static iter fromVoidPtr (void *ptr) {
+		return iter (static_cast <Element*> (ptr)); }
+    };
+
+    void iter_begin (iter &iter) const
+    {
+	iter.cur = getFirstElement ();
+    }
+
+    Element* iter_next (iter &iter) const
+    {
+	Element * const el = iter.cur;
+	iter.cur = iter.cur->next;
+	return el;
+    }
+
+    bool iter_done (iter &iter) const
+    {
+	return iter.cur == NULL;
+    }
 };
 
 template <class T, class Base = EmptyBase>
