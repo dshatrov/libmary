@@ -267,13 +267,6 @@ HttpService::acceptOneConnection ()
 	assert (res == TcpServer::AcceptResult::Accepted);
     }
 
-    http_conn->pollable_key = poll_group->addPollable (http_conn->tcp_conn.getPollable(), NULL /* ret_reg */);
-    if (!http_conn->pollable_key) {
-	http_conn->unref ();
-	logE_ (_func, exc->toString());
-	return true;
-    }
-
     http_conn->weak_http_service = this;
     http_conn->unsafe_http_service = this;
 
@@ -286,6 +279,17 @@ HttpService::acceptOneConnection ()
     http_conn->http_server.setSender (&http_conn->conn_sender, page_pool);
     http_conn->http_server.setFrontend (Cb<HttpServer::Frontend> (&http_frontend, http_conn, http_conn));
 
+    mutex.lock ();
+    http_conn->pollable_key = poll_group->addPollable (http_conn->tcp_conn.getPollable(), NULL /* ret_reg */);
+    if (!http_conn->pollable_key) {
+	mutex.unlock ();
+
+	http_conn->unref ();
+
+	logE_ (_func, exc->toString());
+	return true;
+    }
+
     if (keepalive_timeout_microsec > 0) {
 	http_conn->conn_keepalive_timer = timers->addTimer (connKeepaliveTimerExpired,
 							    http_conn,
@@ -296,7 +300,6 @@ HttpService::acceptOneConnection ()
 	http_conn->conn_keepalive_timer = NULL;
     }
 
-    mutex.lock ();
     conn_list.append (http_conn);
     mutex.unlock ();
 
