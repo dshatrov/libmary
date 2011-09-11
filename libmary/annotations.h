@@ -60,6 +60,9 @@
 #define mt_async
 #define mt_unsafe
 
+#define mt_one_of(a)
+#define mt_sync_domain(a)
+
 // Reviewed (YY.MM.DD)
 #define mt_rev(a)
 
