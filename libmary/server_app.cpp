@@ -22,10 +22,6 @@
 #include <libmary/util_time.h>
 #include <libmary/log.h>
 
-#ifdef LIBMARY_ENABLE_MWRITEV
-#include <libmary/mwritev.h>
-#endif
-
 #include <libmary/server_app.h>
 
 
@@ -40,114 +36,65 @@ ActivePollGroup::Frontend ServerApp::poll_frontend = {
     pollIterationEnd
 };
 
-#ifdef LIBMARY_MT_SAFE
-mt_throws PollGroup::PollableKey
-ServerApp::AppPollGroup::addPollable (CbDesc<PollGroup::Pollable> const &pollable,
-				      DeferredProcessor::Registration * const ret_reg)
+ServerThreadContext*
+ServerApp::SA_ServerContext::selectThreadContext ()
 {
-    PollGroup *poll_group;
+    ServerThreadContext *thread_ctx;
 
-    server_app->mutex.lock ();
+  StateMutexLock l (server_app->mutex);
+
     if (server_app->thread_selector) {
-	poll_group = &server_app->thread_selector->data->poll_group;
+	thread_ctx = &server_app->thread_selector->data->thread_ctx;
 	server_app->thread_selector = server_app->thread_selector->next;
     } else {
 	if (!server_app->thread_data_list.isEmpty ()) {
-	    poll_group = &server_app->thread_data_list.getFirst()->poll_group;
+	    thread_ctx = &server_app->thread_data_list.getFirst()->thread_ctx;
 	    server_app->thread_selector = server_app->thread_data_list.getFirstElement()->next;
 	} else {
-	    poll_group = &server_app->poll_group;
-	}
-    }
-    server_app->mutex.unlock ();
-
-    PollGroup::PollableKey const pollable_key = poll_group->addPollable (pollable, ret_reg);
-    if (!pollable_key)
-	return NULL;
-
-    PollableReg * const pollable_reg = new PollableReg;
-    pollable_reg->poll_group = poll_group;
-    pollable_reg->pollable_key = pollable_key;
-
-    server_app->mutex.lock ();
-    pollable_reg_list.append (pollable_reg);
-    server_app->mutex.unlock ();
-
-    return static_cast <PollGroup::PollableKey> (pollable_reg);
-}
-
-mt_throws void
-ServerApp::AppPollGroup::removePollable (PollableKey const mt_nonnull key)
-{
-    PollableReg * const pollable_reg = static_cast <PollableReg*> (key);
-
-    pollable_reg->poll_group->removePollable (pollable_reg->pollable_key);
-
-    server_app->mutex.lock ();
-    pollable_reg_list.remove (pollable_reg);
-    server_app->mutex.unlock ();
-}
-
-ServerApp::AppPollGroup::~AppPollGroup ()
-{
-    server_app->mutex.lock ();
-
-    {
-	PollableRegList::iter iter (pollable_reg_list);
-	while (!pollable_reg_list.iter_done (iter)) {
-	    PollableReg * const pollable_reg = pollable_reg_list.iter_next (iter);
-	    delete pollable_reg;
+	    thread_ctx = &server_app->main_thread_ctx;
 	}
     }
 
-    server_app->mutex.unlock ();
+    return thread_ctx;
 }
-#endif // LIBMARY_MT_SAFE
 
 void
-ServerApp::doTimerIteration ()
+ServerApp::firstTimerAdded (void * const _active_poll_group)
 {
+    logD (server_app, _func_);
+    ActivePollGroup * const active_poll_group = static_cast <ActivePollGroup*> (_active_poll_group);
+    active_poll_group->trigger ();
+}
+
+void
+ServerApp::pollIterationBegin (void * const _thread_ctx)
+{
+    ServerThreadContext * const thread_ctx = static_cast <ServerThreadContext*> (_thread_ctx);
+
     if (!updateTime ())
 	logE_ (_func, exc->toString());
 
-    timers.processTimers ();
-}
-
-void
-ServerApp::firstTimerAdded (void * const _self)
-{
-    logD (server_app, _func_);
-    ServerApp * const self = static_cast <ServerApp*> (_self);
-    self->poll_group.trigger ();
-}
-
-void
-ServerApp::pollIterationBegin (void * const _self)
-{
-    ServerApp * const self = static_cast <ServerApp*> (_self);
-    self->doTimerIteration ();
+    thread_ctx->getTimers()->processTimers ();
 }
 
 bool
-ServerApp::pollIterationEnd (void * const /* _self */)
+ServerApp::pollIterationEnd (void * const _thread_ctx)
 {
-//    logD_ (_func_);
-#ifdef LIBMARY_ENABLE_MWRITEV
-    if (libMary_mwritevAvailable())
-	return DeferredConnectionSender::pollIterationEnd_mwritev ();
-#endif
-    return DeferredConnectionSender::pollIterationEnd ();
+    ServerThreadContext * const thread_ctx = static_cast <ServerThreadContext*> (_thread_ctx);
+    return thread_ctx->getDeferredProcessor()->process ();
 }
 
-#if 0
-bool
-ServerApp::pollIterationEnd (void *  const _deferred_processor)
+namespace {
+void deferred_processor_trigger (void * const _active_poll_group)
 {
-    DeferredProcessor * const deferred_processor = static_cast <DeferredProcessor*> (_deferred_processor);
-
-    return deferred_processor->process ();
+    ActivePollGroup * const active_poll_group = static_cast <ActivePollGroup*> (_active_poll_group);
+    active_poll_group->trigger ();
 }
-#endif
+
+DeferredProcessor::Backend deferred_processor_backend = {
+    deferred_processor_trigger
+};
+}
 
 mt_throws Result
 ServerApp::init ()
@@ -155,7 +102,22 @@ ServerApp::init ()
     if (!poll_group.open ())
 	return Result::Failure;
 
-    poll_group.setFrontend (Cb<ActivePollGroup::Frontend> (&poll_frontend, this, getCoderefContainer()));
+    server_ctx.init (&timers, &poll_group);
+
+    main_thread_ctx.init (&timers,
+			  &poll_group,
+			  &deferred_processor,
+			  &dcs_queue);
+
+    poll_group.setFrontend (CbDesc<ActivePollGroup::Frontend> (
+	    &poll_frontend, &main_thread_ctx, NULL /* coderef_container */));
+
+    deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
+	    &deferred_processor_backend,
+	    static_cast <ActivePollGroup*> (&poll_group) /* cb_data */,
+	    NULL /* coderef_container */));
+
+    dcs_queue.setDeferredProcessor (&deferred_processor);
 
     return Result::Success;
 }
@@ -167,10 +129,29 @@ ServerApp::threadFunc (void * const _self)
 
     Ref<ThreadData> const thread_data = grab (new ThreadData);
 
+    thread_data->thread_ctx.init (&thread_data->timers,
+				  &thread_data->poll_group,
+				  &thread_data->deferred_processor,
+				  &thread_data->dcs_queue);
+
+    thread_data->poll_group.bindToThread (libMary_getThreadLocal());
     if (!thread_data->poll_group.open ()) {
 	logE_ (_func, "poll_group.open() failed: ", exc->toString());
 	return;
     }
+
+    thread_data->poll_group.setFrontend (CbDesc<ActivePollGroup::Frontend> (
+	    &poll_frontend, &thread_data->thread_ctx, NULL /* coderef_container */));
+
+    thread_data->timers.setFirstTimerAddedCallback (CbDesc<Timers::FirstTimerAddedCallback> (
+	    firstTimerAdded, &thread_data->poll_group, NULL /* coderef_container */));
+
+    thread_data->deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
+	    &deferred_processor_backend,
+	    static_cast <ActivePollGroup*> (&thread_data->poll_group) /* cb_data */,
+	    NULL /* coderef_container */));
+
+    thread_data->dcs_queue.setDeferredProcessor (&thread_data->deferred_processor);
 
     self->mutex.lock ();
     if (self->should_stop.get()) {
@@ -182,7 +163,7 @@ ServerApp::threadFunc (void * const _self)
     self->mutex.unlock ();
 
     for (;;) {
-	if (!thread_data->poll_group.poll ()) {
+	if (!thread_data->poll_group.poll (thread_data->timers.getSleepTime_microseconds())) {
 	    logE_ (_func, "poll_group.poll() failed: ", exc->toString());
 	    // TODO This is a fatal error, but we should exit gracefully nevertheless.
 	    abort ();
@@ -197,6 +178,8 @@ ServerApp::threadFunc (void * const _self)
 mt_throws Result
 ServerApp::run ()
 {
+    poll_group.bindToThread (libMary_getThreadLocal());
+
     if (!multi_thread->spawn (true /* joinable */)) {
 	logE_ (_func, "multi_thread->spawn() failed: ", exc->toString());
 	return Result::Failure;
@@ -242,11 +225,11 @@ ServerApp::stop ()
 ServerApp::ServerApp (Object * const coderef_container,
 		      Count    const num_threads)
     : DependentCodeReferenced (coderef_container),
-      timers (firstTimerAdded, this, coderef_container),
+      server_ctx (this),
+
+      timers (firstTimerAdded, &poll_group/* cb_data */, NULL /* coderef_container */),
       poll_group (coderef_container),
-#ifdef LIBMARY_MT_SAFE
-      app_poll_group (this),
-#endif
+      dcs_queue (coderef_container),
       thread_selector (NULL)
 {
 #ifdef LIBMARY_MT_SAFE

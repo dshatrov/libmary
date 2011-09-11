@@ -118,6 +118,7 @@ mary_target_headers =			\
 	module.h			\
 	module_init.h			\
 					\
+	server_context.h		\
 	server_app.h
 
 mary_mtsafe_headers = 			\

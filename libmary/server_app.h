@@ -28,7 +28,9 @@
 #include <libmary/exception.h>
 #include <libmary/timers.h>
 #include <libmary/active_poll_group.h>
-//#include <libmary/deferred_processor.h>
+#include <libmary/deferred_processor.h>
+#include <libmary/deferred_connection_sender.h>
+#include <libmary/server_context.h>
 
 #ifdef LIBMARY_MT_SAFE
 #include <libmary/multi_thread.h>
@@ -40,71 +42,57 @@ namespace M {
 class ServerApp : public DependentCodeReferenced
 {
 private:
-#ifdef LIBMARY_MT_SAFE
-    class AppPollGroup : public PollGroup
+    class SA_ServerContext : public ServerContext
     {
-    private:
-	class PollableReg : public IntrusiveListElement<>
-	{
-	public:
-	    PollGroup *poll_group;
-	    PollGroup::PollableKey pollable_key;
-	};
-
-	typedef IntrusiveList<PollableReg> PollableRegList;
-
-	mt_const ServerApp * const server_app;
-
-	mt_mutex (server_app->mutex) PollableRegList pollable_reg_list;
-
     public:
-	mt_throws PollGroup::PollableKey addPollable (CbDesc<Pollable> const &pollable,
-						      DeferredProcessor::Registration *ret_reg);
+	ServerApp * const server_app;
 
-	void removePollable (PollGroup::PollableKey mt_nonnull key);
+	ServerThreadContext* selectThreadContext ();
 
-	AppPollGroup (ServerApp * const server_app)
+	SA_ServerContext (ServerApp * const server_app)
 	    : server_app (server_app)
 	{
 	}
-
-	~AppPollGroup ();
     };
 
+#ifdef LIBMARY_MT_SAFE
     class ThreadData : public Object
     {
     public:
+	ServerThreadContext thread_ctx;
+
+	Timers timers;
 	DefaultPollGroup poll_group;
 	DeferredProcessor deferred_processor;
+	DeferredConnectionSenderQueue dcs_queue;
 
 	ThreadData ()
-	    : poll_group (this /* coderef_container */)
+	    : poll_group (this /* coderef_container */),
+	      dcs_queue (this /* coderef_container */)
 	{
 	}
     };
 #endif
 
+    SA_ServerContext server_ctx;
+    ServerThreadContext main_thread_ctx;
+
     Timers timers;
     DefaultPollGroup poll_group;
-//    DeferredProcessor deferred_processor;
+    DeferredProcessor deferred_processor;
+    DeferredConnectionSenderQueue dcs_queue;
 
 #ifdef LIBMARY_MT_SAFE
-    AppPollGroup app_poll_group;
-
     mt_const Ref<MultiThread> multi_thread;
 
     typedef List< Ref<ThreadData> > ThreadDataList;
-
     mt_mutex (mutex) ThreadDataList thread_data_list;
-
     mt_mutex (mutex) ThreadDataList::Element *thread_selector;
 #endif
 
     AtomicInt should_stop;
 
-    void doTimerIteration ();
-
-    static void firstTimerAdded (void *_self);
+    static void firstTimerAdded (void *_thread_ctx);
 
     static void threadFunc (void *_self);
 
@@ -112,9 +100,9 @@ private:
 
     static ActivePollGroup::Frontend poll_frontend;
 
-    static void pollIterationBegin (void *_self);
+    static void pollIterationBegin (void *_thread_ctx);
 
-    static bool pollIterationEnd (void *_self);
+    static bool pollIterationEnd (void *_thread_ctx);
 
   mt_iface_end()
 
@@ -123,20 +111,29 @@ private:
 #endif
 
 public:
+    ServerContext* getServerContext ()
+    {
+	return &server_ctx;
+    }
+
+    ServerThreadContext* getMainThreadContext ()
+    {
+	return &main_thread_ctx;
+    }
+
+    // TODO Deprecated
     Timers* getTimers ()
     {
 	return &timers;
     }
 
-    PollGroup* getPollGroup ()
+    // TODO Deprecated
+    PollGroup* getMainPollGroup ()
     {
-#ifdef LIBMARY_MT_SAFE
-	return &app_poll_group;
-#else
 	return &poll_group;
-#endif
     }
 
+    // TODO Deprecated
     // TEST For testing purposes only.
     ActivePollGroup* getActivePollGroup ()
     {
