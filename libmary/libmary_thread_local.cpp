@@ -37,8 +37,17 @@ LibMary_ThreadLocal::LibMary_ThreadLocal ()
       exc_buffer (1024 /* alloc_len */),
       exc (NULL),
       exc_block (0),
-      last_coderef_container (NULL)
+      last_coderef_container (NULL),
+
+      time_seconds (0),
+      time_microseconds (0),
+      unixtime (0),
+
+      saved_unixtime (0),
+      saved_monotime (0)
 {
+    memset (&localtime, 0, sizeof (localtime));
+
 #ifndef PLATFORM_WIN32
     strerr_buf_size = 4096;
     strerr_buf = new char [strerr_buf_size];

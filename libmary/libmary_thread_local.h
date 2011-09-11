@@ -21,6 +21,9 @@
 #define __LIBMARY__LIBMARY_THREAD_LOCAL__H__
 
 
+#include <libmary/types.h>
+#include <sys/uio.h>
+
 #include <libmary/exception_buffer.h>
 
 
@@ -37,6 +40,23 @@ class Exception;
 
 class CodeReferenced;
 class Object;
+
+// DeferredConnectionSender's mwritev data.
+class LibMary_MwritevData
+{
+public:
+    bool           initialized;
+    int           *fds;
+    struct iovec **iovs;
+    struct iovec  *iovs_heap;
+    int           *num_iovs;
+    int           *res;
+
+    LibMary_MwritevData ()
+	: initialized (false)
+    {
+    }
+};
 
 class LibMary_ThreadLocal
 {
@@ -57,8 +77,20 @@ public:
     Size strerr_buf_size;
 #endif
 
-    LibMary_ThreadLocal ();
+  // Time-related data fields
 
+    Time time_seconds;
+    Time time_microseconds;
+    Time unixtime;
+
+    struct tm localtime;
+    Time saved_unixtime;
+    // Saved monotonic clock value in seconds.
+    Time saved_monotime;
+
+    LibMary_MwritevData mwritev;
+
+    LibMary_ThreadLocal ();
     ~LibMary_ThreadLocal ();
 };
 

@@ -121,6 +121,8 @@ typedef Size      Count;
 typedef Int64  FileOffset;
 typedef Uint64 FileSize;
 
+typedef Uint64 Time;
+
 // Auto-initialized boolean for porting MyCpp code.
 class Bool
 {

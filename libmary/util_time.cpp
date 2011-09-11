@@ -37,25 +37,14 @@ namespace {
 LogGroup libMary_logGroup_time ("time", LogLevel::None);
 }
 
-// TODO Must be MT-safe.
-Time _libMary_time_seconds = 0;
-Time _libMary_time_microseconds = 0;
-Time _libMary_unixtime = 0;
-
-                               // Zeroes suppress "missing initializer" warnings.
-struct tm _libMary_localtime = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-static Time _libMary_saved_unixtime = 0;
-// Saved monotonic clock value in seconds.
-static Time _libMary_saved_monotime = 0;
-
 #ifdef PLATFORM_WIN32
 #error Not implemented
 #else
 mt_throws Result updateTime ()
 {
-    struct timespec ts;
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
 
+    struct timespec ts;
     // Note that clock_gettime is well-optimized on Linux x86_64 and does not carry
     // full syscall overhead (depends on system configuration).
     int const res = clock_gettime (CLOCK_MONOTONIC, &ts);
@@ -76,34 +65,34 @@ mt_throws Result updateTime ()
     Time const new_seconds = ts.tv_sec;
     Time const new_microseconds = (Uint64) ts.tv_sec * 1000000 + (Uint64) ts.tv_nsec / 1000;
 
-    if (new_seconds >= _libMary_time_seconds)
-	_libMary_time_seconds = new_seconds;
+    if (new_seconds >= tlocal->time_seconds)
+	tlocal->time_seconds = new_seconds;
     else
-	logW_ (_func, "seconds backwards: ", new_seconds, " (was ", _libMary_time_seconds, ")");
+	logW_ (_func, "seconds backwards: ", new_seconds, " (was ", tlocal->time_seconds, ")");
 
-    if (new_microseconds >= _libMary_time_microseconds)
-	_libMary_time_microseconds = new_microseconds;
+    if (new_microseconds >= tlocal->time_microseconds)
+	tlocal->time_microseconds = new_microseconds;
     else
-	logW_ (_func, "microseconds backwards: ", new_microseconds, " (was ", _libMary_time_microseconds, ")");
+	logW_ (_func, "microseconds backwards: ", new_microseconds, " (was ", tlocal->time_microseconds, ")");
 
-//    logD_ (_func, "_libMary_time_seconds: ", _libMary_time_seconds, ", _libMary_time_microseconds: ", _libMary_time_microseconds);
+//    logD_ (_func, "time_seconds: ", tlocal->time_seconds, ", time_microseconds: ", tlocal->time_microseconds);
 
-    logD (time, _func, fmt_hex, _libMary_time_seconds, ", ", _libMary_time_microseconds);
+    logD (time, _func, fmt_hex, tlocal->time_seconds, ", ", tlocal->time_microseconds);
 
-    if (_libMary_saved_monotime < _libMary_time_seconds) {
+    if (tlocal->saved_monotime < tlocal->time_seconds) {
 	// Updading saved unixtime once in a minute.
-	if (_libMary_time_seconds - _libMary_saved_monotime >= 60) {
+	if (tlocal->time_seconds - tlocal->saved_monotime >= 60) {
 	    // Obtaining current unixtime. This is an extra syscall.
-	    _libMary_saved_unixtime = time (NULL);
-	    _libMary_saved_monotime = _libMary_time_seconds;
+	    tlocal->saved_unixtime = time (NULL);
+	    tlocal->saved_monotime = tlocal->time_seconds;
 	}
 
       // Updating localtime (broken-down time).
 
-	time_t const cur_unixtime = _libMary_saved_unixtime + (_libMary_time_seconds - _libMary_saved_monotime);
-	_libMary_unixtime = cur_unixtime;
+	time_t const cur_unixtime = tlocal->saved_unixtime + (tlocal->time_seconds - tlocal->saved_monotime);
+	tlocal->unixtime = cur_unixtime;
 	// Note that we call tzset() in libMary_posixInit() for localtime_r() to work correctly.
-	localtime_r (&cur_unixtime, &_libMary_localtime);
+	localtime_r (&cur_unixtime, &tlocal->localtime);
     }
 
     return Result::Success;

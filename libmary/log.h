@@ -127,9 +127,10 @@ void _libMary_do_log_unlocked (Format const & /* fmt */, Format const &new_fmt, 
 template <char const (&loglevel_str) [5], class ...Args>
 void _libMary_log_unlocked (Args const &...args)
 {
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
     Format fmt;
     fmt.min_digits = 2;
-    _libMary_do_log_unlocked (fmt, "[", _libMary_localtime.tm_hour, ":", _libMary_localtime.tm_min, ":", _libMary_localtime.tm_sec, loglevel_str, fmt_def, args...);
+    _libMary_do_log_unlocked (fmt, tlocal->localtime.tm_hour, ":", tlocal->localtime.tm_min, ":", tlocal->localtime.tm_sec, loglevel_str, fmt_def, args...);
     logs->flush ();
 }
 

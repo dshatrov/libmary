@@ -30,42 +30,30 @@ namespace M {
 
 // TODO 1 раз в минуту делать gettimeofday и поддерживать реальное время дня (для логов).
 
-typedef uint64_t Time;
-
-// TODO Must be thread-safe.
-extern Time _libMary_time_seconds;
-extern Time _libMary_time_microseconds;
-extern Time _libMary_unixtime;
-
-// TODO Must be thread-safe.
-extern struct tm _libMary_localtime;
-
 // Retreives cached time in seconds.
 static inline Time getTime ()
 {
-    return _libMary_time_seconds;
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
+    return tlocal->time_seconds;
 }
 
 static inline Time getTimeMilliseconds ()
 {
-    return _libMary_time_microseconds / 1000;
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
+    return tlocal->time_microseconds / 1000;
 }
 
 static inline Time getUnixtime ()
 {
-    return _libMary_unixtime;
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
+    return tlocal->unixtime;
 }
 
 // Retreives cached time in microseconds.
-#if 0
-// [Deprecated comment]
-// Retreives the number of microseconds elapsed for the current second.
-// Must be added to the numer of seconds returned by getTime() to get
-// the actual real monotonic time in microseconds.
-#endif
 static inline Time getTimeMicroseconds ()
 {
-    return _libMary_time_microseconds;
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
+    return tlocal->time_microseconds;
 }
 
 mt_throws Result updateTime ();

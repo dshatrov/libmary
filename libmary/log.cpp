@@ -22,14 +22,14 @@
 
 namespace M {
 
-char const _libMary_loglevel_str_A [5] = "] A ";
-char const _libMary_loglevel_str_D [5] = "] D ";
-char const _libMary_loglevel_str_I [5] = "] I ";
-char const _libMary_loglevel_str_W [5] = "] W ";
-char const _libMary_loglevel_str_E [5] = "] E ";
-char const _libMary_loglevel_str_H [5] = "] H ";
-char const _libMary_loglevel_str_F [5] = "] F ";
-char const _libMary_loglevel_str_N [5] = "] N ";
+char const _libMary_loglevel_str_A [5] = " A ";
+char const _libMary_loglevel_str_D [5] = " D ";
+char const _libMary_loglevel_str_I [5] = " I ";
+char const _libMary_loglevel_str_W [5] = " W ";
+char const _libMary_loglevel_str_E [5] = " E ";
+char const _libMary_loglevel_str_H [5] = " H ";
+char const _libMary_loglevel_str_F [5] = " F ";
+char const _libMary_loglevel_str_N [5] = " N ";
 
 LogGroup libMary_logGroup_default ("default", LogLevel::All);
 
