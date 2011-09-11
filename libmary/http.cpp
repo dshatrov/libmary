@@ -184,13 +184,13 @@ HttpServer::processHeaderField (ConstMemory const &mem)
 	    logD (http, _func, "responding to 100-continue");
 	    sender->send (
 		    page_pool,
+		    true /* do_flush */,
 		    "HTTP/1.1 100 Continue\r\n"
 		    "Cache-Control: no-cache\r\n"
 		    "Content-Type: application/x-fcs\r\n"
 		    "Content-Length: 0\r\n"
 		    "Connection: Keep-Alive\r\n"
 		    "\r\n");
-	    sender->flush ();
 	}
     }
 }

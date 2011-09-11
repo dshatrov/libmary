@@ -43,14 +43,16 @@ private:
 
     StateMutex mutex;
 
-    void closeIfNeeded ();
+    mt_mutex (mutex) mt_unlocks (mutex) void closeIfNeeded ();
 
     static Connection::OutputFrontend const conn_output_frontend;
 
     static void processOutput (void *_self);
 
+    mt_mutex (mutex) mt_unlocks (mutex) void doFlush ();
 public:
-    void sendMessage (MessageEntry * mt_nonnull msg_entry);
+    void sendMessage (MessageEntry * mt_nonnull msg_entry,
+		      bool do_flush = false);
 
     void flush ();
 

@@ -154,6 +154,7 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 	logD (http_service, _func, "page_pool: 0x", fmt_hex, (UintPtr) self->page_pool);
 	http_conn->conn_sender.send (
 		self->page_pool,
+		true /* do_flush */,
 		"HTTP/1.1 404 Not found\r\n"
 		"Server: Moment/1.0\r\n"
 		"Date: ", ConstMemory (date_buf, date_len), "\r\n"
@@ -162,8 +163,6 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 		"Content-Length: ", reply_body.len(), "\r\n"
 		"\r\n",
 		reply_body);
-	http_conn->conn_sender.flush ();
-
 	return;
     }
     HandlerEntry * const handler = handler_key.getDataPtr();

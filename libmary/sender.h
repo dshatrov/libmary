@@ -182,7 +182,8 @@ protected:
 
 public:
     // Takes ownership of msg_entry.
-    virtual void sendMessage (MessageEntry * mt_nonnull msg_entry) = 0;
+    virtual void sendMessage (MessageEntry * mt_nonnull msg_entry,
+			      bool do_flush = false) = 0;
 
     virtual void flush () = 0;
 
@@ -190,7 +191,8 @@ public:
     virtual void closeAfterFlush () = 0;
 
     void sendPages (PagePool               * const mt_nonnull page_pool,
-		    PagePool::PageListHead * const mt_nonnull page_list)
+		    PagePool::PageListHead * const mt_nonnull page_list,
+		    bool                     const do_flush = false)
     {
 	MessageEntry_Pages * const msg_pages = MessageEntry_Pages::createNew (0 /* max_header_len */);
 	msg_pages->header_len = 0;
@@ -198,11 +200,12 @@ public:
 	msg_pages->first_page = page_list->first;
 	msg_pages->msg_offset = 0;
 
-	sendMessage (msg_pages);
+	sendMessage (msg_pages, do_flush);
     }
 
     template <class ...Args>
     void send (PagePool * const mt_nonnull page_pool,
+	       bool const do_flush,
 	       Args const &...args)
     {
 	PagePool::PageListHead page_list;
@@ -214,7 +217,7 @@ public:
 	msg_pages->first_page = page_list.first;
 	msg_pages->msg_offset = 0;
 
-	sendMessage (msg_pages);
+	sendMessage (msg_pages, do_flush);
     }
 
     mt_const void setFrontend (CbDesc<Frontend> const &frontend)

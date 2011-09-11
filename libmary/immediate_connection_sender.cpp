@@ -29,7 +29,7 @@ Connection::OutputFrontend const ImmediateConnectionSender::conn_output_frontend
 };
 
 // Must be called with 'mutex' held. Releases 'mutex' before returning.
-void
+mt_mutex (mutex) mt_unlocks (mutex) void
 ImmediateConnectionSender::closeIfNeeded ()
 {
     if (close_after_flush &&
@@ -75,17 +75,21 @@ ImmediateConnectionSender::processOutput (void * const _self)
 }
 
 void
-ImmediateConnectionSender::sendMessage (MessageEntry  * const mt_nonnull msg_entry)
+ImmediateConnectionSender::sendMessage (MessageEntry  * const mt_nonnull msg_entry,
+					bool            const do_flush)
 {
     mutex.lock ();
     conn_sender_impl.queueMessage (msg_entry);
+    if (do_flush) {
+	mt_unlocks (mutex) doFlush ();
+	return;
+    }
     mutex.unlock ();
 }
 
-void
-ImmediateConnectionSender::flush ()
+mt_mutex (mutex) mt_unlocks (mutex) void
+ImmediateConnectionSender::doFlush ()
 {
-    mutex.lock ();
     if (!ready_for_output) {
 	mutex.unlock ();
 	return;
@@ -107,8 +111,14 @@ ImmediateConnectionSender::flush ()
     if (res == AsyncIoResult::Again)
 	ready_for_output = false;
 
-    closeIfNeeded ();
-    // 'mutex' has been unlocked by closeIfNeeded().
+    mt_unlocks (mutex) closeIfNeeded ();
+}
+
+void
+ImmediateConnectionSender::flush ()
+{
+    mutex.lock ();
+    mt_unlocks (mutex) doFlush ();
 }
 
 void
