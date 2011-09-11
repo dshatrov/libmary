@@ -145,6 +145,8 @@ public:
 	stealAppend (tosteal_first, tosteal_last, last);
     }
 
+    // Remember that source list gets corrupted and needs manual fixup
+    // after calling this method.
     void stealAppend (Element * const tosteal_first,
 		      Element * const tosteal_last,
 		      Element * const to_el)
