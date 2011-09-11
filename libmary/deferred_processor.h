@@ -31,15 +31,25 @@ namespace M {
 class DeferredProcessor
 {
 public:
+    // Returns 'true' if the task should be rescheduled immediately for another
+    // invocation.
+    typedef bool TaskCallback (void *cb_data);
+
+    struct Backend
+    {
+	void (*trigger) (void *cb_data);
+    };
+
     class Registration;
     friend class Registration;
 
     class TaskList_name;
-    class ProcessingTaskList_name;
+    class PermanentTaskList_name;
     class RegistrationList_name;
+    class PermanentRegistrationList_name;
 
     class Task : public IntrusiveListElement<TaskList_name>,
-		 public IntrusiveListElement<ProcessingTaskList_name>
+		 public IntrusiveListElement<PermanentTaskList_name>
     {
 	friend class DeferredProcessor;
 	friend class Registration;
@@ -47,32 +57,43 @@ public:
     private:
 	mt_mutex (DeferredProcessor::mutex) bool scheduled;
 	mt_mutex (DeferredProcessor::mutex) bool processing;
+	mt_mutex (DeferredProcessor::mutex) bool permanent;
+
+	mt_mutex (DeferredProcessor::mutex) Registration *registration;
 
     public:
-	mt_const Cb<GenericCallback> cb;
+	mt_const Cb<TaskCallback> cb;
 
 	Task ()
 	    : scheduled (false),
-	      processing (false)
+	      processing (false),
+	      permanent (false),
+	      registration (NULL)
 	{
 	}
     };
     typedef IntrusiveList<Task, TaskList_name> TaskList;
-    typedef IntrusiveList<Task, ProcessingTaskList_name> ProcessingTaskList;
+    typedef IntrusiveList<Task, PermanentTaskList_name> PermanentTaskList;
 
-    class Registration : public IntrusiveListElement<RegistrationList_name>
+    class Registration : public IntrusiveListElement<RegistrationList_name>,
+			 public IntrusiveListElement<PermanentRegistrationList_name>
     {
 	friend class DeferredProcessor;
 
     private:
 	mt_const DeferredProcessor *deferred_processor;
 
-	mt_mutex (DeferredProcessor::mutex) TaskList task_list;
+	mt_mutex (deferred_processor->mutex) TaskList task_list;
+	mt_mutex (deferred_processor->mutex) PermanentTaskList permanent_task_list;
 
-	mt_mutex (DeferredProcessor::mutex) bool scheduled;
+	mt_mutex (deferred_processor->mutex) bool scheduled;
+	mt_mutex (deferred_processor->mutex) bool permanent_scheduled;
+
+	mt_mutex (deferred_processor->mutex) void rescheduleTask (Task * mt_nonnull task);
 
     public:
-	void scheduleTask (Task * mt_nonnull task);
+	void scheduleTask (Task * mt_nonnull task,
+			   bool  permanent = false);
 
 	void revokeTask (Task * mt_nonnull task);
 
@@ -85,23 +106,35 @@ public:
 
 	Registration ()
 	    : deferred_processor (NULL),
-	      scheduled (false)
+	      scheduled (false),
+	      permanent_scheduled (false)
 	{
 	}
     };
     typedef IntrusiveList<Registration, RegistrationList_name> RegistrationList;
+    typedef IntrusiveList<Registration, PermanentRegistrationList_name> PermanentRegistrationList;
 
 private:
+    Cb<Backend> backend;
+
     mt_mutex (mutex) RegistrationList registration_list;
+    mt_mutex (mutex) PermanentRegistrationList permanent_registration_list;
 
-    bool processing;
-    mt_mutex (mutex) ProcessingTaskList processing_task_list;
+    mt_mutex (mutex) bool processing;
+    mt_mutex (mutex) TaskList processing_task_list;
 
-    StateMutex mutex;
+    Mutex mutex;
 
 public:
     // Returns 'true' if there are more tasks to process.
     bool process ();
+
+    void trigger ();
+
+    mt_const void setBackend (CbDesc<Backend> const &backend)
+    {
+	this->backend = backend;
+    }
 
     DeferredProcessor ()
 	: processing (false)

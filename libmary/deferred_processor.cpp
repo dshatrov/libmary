@@ -17,34 +17,84 @@
 */
 
 
+#include <libmary/log.h>
+
 #include <libmary/deferred_processor.h>
 
 
 namespace M {
 
-void
-DeferredProcessor::Registration::scheduleTask (Task * const mt_nonnull task)
-{
-    deferred_processor->mutex.lock ();
+namespace {
+LogGroup libMary_logGroup_dp ("deferred_processor", LogLevel::N);
+}
 
+mt_mutex (deferred_processor->mutex) void
+DeferredProcessor::Registration::rescheduleTask (Task * const mt_nonnull task)
+{
     if (task->scheduled ||
 	task->processing)
     {
-	deferred_processor->mutex.unlock ();
 	return;
     }
 
     task_list.append (task);
     task->scheduled = true;
 
-    if (scheduled) {
+    if (scheduled)
+	return;
+
+    deferred_processor->registration_list.append (this);
+    scheduled = true;
+}
+
+void
+DeferredProcessor::Registration::scheduleTask (Task * const mt_nonnull task,
+					       bool   const permanent)
+{
+    deferred_processor->mutex.lock ();
+
+    if (task->scheduled ||
+	task->processing)
+    {
+	assert (task->registration == this);
 	deferred_processor->mutex.unlock ();
 	return;
     }
-    deferred_processor->registration_list.append (this);
-    scheduled = true;
 
-    deferred_processor->mutex.unlock ();
+    assert (!task->registration);
+    task->registration = this;
+
+    task->scheduled = true;
+    if (!permanent) {
+	task_list.append (task);
+	task->permanent = false;
+
+	if (scheduled) {
+	    deferred_processor->mutex.unlock ();
+	    return;
+	}
+
+	deferred_processor->registration_list.append (this);
+	scheduled = true;
+
+	deferred_processor->mutex.unlock ();
+
+	if (deferred_processor->backend)
+	    deferred_processor->backend.call (deferred_processor->backend->trigger);
+    } else {
+	permanent_task_list.append (task);
+	task->permanent = true;
+
+	if (permanent_scheduled) {
+	    deferred_processor->mutex.unlock ();
+	    return;
+	}
+
+	deferred_processor->permanent_registration_list.append (this);
+	permanent_scheduled = true;
+
+	deferred_processor->mutex.unlock ();
+    }
 }
 
 void
@@ -52,20 +102,41 @@ DeferredProcessor::Registration::revokeTask (Task * const mt_nonnull task)
 {
     deferred_processor->mutex.lock ();
 
+    if (task->permanent &&
+	task->scheduled)
+    {
+	assert (permanent_scheduled);
+
+	task->scheduled = false;
+
+	permanent_task_list.remove (task);
+	if (permanent_task_list.isEmpty ()) {
+	    deferred_processor->permanent_registration_list.remove (this);
+	    permanent_scheduled = false;
+	}
+    }
+
     if (task->processing) {
 	assert (!task->scheduled);
 	deferred_processor->processing_task_list.remove (task);
 	task->processing = false;
     } else
-    if (task->scheduled) {
+    if (!task->permanent &&
+	task->scheduled)
+    {
+	assert (scheduled);
+
 	task_list.remove (task);
+
 	task->scheduled = false;
+
+	if (task_list.isEmpty()) {
+	    deferred_processor->registration_list.remove (this);
+	    scheduled = false;
+	}
     }
 
-    if (task_list.isEmpty()) {
-	deferred_processor->registration_list.remove (this);
-	scheduled = false;
-    }
+    task->registration = NULL;
 
     deferred_processor->mutex.unlock ();
 }
@@ -75,10 +146,45 @@ DeferredProcessor::Registration::release ()
 {
     deferred_processor->mutex.lock ();
 
+    {
+	TaskList::iter iter (task_list);
+	while (!task_list.iter_done (iter)) {
+	    Task * const task = task_list.iter_next (iter);
+	    if (task->processing) {
+		assert (!task->scheduled || task->permanent);
+		deferred_processor->processing_task_list.remove (task);
+		task->scheduled = false;
+		task->processing = false;
+		task->registration = NULL;
+	    }
+	}
+    }
     task_list.clear ();
 
-    if (scheduled)
+    {
+	PermanentTaskList::iter iter (permanent_task_list);
+	while (!permanent_task_list.iter_done (iter)) {
+	    Task * const task = permanent_task_list.iter_next (iter);
+	    if (task->processing) {
+		assert (!task->scheduled || task->permanent);
+		deferred_processor->processing_task_list.remove (task);
+		task->scheduled = false;
+		task->processing = false;
+		task->registration = NULL;
+	    }
+	}
+    }
+    permanent_task_list.clear ();
+
+    if (scheduled) {
 	deferred_processor->registration_list.remove (this);
+	scheduled = false;
+    }
+
+    if (permanent_scheduled) {
+	deferred_processor->permanent_registration_list.remove (this);
+	permanent_scheduled = false;
+    }
 
     deferred_processor->mutex.unlock ();
 }
@@ -86,6 +192,8 @@ DeferredProcessor::Registration::release ()
 bool
 DeferredProcessor::process ()
 {
+    logD (dp, _func, "0x", fmt_hex, (UintPtr) this);
+
     mutex.lock ();
 
     assert (!processing);
@@ -95,10 +203,13 @@ DeferredProcessor::process ()
 	RegistrationList::iter reg_iter (registration_list);
 	while (!registration_list.iter_done (reg_iter)) {
 	    Registration * const reg = registration_list.iter_next (reg_iter);
+	    assert (reg->scheduled);
 
 	    TaskList::iter task_iter (reg->task_list);
 	    while (!reg->task_list.iter_done (task_iter)) {
 		Task * const task = reg->task_list.iter_next (task_iter);
+		assert (!task->permanent);
+		task->scheduled = false;
 		task->processing = true;
 	    }
 
@@ -108,28 +219,67 @@ DeferredProcessor::process ()
     }
 
     {
-	ProcessingTaskList::iter iter (processing_task_list);
+	PermanentRegistrationList::iter reg_iter (permanent_registration_list);
+	while (!permanent_registration_list.iter_done (reg_iter)) {
+	    Registration * const reg = permanent_registration_list.iter_next (reg_iter);
+	    assert (reg->permanent_scheduled);
+
+	    PermanentTaskList::iter task_iter (reg->permanent_task_list);
+	    while (!reg->permanent_task_list.iter_done (task_iter)) {
+		Task * const task = reg->permanent_task_list.iter_next (task_iter);
+		assert (task->permanent);
+		task->processing = true;
+		processing_task_list.append (task);
+	    }
+	}
+    }
+
+    bool force_extra_iteration = false;
+    {
+	TaskList::iter iter (processing_task_list);
 	while (!processing_task_list.iter_done (iter)) {
 	    Task * const task = processing_task_list.iter_next (iter);
-	    if (!task)
-		break;
 
 	    processing_task_list.remove (task);
 	    task->processing = false;
 
-	    task->cb.call_mutex_ (mutex);
+	    bool extra_iteration_needed = false;
+	    if (task->cb.call_ret_mutex_ (mutex, &extra_iteration_needed)) {
+		if (extra_iteration_needed) {
+		    if (task->permanent) {
+			if (task->scheduled) {
+			    assert (task->registration);
+			    force_extra_iteration = true;
+			} else {
+			    assert (!task->registration);
+			}
+		    } else {
+			if (task->registration)
+			    task->registration->rescheduleTask (task);
+		    }
+		}
+	    }
 	}
     }
 
     processing = false;
 
-    if (registration_list.isEmpty()) {
+    if (force_extra_iteration ||
+	!registration_list.isEmpty())
+    {
 	mutex.unlock ();
-	return false;
+	return true;
     }
 
     mutex.unlock ();
-    return true;
+    return false;
+}
+
+void
+DeferredProcessor::trigger ()
+{
+    if (backend)
+	backend.call (backend->trigger);
 }
 
 }
