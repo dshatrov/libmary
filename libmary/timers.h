@@ -135,6 +135,11 @@ public:
 
     void processTimers ();
 
+    mt_const void setFirstTimerAddedCallback (CbDesc<FirstTimerAddedCallback> const &cb)
+    {
+	first_added_cb = cb;
+    }
+
     Timers ()
     {
     }
