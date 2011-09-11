@@ -68,6 +68,10 @@ private:
 
     DeferredProcessor deferred_processor;
 
+    mt_const LibMary_ThreadLocal *poll_tlocal;
+
+    mt_throws Result doActivate (PollableEntry * mt_nonnull pollable_entry);
+
     void processPollableDeletionQueue ();
 
     mt_throws Result triggerPipeWrite ();
@@ -76,7 +80,10 @@ public:
   mt_iface (ActivePollgroup)
     mt_iface (PollGroup)
       mt_throws PollableKey addPollable (CbDesc<Pollable> const &pollable,
-					 DeferredProcessor::Registration *ret_reg);
+					 DeferredProcessor::Registration *ret_reg,
+					 bool activate = true);
+
+      mt_throws Result activatePollable (PollableKey mt_nonnull key);
 
       void removePollable (PollableKey mt_nonnull key);
     mt_end
@@ -87,6 +94,11 @@ public:
   mt_end
 
     mt_throws Result open ();
+
+    mt_const void bindToThread (LibMary_ThreadLocal * const poll_tlocal)
+    {
+	this->poll_tlocal = poll_tlocal;
+    }
 
     EpollPollGroup (Object *coderef_container);
 

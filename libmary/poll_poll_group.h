@@ -48,6 +48,8 @@ private:
 
 	bool valid;
 
+	mt_mutex (PollPollGroup::mutex) bool activated;
+
 	Cb<Pollable> pollable;
 
 	int fd;
@@ -60,6 +62,7 @@ private:
     typedef IntrusiveList <PollableEntry, SelectedList_name> SelectedList;
 
     mt_mutex (mutex) PollableList pollable_list;
+    mt_mutex (mutex) PollableList inactive_pollable_list;
     mt_mutex (mutex) Count num_pollables;
 
     mt_const int trigger_pipe [2];
@@ -72,9 +75,7 @@ private:
 
     DeferredProcessor deferred_processor;
 
-    // Accessed from the same thread only. Can be considered mt_const after
-    // the first call to poll().
-    LibMary_ThreadLocal *poll_tlocal;
+    mt_const LibMary_ThreadLocal *poll_tlocal;
 
     mt_throws Result triggerPipeWrite ();
 
@@ -84,11 +85,16 @@ private:
 
     static void requestOutput (void *_pollable_entry);
 
+    mt_mutex (mutex) mt_unlocks (mutex) mt_throws Result doTrigger ();
+
 public:
   mt_iface (ActivePollGroup)
     mt_iface (PollGroup)
       mt_throws PollableKey addPollable (CbDesc<Pollable> const &pollable,
-					 DeferredProcessor::Registration *ret_reg);
+					 DeferredProcessor::Registration *ret_reg,
+					 bool activate = true);
+
+      mt_throws Result activatePollable (PollableKey mt_nonnull key);
 
       void removePollable (PollableKey mt_nonnull key);
     mt_end
@@ -100,6 +106,11 @@ public:
   mt_end
 
     mt_throws Result open ();
+
+    mt_const void bindToThread (LibMary_ThreadLocal * const poll_tlocal)
+    {
+	this->poll_tlocal = poll_tlocal;
+    }
 
     PollPollGroup (Object *coderef_container);
 

@@ -63,8 +63,13 @@ public:
 
     typedef void *PollableKey;
 
+    // Every successful call to addPollable() must be matched with a call
+    // to removePollable().
     virtual mt_throws PollableKey addPollable (CbDesc<Pollable> const &pollable,
-					       DeferredProcessor::Registration *ret_reg) = 0;
+					       DeferredProcessor::Registration *ret_reg,
+					       bool activate = true) = 0;
+
+    virtual mt_throws Result activatePollable (PollableKey mt_nonnull key) = 0;
 
     virtual void removePollable (PollableKey mt_nonnull key) = 0;
 };

@@ -30,6 +30,10 @@
 
 namespace M {
 
+namespace {
+LogGroup libMary_logGroup_epoll ("epoll", LogLevel::D);
+}
+
 void
 EpollPollGroup::processPollableDeletionQueue ()
 {
@@ -49,9 +53,15 @@ EpollPollGroup::triggerPipeWrite ()
 
 mt_throws PollGroup::PollableKey
 EpollPollGroup::addPollable (CbDesc<Pollable> const &pollable,
-			     DeferredProcessor::Registration * const ret_reg)
+			     DeferredProcessor::Registration * const ret_reg,
+			     bool const activate)
 {
     PollableEntry * const pollable_entry = new PollableEntry;
+
+    logD (epoll, _func, "0x", fmt_hex, (UintPtr) this, ": "
+	  "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry, ", "
+	  "cb_data: 0x", fmt_hex, (UintPtr) pollable.cb_data);
+
     pollable_entry->epoll_poll_group = this;
     pollable_entry->pollable = pollable;
     // We're making an unsafe call, assuming that the pollable is available.
@@ -62,26 +72,10 @@ EpollPollGroup::addPollable (CbDesc<Pollable> const &pollable,
     pollable_list.append (pollable_entry);
     mutex.unlock ();
 
-    {
-	struct epoll_event event;
-	event.events = EPOLLET | EPOLLIN | EPOLLOUT | EPOLLRDHUP;
-	event.data.u64 = 0; // For valgrind.
-	event.data.ptr = pollable_entry;
-	int const res = epoll_ctl (efd, EPOLL_CTL_ADD, pollable_entry->fd, &event);
-	if (res == -1) {
-	    exc_throw <PosixException> (errno);
-	    logE_ (_func, "epoll_ctl() failed: ", errnoString (errno));
+    if (activate) {
+	if (!doActivate (pollable_entry))
 	    goto _failure;
-	}
-
-	if (res != 0) {
-	    exc_throw <InternalException> (InternalException::BackendMalfunction);
-	    logE_ (_func, "epoll_ctl(): unexpected return value: ", res);
-	    goto _failure;
-	}
     }
-
-    // TODO FIXME if (different thread) then trigger(). Check if this is really necessary with epoll.
 
     if (ret_reg)
 	ret_reg->setDeferredProcessor (&deferred_processor);
@@ -95,6 +89,48 @@ _failure:
     delete pollable_entry;
 
     return NULL;
+}
+
+mt_throws Result
+EpollPollGroup::doActivate (PollableEntry * const mt_nonnull pollable_entry)
+{
+    logD (epoll, _func, "0x", fmt_hex, (UintPtr) this, ": "
+	  "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry);
+
+    struct epoll_event event;
+    event.events = EPOLLET | EPOLLIN | EPOLLOUT | EPOLLRDHUP;
+    event.data.u64 = 0; // For valgrind.
+    event.data.ptr = pollable_entry;
+    int const res = epoll_ctl (efd, EPOLL_CTL_ADD, pollable_entry->fd, &event);
+    if (res == -1) {
+	exc_throw <PosixException> (errno);
+	logE_ (_func, "epoll_ctl() failed: ", errnoString (errno));
+	return Result::Failure;
+    }
+
+    if (res != 0) {
+	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	logE_ (_func, "epoll_ctl(): unexpected return value: ", res);
+	return Result::Failure;
+    }
+
+    if (!trigger ()) {
+	logE_ (_func, "trigger() failed: ", exc->toString());
+	return Result::Failure;
+    }
+
+    return Result::Success;
+}
+
+mt_throws Result
+EpollPollGroup::activatePollable (PollableKey const mt_nonnull key)
+{
+    PollableEntry * const pollable_entry = static_cast <PollableEntry*> (key);
+
+    logD (epoll, _func, "0x", fmt_hex, (UintPtr) this, ": "
+	  "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry);
+
+    return doActivate (pollable_entry);
 }
 
 void
@@ -273,6 +309,9 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 mt_throws Result
 EpollPollGroup::trigger ()
 {
+    if (poll_tlocal && poll_tlocal == libMary_getThreadLocal())
+	return Result::Success;
+
     mutex.lock ();
     if (triggered) {
 	mutex.unlock ();
@@ -319,16 +358,34 @@ EpollPollGroup::open ()
     return Result::Success;
 }
 
+namespace {
+void deferred_processor_trigger (void * const active_poll_group_)
+{
+    ActivePollGroup * const active_poll_group = static_cast <ActivePollGroup*> (active_poll_group_);
+    active_poll_group->trigger ();
+}
+
+DeferredProcessor::Backend deferred_processor_backend = {
+    deferred_processor_trigger
+};
+}
+
 EpollPollGroup::EpollPollGroup (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
       efd (-1),
       triggered (false),
       // Initializing to 'true' to process deferred tasks scheduled before we
       // enter poll() the first time.
-      got_deferred_tasks (true)
+      got_deferred_tasks (true),
+      poll_tlocal (NULL)
 {
     trigger_pipe [0] = -1;
     trigger_pipe [1] = -1;
+
+    deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
+	    &deferred_processor_backend,
+	    static_cast <ActivePollGroup*> (this) /* cb_data */,
+	    NULL /* coderef_container */));
 }
 
 EpollPollGroup::~EpollPollGroup ()

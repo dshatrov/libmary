@@ -63,7 +63,6 @@ SelectPollGroup::requestInput (void * const _pollable_entry)
     // is called.
     SelectPollGroup * const self = pollable_entry->select_poll_group;
 
-    assert (self->poll_tlocal);
     if (self->poll_tlocal && self->poll_tlocal == libMary_getThreadLocal()) {
 	pollable_entry->need_input = true;
     } else {
@@ -89,7 +88,6 @@ SelectPollGroup::requestOutput (void * const _pollable_entry)
     // is called.
     SelectPollGroup * const self = pollable_entry->select_poll_group;
 
-    assert (self->poll_tlocal);
     if (self->poll_tlocal && self->poll_tlocal == libMary_getThreadLocal()) {
 	pollable_entry->need_output = true;
     } else {
@@ -113,7 +111,8 @@ PollGroup::Feedback const SelectPollGroup::pollable_feedback = {
 // The pollable should be available for unsafe callbacks while this method is called.
 mt_throws PollGroup::PollableKey
 SelectPollGroup::addPollable (CbDesc<Pollable> const &pollable,
-			      DeferredProcessor::Registration * const ret_reg)
+			      DeferredProcessor::Registration * const ret_reg,
+			      bool const activate)
 {
     PollableEntry * const pollable_entry = new PollableEntry;
 
@@ -122,15 +121,12 @@ SelectPollGroup::addPollable (CbDesc<Pollable> const &pollable,
 
     pollable_entry->select_poll_group = this;
     pollable_entry->valid = true;
+    pollable_entry->activated = activate;
     pollable_entry->pollable = pollable;
     // We're making an unsafe call, assuming that the pollable is available.
     pollable_entry->fd = pollable->getFd (pollable.cb_data);
     pollable_entry->need_input = true;
     pollable_entry->need_output = true;
-
-    mutex.lock ();
-    pollable_list.append (pollable_entry);
-    mutex.unlock ();
 
     // We're making an unsafe call, assuming that the pollable is available.
     //
@@ -144,9 +140,43 @@ SelectPollGroup::addPollable (CbDesc<Pollable> const &pollable,
     if (ret_reg)
 	ret_reg->setDeferredProcessor (&deferred_processor);
 
-    // TODO FIXME if (different thread) then trigger().
+    mutex.lock ();
+    if (activate) {
+	pollable_list.append (pollable_entry);
+    } else {
+	inactive_pollable_list.append (pollable_entry);
+    }
+
+    if (activate
+	&& (poll_tlocal && poll_tlocal != libMary_getThreadLocal()))
+    {
+	if (!mt_unlocks (mutex) doTrigger ()) {
+	    logE_ (_func, "doTrigger() failed: ", exc->toString());
+	    // TODO Failed to add pollable, return NULL.
+	}
+    } else {
+	mutex.unlock ();
+    }
 
     return static_cast <void*> (pollable_entry);
+}
+
+mt_throws Result
+SelectPollGroup::activatePollable (PollableKey const mt_nonnull key)
+{
+    PollableEntry * const pollable_entry = static_cast <PollableEntry*> (key);
+
+    mutex.lock ();
+    assert (!pollable_entry->activated);
+    pollable_entry->activated = true;
+    inactive_pollable_list.remove (pollable_entry);
+    pollable_list.append (pollable_entry);
+
+    if (poll_tlocal && poll_tlocal != libMary_getThreadLocal())
+	return mt_unlocks (mutex) doTrigger ();
+
+    mutex.unlock ();
+    return Result::Success;
 }
 
 void
@@ -158,7 +188,11 @@ SelectPollGroup::removePollable (PollableKey const mt_nonnull key)
 
     mutex.lock ();
     pollable_entry->valid = false;
-    pollable_list.remove (pollable_entry);
+    if (pollable_entry->activated) {
+	pollable_list.remove (pollable_entry);
+    } else {
+	inactive_pollable_list.remove (pollable_entry);
+    }
     pollable_entry->unref ();
     mutex.unlock ();
 }
@@ -172,11 +206,6 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
     logD (time, _func, fmt_hex, "start_microsec: 0x", start_microsec);
 
     Result ret_res = Result::Success;
-
-    if (!poll_tlocal)
-	poll_tlocal = libMary_getThreadLocal();
-    else
-	assert (poll_tlocal == libMary_getThreadLocal());
 
     SelectedList selected_list;
     fd_set rfds, wfds, efds;
@@ -407,12 +436,9 @@ _select_interrupted:
     return ret_res;
 }
 
-mt_throws Result
-SelectPollGroup::trigger ()
+mt_mutex (mutex) mt_unlocks (mutex) mt_throws Result
+SelectPollGroup::doTrigger ()
 {
-    logD (select, _func_);
-
-    mutex.lock ();
     if (triggered) {
 	mutex.unlock ();
 	return Result::Success;
@@ -421,6 +447,18 @@ SelectPollGroup::trigger ()
     mutex.unlock ();
 
     return triggerPipeWrite ();
+}
+
+mt_throws Result
+SelectPollGroup::trigger ()
+{
+    logD (select, _func_);
+
+    if (poll_tlocal && poll_tlocal == libMary_getThreadLocal())
+	return Result::Success;
+
+    mutex.lock ();
+    return mt_unlocks (mutex) doTrigger ();
 }
 
 mt_throws Result
@@ -434,6 +472,18 @@ SelectPollGroup::open ()
     return Result::Success;
 }
 
+namespace {
+void deferred_processor_trigger (void * const active_poll_group_)
+{
+    ActivePollGroup * const active_poll_group = static_cast <ActivePollGroup*> (active_poll_group_);
+    active_poll_group->trigger ();
+}
+
+DeferredProcessor::Backend deferred_processor_backend = {
+    deferred_processor_trigger
+};
+}
+
 SelectPollGroup::SelectPollGroup (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
       triggered (false),
@@ -444,6 +494,11 @@ SelectPollGroup::SelectPollGroup (Object * const coderef_container)
 {
     trigger_pipe [0] = -1;
     trigger_pipe [1] = -1;
+
+    deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
+	    &deferred_processor_backend,
+	    static_cast <ActivePollGroup*> (this) /* cb_data */,
+	    NULL /* coderef_container */));
 }
 
 SelectPollGroup::~SelectPollGroup ()
@@ -455,6 +510,16 @@ SelectPollGroup::~SelectPollGroup ()
 	PollableList::iter iter (pollable_list);
 	while (!pollable_list.iter_done (iter)) {
 	    PollableEntry * const pollable_entry = pollable_list.iter_next (iter);
+	    assert (pollable_entry->activated);
+	    delete pollable_entry;
+	}
+    }
+
+    {
+	PollableList::iter iter (inactive_pollable_list);
+	while (!inactive_pollable_list.iter_done (iter)) {
+	    PollableEntry * const pollable_entry = inactive_pollable_list.iter_next (iter);
+	    assert (!pollable_entry->activated);
 	    delete pollable_entry;
 	}
     }
