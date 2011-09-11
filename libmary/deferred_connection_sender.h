@@ -22,6 +22,7 @@
 
 
 #include <libmary/libmary_config.h>
+
 #include <libmary/intrusive_list.h>
 #include <libmary/connection.h>
 #include <libmary/sender.h>
@@ -32,6 +33,8 @@
 
 namespace M {
 
+class DeferredConnectionSenderQueue;
+
 class DeferredConnectionSender_OutputQueue_name;
 class DeferredConnectionSender_ProcessingQueue_name;
 
@@ -40,6 +43,8 @@ class DeferredConnectionSender : public Sender,
 				 public IntrusiveListElement<DeferredConnectionSender_ProcessingQueue_name>,
 				 public DependentCodeReferenced
 {
+    friend class DeferredConnectionSenderQueue;
+
 public:
     struct Backend
     {
@@ -49,8 +54,9 @@ public:
     };
 
 private:
+    mt_const DeferredConnectionSenderQueue *dcs_queue;
+
     mt_const Cb<Backend> backend;
-    mt_const DeferredProcessor::Registration *deferred_reg;
 
   mt_mutex (mutex)
   mt_begin
@@ -61,13 +67,6 @@ private:
     bool ready_for_output;
 
     bool in_output_queue;
-
-    typedef IntrusiveList<DeferredConnectionSender, DeferredConnectionSender_OutputQueue_name> OutputQueue;
-    typedef IntrusiveList<DeferredConnectionSender, DeferredConnectionSender_ProcessingQueue_name> ProcessingQueue;
-
-    static mt_mutex (glob_output_queue_mutex) OutputQueue glob_output_queue;
-    static mt_mutex (glob_output_queue_mutex) bool glob_output_queue_processing;
-    static Mutex glob_output_queue_mutex;
   mt_end
 
     StateMutex mutex;
@@ -80,8 +79,11 @@ private:
 
     static void processOutput (void *_self);
 
+    mt_mutex (mutex) mt_unlocks (mutex) void doFlush ();
+
 public:
-    void sendMessage (MessageEntry * mt_nonnull msg_entry);
+    void sendMessage (MessageEntry * mt_nonnull msg_entry,
+		      bool do_flush = false);
 
     void flush ();
 
@@ -98,31 +100,51 @@ public:
 	conn->setOutputFrontend (Cb<Connection::OutputFrontend> (&conn_output_frontend, this, getCoderefContainer()));
     }
 
-    mt_const void setDeferredRegistration (DeferredProcessor::Registration * const deferred_reg)
+    mt_const void setQueue (DeferredConnectionSenderQueue * const dcs_queue)
     {
-	this->deferred_reg = deferred_reg;
+	this->dcs_queue = dcs_queue;
     }
 
-    // Call this method once before entering select/epoll syscall every time.
-    // Returns 'true' if there's still more data to send.
-    static bool pollIterationEnd ();
-
-#ifdef LIBMARY_ENABLE_MWRITEV
-    static bool pollIterationEnd_mwritev ();
-#endif
-
-    DeferredConnectionSender (Object * const coderef_container)
-	: DependentCodeReferenced (coderef_container),
-	  deferred_reg (NULL),
-	  conn_sender_impl (true /* enable_processing_barrier */),
-	  close_after_flush (false),
-	  ready_for_output (true),
-	  in_output_queue (false)
-    {
-	conn_sender_impl.setFrontend (&frontend);
-    }
+    DeferredConnectionSender (Object *coderef_container);
 
     ~DeferredConnectionSender ();
+};
+
+class DeferredConnectionSenderQueue : public DependentCodeReferenced
+{
+    friend class DeferredConnectionSender;
+
+private:
+    typedef IntrusiveList<DeferredConnectionSender, DeferredConnectionSender_OutputQueue_name> OutputQueue;
+    typedef IntrusiveList<DeferredConnectionSender, DeferredConnectionSender_ProcessingQueue_name> ProcessingQueue;
+
+    mt_const DeferredProcessor *deferred_processor;
+
+    DeferredProcessor::Task send_task;
+    DeferredProcessor::Registration send_reg;
+
+    mt_mutex (mutex) OutputQueue output_queue;
+    mt_mutex (mutex) bool processing;
+
+    Mutex queue_mutex;
+
+    static bool process (void *_self);
+
+#ifdef LIBMARY_ENABLE_MWRITEV
+    static bool process_mwritev (void *_self);
+#endif
+
+public:
+    void setDeferredProcessor (DeferredProcessor * const deferred_processor);
+
+    DeferredConnectionSenderQueue (Object * const coderef_container)
+	: DependentCodeReferenced (coderef_container),
+	  deferred_processor (NULL),
+	  processing (false)
+    {
+    }
+
+    ~DeferredConnectionSenderQueue ();
 };
 
 }

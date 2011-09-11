@@ -17,6 +17,8 @@
 */
 
 
+#include <libmary/libmary_config.h>
+
 #include <libmary/types.h>
 #include <sys/uio.h>
 #include <errno.h>
@@ -33,11 +35,8 @@ namespace M {
 
 namespace {
 LogGroup libMary_logGroup_mwritev ("deferred_sender_mwritev", LogLevel::N);
+LogGroup libMary_logGroup_sender ("deferred_sender", LogLevel::N);
 }
-
-DeferredConnectionSender::OutputQueue DeferredConnectionSender::glob_output_queue;
-bool DeferredConnectionSender::glob_output_queue_processing = false;
-Mutex DeferredConnectionSender::glob_output_queue_mutex;
 
 #ifdef LIBMARY_ENABLE_MWRITEV
 namespace {
@@ -50,32 +49,26 @@ enum {
 
 mt_sync (DeferredSender::pollIterationEnd)
 mt_begin
-    bool           mwritev_initialized = false;
-    int           *mwritev_fds;
-    struct iovec **mwritev_iovs;
-    struct iovec  *mwritev_iovs_heap;
-    int           *mwritev_num_iovs;
-    int           *mwritev_res;
 mt_end
 
-void mwritevInit ()
+void mwritevInit (LibMary_MwritevData * const mwritev)
 {
-    mwritev_initialized = true;
+    mwritev->initialized = true;
 
-    mwritev_fds = new int [Mwritev_MaxFds];
-    assert (mwritev_fds);
+    mwritev->fds = new int [Mwritev_MaxFds];
+    assert (mwritev->fds);
 
-    mwritev_iovs = new struct iovec* [Mwritev_MaxFds];
-    assert (mwritev_iovs);
+    mwritev->iovs = new struct iovec* [Mwritev_MaxFds];
+    assert (mwritev->iovs);
 
-    mwritev_iovs_heap = new struct iovec [Mwritev_MaxTotalIovs];
-    assert (mwritev_iovs_heap);
+    mwritev->iovs_heap = new struct iovec [Mwritev_MaxTotalIovs];
+    assert (mwritev->iovs_heap);
 
-    mwritev_num_iovs = new int [Mwritev_MaxFds];
-    assert (mwritev_num_iovs);
+    mwritev->num_iovs = new int [Mwritev_MaxFds];
+    assert (mwritev->num_iovs);
 
-    mwritev_res = new int [Mwritev_MaxFds];
-    assert (mwritev_res);
+    mwritev->res = new int [Mwritev_MaxFds];
+    assert (mwritev->res);
 }
 
 } // namespace {}
@@ -96,15 +89,19 @@ DeferredConnectionSender::toGlobOutputQueue (bool const add_ref)
     in_output_queue = true;
     mutex.unlock ();
 
-    glob_output_queue_mutex.lock ();
-    glob_output_queue.append (this);
-    glob_output_queue_mutex.unlock ();
+    // TODO Move this to a method of dcs_queue.
+    assert (dcs_queue);
+    dcs_queue->queue_mutex.lock ();
+    dcs_queue->output_queue.append (this);
+    dcs_queue->queue_mutex.unlock ();
 
     if (add_ref) {
 	Object * const coderef_container = getCoderefContainer();
 	if (coderef_container)
 	    coderef_container->ref ();
     }
+
+    dcs_queue->deferred_processor->trigger ();
 }
 
 mt_mutex (mutex) mt_unlocks (mutex) void
@@ -136,26 +133,38 @@ DeferredConnectionSender::processOutput (void * const _self)
 }
 
 void
-DeferredConnectionSender::sendMessage (MessageEntry * const mt_nonnull msg_entry)
+DeferredConnectionSender::sendMessage (MessageEntry * const mt_nonnull msg_entry,
+				       bool           const do_flush)
 {
     logD (mwritev, _func, "msg_entry: 0x", fmt_hex, (UintPtr) msg_entry);
 
     mutex.lock ();
     conn_sender_impl.queueMessage (msg_entry);
+    if (do_flush) {
+	mt_unlocks (mutex) doFlush ();
+	return;
+    }
     mutex.unlock ();
+}
+
+mt_mutex (mutex) mt_unlocks (mutex) void
+DeferredConnectionSender::doFlush ()
+{
+    if (ready_for_output
+	&& conn_sender_impl.gotDataToSend ())
+    {
+	logD (sender, _func, "calling toGlobOutputQueue()");
+	mt_unlocks (mutex) toGlobOutputQueue (true /* add_ref */);
+    } else {
+	mutex.unlock ();
+    }
 }
 
 void
 DeferredConnectionSender::flush ()
 {
     mutex.lock ();
-    if (ready_for_output
-	&& conn_sender_impl.gotDataToSend ())
-    {
-	mt_unlocks (mutex) toGlobOutputQueue (true /* add_ref */);
-    } else {
-	mutex.unlock ();
-    }
+    mt_unlocks (mutex) doFlush ();
 }
 
 void
@@ -166,34 +175,60 @@ DeferredConnectionSender::closeAfterFlush ()
     mt_unlocks (mutex) closeIfNeeded ();
 }
 
-bool
-DeferredConnectionSender::pollIterationEnd ()
+DeferredConnectionSender::DeferredConnectionSender (Object * const coderef_container)
+    : DependentCodeReferenced (coderef_container),
+      dcs_queue (NULL),
+      conn_sender_impl (true /* enable_processing_barrier */),
+      close_after_flush (false),
+      ready_for_output (true),
+      in_output_queue (false)
 {
-  // Processing global output queue.
+    conn_sender_impl.setFrontend (&frontend);
+}
+
+DeferredConnectionSender::~DeferredConnectionSender ()
+{
+    // Doing lock/unlock to ensure that ~ConnectionSenderImpl() will see correct
+    // data.
+    mutex.lock();
+
+    // Currently, DeferredConnectionSender cannot be destroyed while it is
+    // in output_queue, because it is referenced while it is in the queue.
+    assert (!in_output_queue);
+
+    mutex.unlock();
+}
+
+bool
+DeferredConnectionSenderQueue::process (void *_self)
+{
+    logD (sender, _func_);
+
+    DeferredConnectionSenderQueue * const self = static_cast <DeferredConnectionSenderQueue*> (_self);
 
     ProcessingQueue processing_queue;
 
-    glob_output_queue_mutex.lock ();
+    self->queue_mutex.lock ();
 
-    if (glob_output_queue_processing) {
-	glob_output_queue_mutex.unlock ();
+    if (self->processing) {
+	self->queue_mutex.unlock ();
 	logW_ (_func, "Concurrent invocation");
 	return false;
     }
-    glob_output_queue_processing = true;
+    self->processing = true;
 
     {
-	OutputQueue::iter iter (glob_output_queue);
-	while (!glob_output_queue.iter_done (iter)) {
-	    DeferredConnectionSender * const deferred_sender = glob_output_queue.iter_next (iter);
+	OutputQueue::iter iter (self->output_queue);
+	while (!self->output_queue.iter_done (iter)) {
+	    DeferredConnectionSender * const deferred_sender = self->output_queue.iter_next (iter);
 	    // Note that deferred_sender->mutex is not locked here.
 
 	    processing_queue.append (deferred_sender);
-	    glob_output_queue.remove (deferred_sender);
+	    self->output_queue.remove (deferred_sender);
 	}
     }
 
-    glob_output_queue_mutex.unlock ();
+    self->queue_mutex.unlock ();
 
     bool extra_iteration_needed = false;
 
@@ -247,7 +282,7 @@ DeferredConnectionSender::pollIterationEnd ()
 	if (!tmp_extra_iteration_needed) {
 	  // At this point, conn_sender_impl has either sent all data, or it has
 	  // gotten EAGAIN from writev. In either case, we should have removed
-	  // deferred_sender from glob_output_queue.
+	  // deferred_sender from output_queue.
 
 	    mt_unlocks (deferred_sender->mutex) deferred_sender->closeIfNeeded ();
 
@@ -260,12 +295,12 @@ DeferredConnectionSender::pollIterationEnd ()
 	}
     }
 
-    glob_output_queue_mutex.lock ();
-    if (!glob_output_queue.isEmpty())
+    self->queue_mutex.lock ();
+    if (!self->output_queue.isEmpty())
 	extra_iteration_needed = true;
 
-    glob_output_queue_processing = false;
-    glob_output_queue_mutex.unlock ();
+    self->processing = false;
+    self->queue_mutex.unlock ();
 
 //    logD_ (_func, "extra_iteration_needed: ", extra_iteration_needed ? "true" : "false");
     return extra_iteration_needed;
@@ -273,32 +308,39 @@ DeferredConnectionSender::pollIterationEnd ()
 
 #ifdef LIBMARY_ENABLE_MWRITEV
 bool
-DeferredConnectionSender::pollIterationEnd_mwritev ()
+DeferredConnectionSenderQueue::process_mwritev (void *_self)
 {
+    logD (sender, _func_);
+
+    DeferredConnectionSenderQueue * const self = static_cast <DeferredConnectionSenderQueue*> (_self);
+
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
+    LibMary_MwritevData * const mwritev = &tlocal->mwritev;
+
     ProcessingQueue processing_queue;
 
-    glob_output_queue_mutex.lock ();
+    self->queue_mutex.lock ();
 
-    if (!mwritev_initialized)
-	mwritevInit ();
+    if (!mwritev->initialized)
+	mwritevInit (mwritev);
 
-    if (glob_output_queue_processing) {
-	glob_output_queue_mutex.unlock ();
+    if (self->processing) {
+	self->queue_mutex.unlock ();
 	logW_ (_func, "Concurrent invocation");
 	return false;
     }
-    glob_output_queue_processing = true;
+    self->processing = true;
 
     {
-	OutputQueue::iter iter (glob_output_queue);
-	while (!glob_output_queue.iter_done (iter)) {
-	    DeferredConnectionSender * const deferred_sender = glob_output_queue.iter_next (iter);
+	OutputQueue::iter iter (self->output_queue);
+	while (!self->output_queue.iter_done (iter)) {
+	    DeferredConnectionSender * const deferred_sender = self->output_queue.iter_next (iter);
 	    processing_queue.append (deferred_sender);
-	    glob_output_queue.remove (deferred_sender);
+	    self->output_queue.remove (deferred_sender);
 	}
     }
 
-    glob_output_queue_mutex.unlock ();
+    self->queue_mutex.unlock ();
 
     bool extra_iteration_needed = false;
 
@@ -319,7 +361,7 @@ DeferredConnectionSender::pollIterationEnd_mwritev ()
 
 		DeferredConnectionSender * const deferred_sender = processing_queue.iter_next (iter);
 
-		mwritev_fds [fd_idx] = deferred_sender->conn_sender_impl.getConnection()->getFd();
+		mwritev->fds [fd_idx] = deferred_sender->conn_sender_impl.getConnection()->getFd();
 
 		deferred_sender->mutex.lock ();
 
@@ -330,15 +372,15 @@ DeferredConnectionSender::pollIterationEnd_mwritev ()
 
 		Count num_iovs = 0;
 		deferred_sender->conn_sender_impl.sendPendingMessages_fillIovs (&num_iovs,
-										mwritev_iovs_heap + total_iovs,
+										mwritev->iovs_heap + total_iovs,
 										Mwritev_MaxIovsPerFd);
 
 		// TODO Try leaving the lock here and unlocking after mwritev() call.
 		// TEST (uncomment)
 //		deferred_sender->mutex.unlock ();
 
-		mwritev_iovs [fd_idx] = mwritev_iovs_heap + total_iovs;
-		mwritev_num_iovs [fd_idx] = num_iovs;
+		mwritev->iovs [fd_idx] = mwritev->iovs_heap + total_iovs;
+		mwritev->num_iovs [fd_idx] = num_iovs;
 
 		total_iovs += num_iovs;
 
@@ -355,14 +397,14 @@ DeferredConnectionSender::pollIterationEnd_mwritev ()
 
 	{
 	    Result const res = libMary_mwritev (fd_idx,
-						mwritev_fds,
-						mwritev_iovs,
-						mwritev_num_iovs,
-						mwritev_res);
+						mwritev->fds,
+						mwritev->iovs,
+						mwritev->num_iovs,
+						mwritev->res);
 	    if (!res) {
 		logE_ (_func, "libMary_mwritev() failed: ", errnoString (errno));
-		glob_output_queue_processing = false;
-		glob_output_queue_mutex.unlock ();
+		self->processing = false;
+		self->queue_mutex.unlock ();
 		return false;
 	    }
 	}
@@ -377,7 +419,7 @@ DeferredConnectionSender::pollIterationEnd_mwritev ()
 
 		bool eintr = false;
 		Size num_written = 0;
-		int const posix_res = mwritev_res [fd_idx];
+		int const posix_res = mwritev->res [fd_idx];
 		AsyncIoResult async_res;
 		if (posix_res >= 0) {
 		    num_written = (Size) posix_res;
@@ -463,28 +505,41 @@ DeferredConnectionSender::pollIterationEnd_mwritev ()
 	start_iter = next_iter;
     }
 
-    glob_output_queue_mutex.lock ();
-    if (!glob_output_queue.isEmpty())
+    self->queue_mutex.lock ();
+    if (!self->output_queue.isEmpty())
 	extra_iteration_needed = true;
 
-    glob_output_queue_processing = false;
-    glob_output_queue_mutex.unlock ();
+    self->processing = false;
+    self->queue_mutex.unlock ();
 
     return extra_iteration_needed;
 }
-#endif
+#endif /* LIBMARY_ENABLE_MWRITEV */
 
-DeferredConnectionSender::~DeferredConnectionSender ()
+mt_const void
+DeferredConnectionSenderQueue::setDeferredProcessor (DeferredProcessor * const deferred_processor)
 {
-    // Doing lock/unlock to ensure that ~ConnectionSenderImpl() will see correct
-    // data.
-    mutex.lock();
+    this->deferred_processor = deferred_processor;
 
-    // Currently, DeferredConnectionSender cannot be destroyed while it is
-    // in glob_output_queue, because it is referenced while it is in the queue.
-    assert (!in_output_queue);
+#ifdef LIBMARY_ENABLE_MWRITEV
+    if (libMary_mwritevAvailable()) {
+	send_task.cb = CbDesc<DeferredProcessor::TaskCallback> (
+		process_mwritev, this /* cb_data */, getCoderefContainer());
+    } else
+#endif
+    {
+	send_task.cb = CbDesc<DeferredProcessor::TaskCallback> (
+		process, this /* cb_data */, getCoderefContainer());
+    }
 
-    mutex.unlock();
+    send_reg.setDeferredProcessor (deferred_processor);
+    send_reg.scheduleTask (&send_task, true /* permanent */);
+}
+
+DeferredConnectionSenderQueue::~DeferredConnectionSenderQueue ()
+{
+    send_reg.revokeTask (&send_task);
+    send_reg.release ();
 }
 
 }
