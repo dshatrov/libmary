@@ -66,6 +66,12 @@ public:
     {
 	mutex->lock ();
     }
+
+    StateMutexLock (StateMutex &mutex)
+	: mutex (&mutex)
+    {
+	mutex.lock ();
+    }
 #else
     StateMutexLock (StateMutex * const /* mutex */)
     {
@@ -96,6 +102,12 @@ public:
 	: mutex (mutex)
     {
 	mutex->unlock ();
+    }
+
+    StateMutexUnlock (StateMutex &mutex)
+	: mutex (&mutex)
+    {
+	mutex.unlock ();
     }
 #else
     StateMutexUnlock (StateMutex * const /* mutex */)

@@ -97,6 +97,12 @@ public:
     {
 	mutex->lock ();
     }
+
+    MutexLock (Mutex &mutex)
+	: mutex (&mutex)
+    {
+	mutex.lock ();
+    }
 #else
     MutexLock (Mutex * const /* mutex */)
     {
@@ -127,6 +133,12 @@ public:
 	: mutex (mutex)
     {
 	mutex->unlock ();
+    }
+
+    MutexUnlock (Mutex &mutex)
+	: mutex (&mutex)
+    {
+	mutex.unlock ();
     }
 #else
     MutexUnlock (Mutex * const /* mutex */)
