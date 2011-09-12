@@ -62,10 +62,13 @@ private:
 
 	mt_mutex (Timers::mutex) Time due_time;
 
+	mt_mutex (Timers::mutex) bool active;
+
 	Timer (TimerCallback * const cb,
 	       void          * const cb_data,
 	       Object        * const coderef_container)
-	    : timer_cb (cb, cb_data, coderef_container)
+	    : timer_cb (cb, cb_data, coderef_container),
+	      active (true)
 	{
 	}
     };
@@ -128,6 +131,7 @@ public:
 				    Time           time_microseconds,
 				    bool           periodical = false);
 
+    // A non-periodical timer can be restarted only if it has not yet expired.
     void restartTimer (TimerKey timer_key);
 
     void deleteTimer (TimerKey timer_key);

@@ -81,6 +81,8 @@ Timers::restartTimer (TimerKey const timer_key)
 
     mutex.lock ();
 
+    assert (timer->active);
+
     expiration_tree.remove (chain);
 
     chain->timer_list.remove (timer);
@@ -102,21 +104,25 @@ Timers::deleteTimer (TimerKey const timer_key)
 
     mutex.lock ();
 
-    expiration_tree.remove (chain);
+    if (timer->active) {
+	timer->active = false;
 
-    chain->timer_list.remove (timer);
-    if (chain->timer_list.isEmpty ()) {
-	interval_tree.remove (chain);
-	mutex.unlock ();
+	expiration_tree.remove (chain);
 
-	delete chain;
-	delete timer;
+	chain->timer_list.remove (timer);
+	if (chain->timer_list.isEmpty ()) {
+	    interval_tree.remove (chain);
+	    mutex.unlock ();
 
-	return;
+	    delete chain;
+	    delete timer;
+
+	    return;
+	}
+
+	chain->nearest_time = chain->timer_list.getFirst ()->due_time;
+	expiration_tree.add (chain);
     }
-
-    chain->nearest_time = chain->timer_list.getFirst ()->due_time;
-    expiration_tree.add (chain);
 
     mutex.unlock ();
 
@@ -161,10 +167,13 @@ Timers::processTimers ()
 	logD (timers, _func, "cur_nearest_time: ", cur_nearest_time, ", cur_time: ", cur_time);
 
 	Timer * const timer = chain->timer_list.getFirst ();
+	assert (timer->active);
 	chain->timer_list.remove (timer);
 	if (timer->periodical) {
 	    timer->due_time += chain->interval_microseconds;
 	    chain->timer_list.append (timer);
+	} else {
+	    timer->active = false;
 	}
 
 	bool delete_chain;
@@ -208,6 +217,7 @@ Timers::~Timers ()
 	IntrusiveList<Timer>::iter timer_iter (chain->timer_list);
 	while (!chain->timer_list.iter_done (timer_iter)) {
 	    Timer * const timer = chain->timer_list.iter_next (timer_iter);
+	    assert (timer->active);
 	    delete timer;
 	}
 
