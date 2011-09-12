@@ -117,8 +117,6 @@ ServerApp::init ()
 	    static_cast <ActivePollGroup*> (&poll_group) /* cb_data */,
 	    NULL /* coderef_container */));
 
-    dcs_queue.setDeferredProcessor (&deferred_processor);
-
     return Result::Success;
 }
 
@@ -128,6 +126,8 @@ ServerApp::threadFunc (void * const _self)
     ServerApp * const self = static_cast <ServerApp*> (_self);
 
     Ref<ThreadData> const thread_data = grab (new ThreadData);
+
+    thread_data->dcs_queue.setDeferredProcessor (&thread_data->deferred_processor);
 
     thread_data->thread_ctx.init (&thread_data->timers,
 				  &thread_data->poll_group,
@@ -150,8 +150,6 @@ ServerApp::threadFunc (void * const _self)
 	    &deferred_processor_backend,
 	    static_cast <ActivePollGroup*> (&thread_data->poll_group) /* cb_data */,
 	    NULL /* coderef_container */));
-
-    thread_data->dcs_queue.setDeferredProcessor (&thread_data->deferred_processor);
 
     self->mutex.lock ();
     if (self->should_stop.get()) {
@@ -232,6 +230,8 @@ ServerApp::ServerApp (Object * const coderef_container,
       dcs_queue (coderef_container),
       thread_selector (NULL)
 {
+    dcs_queue.setDeferredProcessor (&deferred_processor);
+
 #ifdef LIBMARY_MT_SAFE
     multi_thread = grab (new MultiThread (
 	    num_threads,
