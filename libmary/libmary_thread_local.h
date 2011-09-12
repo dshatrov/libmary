@@ -22,6 +22,7 @@
 
 
 #include <libmary/types.h>
+#include <time.h>
 #include <sys/uio.h>
 
 #include <libmary/exception_buffer.h>
