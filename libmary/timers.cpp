@@ -178,31 +178,18 @@ Timers::processTimers ()
 		chain->nearest_time = chain->timer_list.getFirst ()->due_time;
 		expiration_tree.add (chain);
 	    }
-
 	    delete_chain = false;
 	}
-	mutex.unlock ();
 
-	if (delete_chain)
-	    delete chain;
-
-      // TODO This place is not MT-safe.
-
-//#error If this is a periodical timer, then the user might have deleted it! (Stupid...)
-
-	// Non-periodical timers are deleted automatically without user's
-	// intervention.
-	bool const delete_timer = !timer->periodical;
-	timer->timer_cb.call_ ();
-
-	if (delete_timer)
-	    delete timer;
+	timer->timer_cb.call_unlocks_mutex_ (mutex);
 
       // 'timer' might have been deleted by the user and should not be used
       // directly anymore.
 
-	if (delete_chain)
+	if (delete_chain) {
+	    delete chain;
 	    return;
+	}
 
 	mutex.lock ();
     }

@@ -90,7 +90,7 @@ private:
 					       Time const,
 					       &TimerChain::interval_microseconds >,
 			      DirectComparator<Time>,
-			      IntervalTree_name>
+			      IntervalTree_name >
 	    IntervalTree;
 
     typedef IntrusiveAvlTree< TimerChain,
@@ -98,7 +98,7 @@ private:
 					       Time const,
 					       &TimerChain::nearest_time >,
 			      DirectComparator<Time>,
-			      ExpirationTree_name>
+			      ExpirationTree_name >
 	    ExpirationTree;
 
     // Chains sorted by interval_microseconds.
@@ -111,6 +111,7 @@ private:
     Mutex mutex;
 
 public:
+    // Every call to addTimer() must be matched with a call deleteTimer().
     TimerKey addTimer (TimerCallback * const cb,
 		       void          * const cb_data,
 		       Object        * const coderef_container,
@@ -120,6 +121,7 @@ public:
 	return addTimer_microseconds (cb, cb_data, coderef_container, time_seconds * 1000000, periodical);
     }
 
+    // Every call to addTimer_microseconds() must be matched with a call deleteTimer().
     TimerKey addTimer_microseconds (TimerCallback *cb,
 				    void          *cb_data,
 				    Object        *coderef_container,
