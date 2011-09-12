@@ -17,25 +17,6 @@
 */
 
 
-/* MyCpp - MyNC C++ helper library
- * Copyright (C) 2006-2011 Dmitry Shatrov
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
- */
-
 #ifndef __LIBMARY__INTRUSIVE_AVL_TREE__H__
 #define __LIBMARY__INTRUSIVE_AVL_TREE__H__
 
@@ -306,21 +287,21 @@ class IntrusiveAvlTree_anybase
 {
 public:
     template <class IteratorBase = EmptyBase>
-    class SameKeyIterator_ : public StatefulIterator< typename IntrusiveAvlTree_common<T>::Node&,
+    class SameKeyIterator_ : public StatefulIterator< typename IntrusiveAvlTree_common<T, TreeName>::Node&,
 						      IteratorBase >
     {
     private:
-	typename IntrusiveAvlTree_common<T>::Node const * const leftmost_node;
-	typename IntrusiveAvlTree_common<T>::BottomLeftIterator iter;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node const * const leftmost_node;
+	typename IntrusiveAvlTree_common<T, TreeName>::BottomLeftIterator iter;
 
-	typename IntrusiveAvlTree_common<T>::Node *next_node;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *next_node;
 	// Helper flag to avoid calling Comparator::equals() multiple times.
 	Bool is_done;
 
     public:
 	T* next ()
 	{
-	    typename IntrusiveAvlTree_common<T>::Node * const res_node = next_node;
+	    typename IntrusiveAvlTree_common<T, TreeName>::Node * const res_node = next_node;
 
 	    if (iter.done ())
 		next_node = NULL;
@@ -348,7 +329,7 @@ public:
 	    return false;
 	}
 
-	SameKeyIterator_ (typename IntrusiveAvlTree_common<T>::Node * const leftmost_node)
+	SameKeyIterator_ (typename IntrusiveAvlTree_common<T, TreeName>::Node * const leftmost_node)
 	    : leftmost_node (leftmost_node),
 	      iter (leftmost_node)
 	{
@@ -374,11 +355,11 @@ class IntrusiveAvlTree : public IntrusiveAvlTree_anybase< T,
 			 public Base
 {
 protected:
-    typename IntrusiveAvlTree_common<T>::Node* rotateSingleLeft (typename IntrusiveAvlTree_common<T>::Node * const node)
+    typename IntrusiveAvlTree_common<T, TreeName>::Node* rotateSingleLeft (typename IntrusiveAvlTree_common<T, TreeName>::Node * const node)
     {
 	/* "bub" stands for "bubble" - the node that
 	 * pops up to the top after performing the rotation. */
-	typename IntrusiveAvlTree_common<T>::Node * const bub = node->right;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node * const bub = node->right;
 
 	node->right = bub->left;
 	if (bub->left != NULL)
@@ -403,15 +384,15 @@ protected:
 	    node->balance = 0;
 	}
 
-	if (IntrusiveAvlTree_common<T>::top == node)
-	    IntrusiveAvlTree_common<T>::top = bub;
+	if (IntrusiveAvlTree_common<T, TreeName>::top == node)
+	    IntrusiveAvlTree_common<T, TreeName>::top = bub;
 
 	return bub;
     }
 
-    typename IntrusiveAvlTree_common<T>::Node* rotateSingleRight (typename IntrusiveAvlTree_common<T>::Node * const node)
+    typename IntrusiveAvlTree_common<T, TreeName>::Node* rotateSingleRight (typename IntrusiveAvlTree_common<T, TreeName>::Node * const node)
     {
-	typename IntrusiveAvlTree_common<T>::Node * const bub = node->left;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node * const bub = node->left;
 
 	node->left = bub->right;
 	if (bub->right != NULL)
@@ -436,15 +417,15 @@ protected:
 	    node->balance = 0;
 	}
 
-	if (IntrusiveAvlTree_common<T>::top == node)
-	    IntrusiveAvlTree_common<T>::top = bub;
+	if (IntrusiveAvlTree_common<T, TreeName>::top == node)
+	    IntrusiveAvlTree_common<T, TreeName>::top = bub;
 
 	return bub;
     }
 
-    typename IntrusiveAvlTree_common<T>::Node* rotateDoubleLeft (typename IntrusiveAvlTree_common<T>::Node * const node)
+    typename IntrusiveAvlTree_common<T, TreeName>::Node* rotateDoubleLeft (typename IntrusiveAvlTree_common<T, TreeName>::Node * const node)
     {
-	typename IntrusiveAvlTree_common<T>::Node * const bub = node->right->left;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node * const bub = node->right->left;
 
 	bub->top = node->top;
 	if (node->top != NULL) {
@@ -481,15 +462,15 @@ protected:
 	}
 	bub->balance = 0;
 
-	if (IntrusiveAvlTree_common<T>::top == node)
-	    IntrusiveAvlTree_common<T>::top = bub;
+	if (IntrusiveAvlTree_common<T, TreeName>::top == node)
+	    IntrusiveAvlTree_common<T, TreeName>::top = bub;
 
 	return bub;
     }
 
-    typename IntrusiveAvlTree_common<T>::Node* rotateDoubleRight (typename IntrusiveAvlTree_common<T>::Node * const node)
+    typename IntrusiveAvlTree_common<T, TreeName>::Node* rotateDoubleRight (typename IntrusiveAvlTree_common<T, TreeName>::Node * const node)
     {
-	typename IntrusiveAvlTree_common<T>::Node * const bub = node->left->right;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node * const bub = node->left->right;
 
 	bub->top = node->top;
 	if (node->top != NULL) {
@@ -526,8 +507,8 @@ protected:
 	}
 	bub->balance = 0;
 
-	if (IntrusiveAvlTree_common<T>::top == node)
-	    IntrusiveAvlTree_common<T>::top = bub;
+	if (IntrusiveAvlTree_common<T, TreeName>::top == node)
+	    IntrusiveAvlTree_common<T, TreeName>::top = bub;
 
 	return bub;
     }
@@ -537,7 +518,7 @@ protected:
     T* doAdd (T    * const value,
 	      bool   const unique)
     {
-	typename IntrusiveAvlTree_common<T>::Node *node = static_cast <typename IntrusiveAvlTree_common<T>::Node*> (value);
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *node = static_cast <typename IntrusiveAvlTree_common<T, TreeName>::Node*> (value);
 	bool left = false;
 
 	node->top     = NULL;
@@ -545,7 +526,7 @@ protected:
 	node->right   = NULL;
 	node->balance = 0;
 
-	typename IntrusiveAvlTree_common<T>::Node *upper = IntrusiveAvlTree_common<T>::top;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *upper = IntrusiveAvlTree_common<T, TreeName>::top;
 	while (upper != NULL) {
 	    if (unique) {
 		if (Comparator::equals (Extractor::getValue (* static_cast <T*> (upper)),
@@ -578,7 +559,7 @@ protected:
 
 	node->top = upper;
 	if (upper == NULL)
-	    IntrusiveAvlTree_common<T>::top = node;
+	    IntrusiveAvlTree_common<T, TreeName>::top = node;
 
 	node = node->top;
 	while (node != NULL) {
@@ -618,7 +599,7 @@ protected:
 public:
     bool isEmpty () const
     {
-	return IntrusiveAvlTree_common<T>::top == NULL;
+	return IntrusiveAvlTree_common<T, TreeName>::top == NULL;
     }
 
     /*m Adds a unique node to the tree.
@@ -642,9 +623,9 @@ public:
      *
      * @node The node to remove from the tree.
      */
-    void remove (typename IntrusiveAvlTree_common<T>::Node *node)
+    void remove (typename IntrusiveAvlTree_common<T, TreeName>::Node *node)
     {
-	typename IntrusiveAvlTree_common<T>::Node *repl = NULL,
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *repl = NULL,
 						  *tobalance = NULL;
 	bool left = false;
 
@@ -662,7 +643,7 @@ public:
 
 		tobalance = node->top;
 	    } else
-		IntrusiveAvlTree_common<T>::top = NULL;
+		IntrusiveAvlTree_common<T, TreeName>::top = NULL;
 	} else {
 	    if (node->balance == 1) {
 		repl = node->right;
@@ -716,8 +697,8 @@ public:
 		    node->top->right = repl;
 	    }
 
-	    if (IntrusiveAvlTree_common<T>::top == node)
-		IntrusiveAvlTree_common<T>::top = repl;
+	    if (IntrusiveAvlTree_common<T, TreeName>::top == node)
+		IntrusiveAvlTree_common<T, TreeName>::top = repl;
 	}
 
 	node = tobalance;
@@ -756,7 +737,7 @@ public:
     /*m Clear the tree (i.e., remove all nodes from the tree). */
     void clear ()
     {
-	IntrusiveAvlTree_common<T>::top = NULL;
+	IntrusiveAvlTree_common<T, TreeName>::top = NULL;
     }
 
     /*m Find a node with the specified key value by
@@ -769,7 +750,7 @@ public:
     template <class C>
     T* lookup (C const &c) const
     {
-	typename IntrusiveAvlTree_common<T>::Node *node = IntrusiveAvlTree_common<T>::top;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *node = IntrusiveAvlTree_common<T, TreeName>::top;
 	while (node != NULL) {
 	    if (Comparator::equals (Extractor::getValue (* static_cast <T*> (node)), c))
 		break;
@@ -786,8 +767,8 @@ public:
     template <class C>
     T* lookupLeftmost (C const &c) const
     {
-	typename IntrusiveAvlTree_common<T>::Node *node = IntrusiveAvlTree_common<T>::top;
-	typename IntrusiveAvlTree_common<T>::Node *last_match = NULL;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *node = IntrusiveAvlTree_common<T, TreeName>::top;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *last_match = NULL;
 
 	for (;;) {
 	    while (node != NULL) {
@@ -829,7 +810,7 @@ public:
     template <class C>
     T* lookupByTraversal (C const &c) const
     {
-	typename IntrusiveAvlTree_common<T>::Node *node = IntrusiveAvlTree_common<T>::top;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *node = IntrusiveAvlTree_common<T, TreeName>::top;
 	while (node != NULL) {
 	    if (Comparator::equals (Extractor::getValue (* static_cast <T*> (node)), c))
 		break;
@@ -863,7 +844,7 @@ public:
     template <class C>
     T* getFirstGreater (C const &c) const
     {
-	typename IntrusiveAvlTree_common<T>::Node *node = IntrusiveAvlTree_common<T>::top,
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *node = IntrusiveAvlTree_common<T, TreeName>::top,
 						  *greater = NULL;
 
 	while (node != NULL) {
@@ -881,7 +862,7 @@ public:
     template <class C>
     T* getLastLesser (C const &c) const
     {
-	typename IntrusiveAvlTree_common<T>::Node *node = IntrusiveAvlTree_common<T>::top,
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *node = IntrusiveAvlTree_common<T, TreeName>::top,
 						  *lesser = NULL;
 
 	while (node != NULL) {
@@ -897,7 +878,7 @@ public:
 
     T* getLeftmost () const
     {
-	typename IntrusiveAvlTree_common<T>::Node *node = IntrusiveAvlTree_common<T>::top,
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *node = IntrusiveAvlTree_common<T, TreeName>::top,
 						  *leftmost = NULL;
 
 	while (node != NULL) {
@@ -910,7 +891,7 @@ public:
 
     T* getRightmost () const
     {
-	typename IntrusiveAvlTree_common<T>::Node *node = IntrusiveAvlTree_common<T>::top,
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *node = IntrusiveAvlTree_common<T, TreeName>::top,
 						  *rightmost = NULL;
 
 	while (node != NULL) {
@@ -921,12 +902,12 @@ public:
 	return static_cast <T*> (rightmost);
     }
 
-    T* getNextTo (typename IntrusiveAvlTree_common<T>::Node * const node) const
+    T* getNextTo (typename IntrusiveAvlTree_common<T, TreeName>::Node * const node) const
     {
 	if (node == NULL)
 	    return NULL;
 
-	typename IntrusiveAvlTree_common<T>::Node *ret;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *ret;
 
 	if (node->right != NULL) {
 	    ret = node->right;
@@ -955,12 +936,12 @@ public:
 	return static_cast <T*> (ret);
     }
 
-    T* getPreviousTo (typename IntrusiveAvlTree_common<T>::Node * const node) const
+    T* getPreviousTo (typename IntrusiveAvlTree_common<T, TreeName>::Node * const node) const
     {
 	if (node == NULL)
 	    return NULL;
 
-	typename IntrusiveAvlTree_common<T>::Node *ret;
+	typename IntrusiveAvlTree_common<T, TreeName>::Node *ret;
 
 	if (node->left != NULL) {
 	    ret = node->left;
@@ -990,7 +971,7 @@ public:
     }
 
     IntrusiveAvlTree () {
-	IntrusiveAvlTree_common<T>::top = NULL;
+	IntrusiveAvlTree_common<T, TreeName>::top = NULL;
     }
 };
 
