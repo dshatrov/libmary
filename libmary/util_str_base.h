@@ -116,16 +116,6 @@ Size toString (Memory const &mem, T obj, Format const &fmt = libMary_default_for
     return obj.toString_ (mem, fmt);
 }
 
-#if 0
-// This breaks templates
-template <class T>
-Size toString (Memory const &mem, T &obj, Format const &fmt = libMary_default_format)
-{
-    // FIXME This is clearly wrong.
-    return obj.toString_ ();
-}
-#endif
-
 template <class T>
 Size toString (Memory const &mem, T * const obj, Format const &fmt = libMary_default_format)
 {
