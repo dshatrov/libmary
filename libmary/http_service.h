@@ -95,7 +95,7 @@ private:
 	HttpServer http_server;
 
 	PollGroup::PollableKey pollable_key;
-	Timers::TimerKey conn_keepalive_timer;
+	mt_const Timers::TimerKey conn_keepalive_timer;
 
 	// The following fields are synchroinzed by http_serverer.
 	// They should only be accessed from HttpServer::Frontend callbacks.
@@ -124,8 +124,7 @@ private:
 
     StateMutex mutex;
 
-    void releaseHttpConnection (HttpConnection * mt_nonnull _http_conn,
-				bool release_timer = true);
+    mt_mutex (mutex) void releaseHttpConnection (HttpConnection * mt_nonnull _http_conn);
 
     static void connKeepaliveTimerExpired (void *_http_conn);
 

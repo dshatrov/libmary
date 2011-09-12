@@ -25,7 +25,7 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_http_service ("http_service", LogLevel::N);
+LogGroup libMary_logGroup_http_service ("http_service", LogLevel::I);
 }
 
 HttpServer::Frontend const
@@ -54,14 +54,11 @@ HttpService::HttpConnection::~HttpConnection ()
     logD (http_service, _func, "0x", fmt_hex, (UintPtr) this);
 }
 
-void
-HttpService::releaseHttpConnection (HttpConnection * const mt_nonnull http_conn,
-				    bool             const release_timer)
+mt_mutex (mutex) void
+HttpService::releaseHttpConnection (HttpConnection * const mt_nonnull http_conn)
 {
-    if (release_timer) {
-	if (http_conn->conn_keepalive_timer)
-	    timers->deleteTimer (http_conn->conn_keepalive_timer);
-    }
+    if (http_conn->conn_keepalive_timer)
+	timers->deleteTimer (http_conn->conn_keepalive_timer);
 
     poll_group->removePollable (http_conn->pollable_key);
 }
@@ -71,7 +68,7 @@ HttpService::connKeepaliveTimerExpired (void * const _http_conn)
 {
     HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
 
-    logD (http_service, _func, "0x", fmt_hex, (UintPtr) (http_conn));
+    logI (http_service, _func, "0x", fmt_hex, (UintPtr) (http_conn));
 
     CodeRef http_service_ref;
     if (http_conn->weak_http_service.isValid()) {
@@ -81,9 +78,11 @@ HttpService::connKeepaliveTimerExpired (void * const _http_conn)
     }
     HttpService * const self = http_conn->unsafe_http_service;
 
-    self->releaseHttpConnection (http_conn, false /* release_timer */);
+  // TODO FIXME Should httpMessageBody() callback be called here to report
+  // an error to the client? See httpClosed() for reference.
 
     self->mutex.lock ();
+    self->releaseHttpConnection (http_conn);
     self->conn_list.remove (http_conn);
     self->mutex.unlock ();
 
@@ -223,6 +222,8 @@ HttpService::httpClosed (Exception * const exc_,
 
     logD (http_service, _func, "http_conn 0x", fmt_hex, (UintPtr) http_conn, ", refcount: ", fmt_def, http_conn->getRefCount(), ", cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
 
+  // TODO Release http_conn and unref it.
+
     if (!http_conn->cur_handler)
 	return;
 
@@ -290,6 +291,9 @@ HttpService::acceptOneConnection ()
     }
 
     if (keepalive_timeout_microsec > 0) {
+	// TODO There should be a periodical checker routing which would
+	// monitor connection's activity. Currently, this is an overly
+	// simplistic oneshot cutter, like a ticking bomb for every client.
 	http_conn->conn_keepalive_timer = timers->addTimer (connKeepaliveTimerExpired,
 							    http_conn,
 							    http_conn,

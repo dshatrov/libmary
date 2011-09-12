@@ -89,6 +89,7 @@ void testConnected (Exception * const exc_,
 void testConnectionTimeout (void * const /* cb_data */)
 {
     logD_ (_func, "connection timeout");
+    // TODO Release 'conn_timeout_key' timer.
 //    test_conn->close ();
 }
 
