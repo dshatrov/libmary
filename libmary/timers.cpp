@@ -46,24 +46,20 @@ Timers::addTimer_microseconds (TimerCallback * const cb,
 
     bool first_timer = false;
 
-    // TODO AvlTree::addUniqueFor()
-    IntervalTree::Node * const chain_node = interval_tree.lookup (time_microseconds);
-    TimerChain *chain;
-    if (!chain_node) {
+    TimerChain *chain = interval_tree.lookup (time_microseconds);
+    if (!chain) {
 	chain = new TimerChain;
 	chain->interval_microseconds = time_microseconds;
 	chain->nearest_time = timer->due_time;
 
 	if (expiration_tree.isEmpty()
-	    || expiration_tree.getLeftmost()->value->nearest_time < chain->nearest_time)
+	    || expiration_tree.getLeftmost()->nearest_time < chain->nearest_time)
 	{
 	    first_timer = true;
 	}
 
-	chain->interval_tree_node = interval_tree.add (chain);
-	chain->expiration_tree_node = expiration_tree.add (chain);
-    } else {
-	chain = chain_node->value;
+	interval_tree.add (chain);
+	expiration_tree.add (chain);
     }
 
     timer->chain = chain;
@@ -85,7 +81,7 @@ Timers::restartTimer (TimerKey const timer_key)
 
     mutex.lock ();
 
-    expiration_tree.remove (chain->expiration_tree_node);
+    expiration_tree.remove (chain);
 
     chain->timer_list.remove (timer);
     timer->due_time = getTimeMicroseconds() + chain->interval_microseconds;
@@ -93,7 +89,7 @@ Timers::restartTimer (TimerKey const timer_key)
     chain->timer_list.append (timer);
 
     chain->nearest_time = chain->timer_list.getFirst()->due_time;
-    chain->expiration_tree_node = expiration_tree.add (chain);
+    expiration_tree.add (chain);
 
     mutex.unlock ();
 }
@@ -106,11 +102,11 @@ Timers::deleteTimer (TimerKey const timer_key)
 
     mutex.lock ();
 
-    expiration_tree.remove (chain->expiration_tree_node);
+    expiration_tree.remove (chain);
 
     chain->timer_list.remove (timer);
     if (chain->timer_list.isEmpty ()) {
-	interval_tree.remove (chain->interval_tree_node);
+	interval_tree.remove (chain);
 	mutex.unlock ();
 
 	delete chain;
@@ -120,7 +116,7 @@ Timers::deleteTimer (TimerKey const timer_key)
     }
 
     chain->nearest_time = chain->timer_list.getFirst ()->due_time;
-    chain->expiration_tree_node = expiration_tree.add (chain);
+    expiration_tree.add (chain);
 
     mutex.unlock ();
 
@@ -134,10 +130,7 @@ Timers::getSleepTime_microseconds ()
 
   MutexLock l (&mutex);
 
-    ExpirationTree::Node * const chain_node = expiration_tree.getLeftmost();
-    if (chain_node == NULL)
-	return (Time) -1;
-    TimerChain * const chain = chain_node->value;
+    TimerChain * const chain = expiration_tree.getLeftmost();
     if (chain == NULL)
 	return (Time) -1;
 
@@ -156,12 +149,7 @@ Timers::processTimers ()
 
     mutex.lock ();
 
-    ExpirationTree::Node * const chain_node = expiration_tree.getLeftmost();
-    if (chain_node == NULL) {
-	mutex.unlock ();
-	return;
-    }
-    TimerChain * const chain = chain_node->value;
+    TimerChain * const chain = expiration_tree.getLeftmost();
     if (chain == NULL) {
 	mutex.unlock ();
 	return;
@@ -181,14 +169,14 @@ Timers::processTimers ()
 
 	bool delete_chain;
 	if (chain->timer_list.isEmpty ()) {
-	    expiration_tree.remove (chain->expiration_tree_node);
-	    interval_tree.remove (chain->interval_tree_node);
+	    expiration_tree.remove (chain);
+	    interval_tree.remove (chain);
 	    delete_chain = true;
 	} else {
 	    if (cur_nearest_time != chain->timer_list.getFirst ()->due_time) {
-		expiration_tree.remove (chain->expiration_tree_node);
+		expiration_tree.remove (chain);
 		chain->nearest_time = chain->timer_list.getFirst ()->due_time;
-		chain->expiration_tree_node = expiration_tree.add (chain);
+		expiration_tree.add (chain);
 	    }
 
 	    delete_chain = false;
@@ -200,16 +188,18 @@ Timers::processTimers ()
 
       // TODO This place is not MT-safe.
 
+//#error If this is a periodical timer, then the user might have deleted it! (Stupid...)
+
 	// Non-periodical timers are deleted automatically without user's
 	// intervention.
 	bool const delete_timer = !timer->periodical;
 	timer->timer_cb.call_ ();
 
-      // 'timer' might have been deleted by the user and should not be used
-      // directly anymore.
-
 	if (delete_timer)
 	    delete timer;
+
+      // 'timer' might have been deleted by the user and should not be used
+      // directly anymore.
 
 	if (delete_chain)
 	    return;
@@ -226,7 +216,7 @@ Timers::~Timers ()
 
     IntervalTree::Iterator chain_iter (interval_tree);
     while (!chain_iter.done ()) {
-	TimerChain * const chain = chain_iter.next ().value;
+	TimerChain * const chain = chain_iter.next ();
 
 	IntrusiveList<Timer>::iter timer_iter (chain->timer_list);
 	while (!chain->timer_list.iter_done (timer_iter)) {

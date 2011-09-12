@@ -23,7 +23,7 @@
 
 #include <libmary/types.h>
 #include <libmary/intrusive_list.h>
-#include <libmary/avl_tree.h>
+#include <libmary/intrusive_avl_tree.h>
 #include <libmary/cb.h>
 #include <libmary/mutex.h>
 #include <libmary/util_time.h>
@@ -60,7 +60,7 @@ private:
 	mt_const Cb<TimerCallback> timer_cb;
 	mt_const TimerChain *chain;
 
-	Time due_time;
+	mt_mutex (Timers::mutex) Time due_time;
 
 	Timer (TimerCallback * const cb,
 	       void          * const cb_data,
@@ -70,42 +70,41 @@ private:
 	}
     };
 
+    class IntervalTree_name;
+    class ExpirationTree_name;
+
     // A chain of timers with the same expiration interval.
-    class TimerChain
+    class TimerChain : public IntrusiveAvlTree_Node<IntervalTree_name>,
+		       public IntrusiveAvlTree_Node<ExpirationTree_name>
     {
     public:
 	mt_const Time interval_microseconds;
-	IntrusiveList<Timer> timer_list;
+
+	mt_mutex (Timers::mutex) IntrusiveList<Timer> timer_list;
 	// Nearest expiration time.
-	Time nearest_time;
-
-	// TODO IntrusiveAvlTree
-	typedef AvlTree< TimerChain*,
-			 MemberExtractor< TimerChain const,
-					  Time const,
-					  &TimerChain::interval_microseconds >,
-			 DirectComparator<Time> >
-		IntervalTree_;
-
-	// TODO IntrusiveAvlTree
-	typedef AvlTree< TimerChain*,
-			 MemberExtractor< TimerChain const,
-					  Time const,
-					  &TimerChain::nearest_time >,
-			 DirectComparator<Time> >
-		ExpirationTree_;
-
-	mt_const IntervalTree_::Node *interval_tree_node;
-	ExpirationTree_::Node *expiration_tree_node;
+	mt_mutex (Timers::mutex) Time nearest_time;
     };
 
-    typedef TimerChain::IntervalTree_ IntervalTree;
-    typedef TimerChain::ExpirationTree_ ExpirationTree;
+    typedef IntrusiveAvlTree< TimerChain,
+			      MemberExtractor< TimerChain const,
+					       Time const,
+					       &TimerChain::interval_microseconds >,
+			      DirectComparator<Time>,
+			      IntervalTree_name>
+	    IntervalTree;
+
+    typedef IntrusiveAvlTree< TimerChain,
+			      MemberExtractor< TimerChain const,
+					       Time const,
+					       &TimerChain::nearest_time >,
+			      DirectComparator<Time>,
+			      ExpirationTree_name>
+	    ExpirationTree;
 
     // Chains sorted by interval_microseconds.
-    IntervalTree interval_tree;
+    mt_mutex (mutex) IntervalTree interval_tree;
     // Chains sorted by nearest_time.
-    ExpirationTree expiration_tree;
+    mt_mutex (mutex) ExpirationTree expiration_tree;
 
     mt_const Cb<FirstTimerAddedCallback> first_added_cb;
 
@@ -135,6 +134,8 @@ public:
 
     void processTimers ();
 
+    // @cb is called whenever a new timer appears at the head of timer chain,
+    // i.e. when the nearest expiration time changes.
     mt_const void setFirstTimerAddedCallback (CbDesc<FirstTimerAddedCallback> const &cb)
     {
 	first_added_cb = cb;
