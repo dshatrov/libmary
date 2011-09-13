@@ -36,6 +36,7 @@ ActivePollGroup::Frontend ServerApp::poll_frontend = {
     pollIterationEnd
 };
 
+#ifdef LIBMARY_MT_SAFE
 ServerThreadContext*
 ServerApp::SA_ServerContext::selectThreadContext ()
 {
@@ -57,6 +58,7 @@ ServerApp::SA_ServerContext::selectThreadContext ()
 
     return thread_ctx;
 }
+#endif // LIBMARY_MT_SAFE
 
 void
 ServerApp::firstTimerAdded (void * const _active_poll_group)
@@ -120,6 +122,7 @@ ServerApp::init ()
     return Result::Success;
 }
 
+#ifdef LIBMARY_MT_SAFE
 void
 ServerApp::threadFunc (void * const _self)
 {
@@ -172,22 +175,27 @@ ServerApp::threadFunc (void * const _self)
 	    break;
     }
 }
+#endif // LIBMARY_MT_SAFE
 
 mt_throws Result
 ServerApp::run ()
 {
     poll_group.bindToThread (libMary_getThreadLocal());
 
+#ifdef LIBMARY_MT_SAFE
     if (!multi_thread->spawn (true /* joinable */)) {
 	logE_ (_func, "multi_thread->spawn() failed: ", exc->toString());
 	return Result::Failure;
     }
+#endif
 
     for (;;) {
 	if (!poll_group.poll (timers.getSleepTime_microseconds())) {
 	    logE_ (_func, "poll_group.poll() failed: ", exc->toString());
 	    stop ();
+#ifdef LIBMARY_MT_SAFE
 	    multi_thread->join ();
+#endif
 	    return Result::Failure;
 	}
 
@@ -196,7 +204,9 @@ ServerApp::run ()
     }
 
     stop ();
+#ifdef LIBMARY_MT_SAFE
     multi_thread->join ();
+#endif
 
     return Result::Success;
 }
@@ -206,6 +216,7 @@ ServerApp::stop ()
 {
     should_stop.set (1);
 
+#ifdef LIBMARY_MT_SAFE
     mutex.lock ();
 
     {
@@ -218,6 +229,7 @@ ServerApp::stop ()
     }
 
     mutex.unlock ();
+#endif
 }
 
 ServerApp::ServerApp (Object * const coderef_container,
@@ -227,8 +239,10 @@ ServerApp::ServerApp (Object * const coderef_container,
 
       timers (firstTimerAdded, &poll_group/* cb_data */, NULL /* coderef_container */),
       poll_group (coderef_container),
-      dcs_queue (coderef_container),
-      thread_selector (NULL)
+      dcs_queue (coderef_container)
+#ifdef LIBMARY_MT_SAFE
+      , thread_selector (NULL)
+#endif
 {
     dcs_queue.setDeferredProcessor (&deferred_processor);
 
