@@ -106,6 +106,8 @@ ServerApp::init ()
     if (!poll_group.open ())
 	return Result::Failure;
 
+    dcs_queue.setDeferredProcessor (&deferred_processor);
+
     server_ctx.init (&timers, &poll_group);
 
     main_thread_ctx.init (&timers,
@@ -246,8 +248,6 @@ ServerApp::ServerApp (Object * const coderef_container,
       , thread_selector (NULL)
 #endif
 {
-    dcs_queue.setDeferredProcessor (&deferred_processor);
-
 #ifdef LIBMARY_MT_SAFE
     multi_thread = grab (new MultiThread (
 	    num_threads,

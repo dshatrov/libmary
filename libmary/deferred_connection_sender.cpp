@@ -538,8 +538,10 @@ DeferredConnectionSenderQueue::setDeferredProcessor (DeferredProcessor * const d
 
 DeferredConnectionSenderQueue::~DeferredConnectionSenderQueue ()
 {
-    send_reg.revokeTask (&send_task);
-    send_reg.release ();
+    if (deferred_processor) {
+	send_reg.revokeTask (&send_task);
+	send_reg.release ();
+    }
 }
 
 }
