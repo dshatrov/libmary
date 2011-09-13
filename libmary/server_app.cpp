@@ -36,10 +36,10 @@ ActivePollGroup::Frontend ServerApp::poll_frontend = {
     pollIterationEnd
 };
 
-#ifdef LIBMARY_MT_SAFE
 ServerThreadContext*
 ServerApp::SA_ServerContext::selectThreadContext ()
 {
+#ifdef LIBMARY_MT_SAFE
     ServerThreadContext *thread_ctx;
 
   StateMutexLock l (server_app->mutex);
@@ -57,8 +57,10 @@ ServerApp::SA_ServerContext::selectThreadContext ()
     }
 
     return thread_ctx;
-}
+#else
+    return &server_app->main_thread_ctx;
 #endif // LIBMARY_MT_SAFE
+}
 
 void
 ServerApp::firstTimerAdded (void * const _active_poll_group)
