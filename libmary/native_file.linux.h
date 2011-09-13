@@ -83,6 +83,13 @@ public:
     // Resets fd so that it won't be closed in the destructor.
     void resetFd ();
 
+#ifdef LIBMARY_ENABLE_MWRITEV
+    int getFd ()
+    {
+	return fd;
+    }
+#endif
+
     // TODO Separate method mt_throws Result open().
     mt_throws NativeFile (ConstMemory const &filename,
 			  Uint32             open_flags,

@@ -25,6 +25,33 @@
 namespace M {
 
 mt_throws Result
+OutputStream::writev (struct iovec * const iovs,
+		      Count          const num_iovs,
+		      Size         * const ret_nwritten)
+{
+    if (ret_nwritten)
+	*ret_nwritten = 0;
+
+    Size total_written = 0;
+    for (Count i = 0; i < num_iovs; ++i) {
+	Size nwritten;
+	Result const res = write (ConstMemory ((Byte const *) iovs [i].iov_base, iovs [i].iov_len), &nwritten);
+	total_written += nwritten;
+	if (!res) {
+	    if (ret_nwritten)
+		*ret_nwritten = total_written;
+
+	    return res;
+	}
+    }
+
+    if (ret_nwritten)
+	*ret_nwritten = total_written;
+
+    return Result::Success;
+}
+
+mt_throws Result
 OutputStream::writeFull (ConstMemory const &mem,
 			 Size * const nwritten)
 {

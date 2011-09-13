@@ -22,6 +22,11 @@
 
 
 #include <libmary/types.h>
+
+#ifndef PLATFORM_WIN32
+#include <sys/uio.h>
+#endif
+
 #include <libmary/exception.h>
 
 
@@ -39,14 +44,18 @@ public:
     // how much data has been written successfully before the error occured.
     // This value may be less than the actual number of bytes written, though.
     virtual mt_throws Result write (ConstMemory const &mem,
-				    Size *ret_nwritten) = 0;
+				    Size              *ret_nwritten) = 0;
+
+    virtual mt_throws Result writev (struct iovec *iovs,
+				     Count         num_iovs,
+				     Size         *ret_nwritten);
 
     virtual mt_throws Result flush () = 0;
 
   // Non-virtual methods
 
     mt_throws Result writeFull (ConstMemory const &mem,
-				Size *nwritten);
+				Size              *ret_nwritten);
 
     // Array arguments are treated as "char const *" without this workaround.
     template <Size N>

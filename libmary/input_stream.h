@@ -31,7 +31,7 @@ class InputStream
 {
 public:
     virtual IoResult read (Memory const &mem,
-			   Size *nread)
+			   Size         *ret_nread)
  		mt_throw ((IoException,
 			   InternalException)) = 0;
 };

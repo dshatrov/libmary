@@ -36,7 +36,7 @@ class AsyncOutputStream
 {
 public:
     virtual mt_throws AsyncIoResult write (ConstMemory const &mem,
-					   Size *ret_nwritten) = 0;
+					   Size              *ret_nwritten) = 0;
 
     virtual mt_throws AsyncIoResult writev (struct iovec *iovs,
 					    Count         num_iovs,

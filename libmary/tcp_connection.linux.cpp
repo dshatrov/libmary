@@ -186,15 +186,12 @@ TcpConnection::setFeedback (Cb<PollGroup::Feedback> const &feedback,
 
 AsyncIoResult
 TcpConnection::read (Memory const &mem,
-		     Size * const ret_nread,
-		     bool * const ret_eof)
+		     Size * const ret_nread)
     mt_throw ((IoException,
 	       InternalException))
 {
     if (ret_nread)
 	*ret_nread = 0;
-    if (ret_eof)
-	*ret_eof = false;
 
     Size len;
     if (mem.len() > SSIZE_MAX)
@@ -221,9 +218,6 @@ TcpConnection::read (Memory const &mem,
 	return AsyncIoResult::Error;
     } else
     if (res == 0) {
-	if (ret_eof)
-	    *ret_eof = true;
-
 	return AsyncIoResult::Eof;
     }
 
@@ -307,7 +301,7 @@ TcpConnection::writev (struct iovec * const iovs,
 #else
 	int w_res;
 	if (!libMary_mwritevSingle (fd, iovs, num_iovs, &w_res)) {
-#endif
+#endif // LIBMARY_TEST_MWRITEV_SINGLE
 	    res = -1;
 	    errno = EINVAL;
 	} else {
@@ -321,7 +315,7 @@ TcpConnection::writev (struct iovec * const iovs,
     } else {
 	res = ::writev (fd, iovs, num_iovs);
     }
-#endif
+#endif // LIBMARY_TEST_MWRITEV
     if (res == -1) {
 	if (errno == EAGAIN || errno == EWOULDBLOCK) {
 	    requestOutput ();

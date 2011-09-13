@@ -30,11 +30,8 @@ namespace M {
 class AsyncInputStream
 {
 public:
-    // TODO ret_again to tell that the next call to read() will yield AsyncIoResult::Again.
-    // ret_flags may be a good match.
     virtual mt_throws AsyncIoResult read (Memory const &mem,
-					  Size *ret_nread,
-					  bool *ret_eof = NULL) = 0;
+					  Size         *ret_nread) = 0;
 };
 
 }

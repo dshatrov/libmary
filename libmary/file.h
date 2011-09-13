@@ -21,6 +21,8 @@
 #define __LIBMARY__FILE__H__
 
 
+#include <libmary/libmary_config.h>
+
 #include <libmary/types.h>
 #include <libmary/exception.h>
 #include <libmary/input_stream.h>
@@ -69,6 +71,10 @@ public:
     virtual mt_throws Result sync () = 0;
 
     virtual mt_throws Result close (bool flush_data = true) = 0;
+
+#ifdef LIBMARY_ENABLE_MWRITEV
+    virtual int getFd () = 0;
+#endif
 };
 
 }
