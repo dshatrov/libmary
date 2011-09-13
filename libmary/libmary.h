@@ -78,6 +78,7 @@
 #include <libmary/async_input_stream.h>
 #include <libmary/async_output_stream.h>
 #include <libmary/connection.h>
+#include <libmary/file_connection.h>
 #include <libmary/tcp_connection.h>
 #include <libmary/tcp_server.h>
 #include <libmary/sender.h>

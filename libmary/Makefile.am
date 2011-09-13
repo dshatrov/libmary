@@ -95,6 +95,7 @@ mary_target_headers =			\
 	async_input_stream.h		\
 	async_output_stream.h		\
 	connection.h			\
+	file_connection.h		\
 	tcp_connection.h		\
 	tcp_server.h			\
 	sender.h			\
@@ -235,6 +236,7 @@ libmary_1_0_la_SOURCES =		\
 	vfs_posix.cpp			\
 					\
 	async_output_stream.cpp		\
+	file_connection.cpp		\
 	sender.cpp			\
 	connection_sender_impl.cpp	\
 	immediate_connection_sender.cpp	\
