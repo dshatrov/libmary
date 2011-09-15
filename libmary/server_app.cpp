@@ -48,7 +48,7 @@ ServerApp::SA_ServerContext::selectThreadContext ()
 	thread_ctx = &server_app->thread_selector->data->thread_ctx;
 	server_app->thread_selector = server_app->thread_selector->next;
     } else {
-	if (!server_app->thread_data_list.isEmpty ()) {
+	if (!server_app->thread_data_list.isEmpty()) {
 	    thread_ctx = &server_app->thread_data_list.getFirst()->thread_ctx;
 	    server_app->thread_selector = server_app->thread_data_list.getFirstElement()->next;
 	} else {
@@ -76,7 +76,7 @@ ServerApp::pollIterationBegin (void * const _thread_ctx)
     ServerThreadContext * const thread_ctx = static_cast <ServerThreadContext*> (_thread_ctx);
 
     if (!updateTime ())
-	logE_ (_func, exc->toString());
+	logE_ (_func, "updateTime() failed: ", exc->toString());
 
     thread_ctx->getTimers()->processTimers ();
 }
@@ -118,6 +118,11 @@ ServerApp::init ()
     poll_group.setFrontend (CbDesc<ActivePollGroup::Frontend> (
 	    &poll_frontend, &main_thread_ctx, NULL /* coderef_container */));
 
+    timers.setFirstTimerAddedCallback (CbDesc<Timers::FirstTimerAddedCallback> (
+	    firstTimerAdded,
+	    static_cast <ActivePollGroup*> (&poll_group),
+	    NULL /* coderef_container */));
+
     deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
 	    &deferred_processor_backend,
 	    static_cast <ActivePollGroup*> (&poll_group) /* cb_data */,
@@ -151,7 +156,9 @@ ServerApp::threadFunc (void * const _self)
 	    &poll_frontend, &thread_data->thread_ctx, NULL /* coderef_container */));
 
     thread_data->timers.setFirstTimerAddedCallback (CbDesc<Timers::FirstTimerAddedCallback> (
-	    firstTimerAdded, &thread_data->poll_group, NULL /* coderef_container */));
+	    firstTimerAdded,
+	    static_cast <ActivePollGroup*> (&thread_data->poll_group),
+	    NULL /* coderef_container */));
 
     thread_data->deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
 	    &deferred_processor_backend,

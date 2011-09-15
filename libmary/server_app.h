@@ -92,7 +92,7 @@ private:
 
     AtomicInt should_stop;
 
-    static void firstTimerAdded (void *_thread_ctx);
+    static void firstTimerAdded (void *_active_poll_group);
 
     static void threadFunc (void *_self);
 
