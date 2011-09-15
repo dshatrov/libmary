@@ -120,6 +120,8 @@ mary_target_headers =			\
 	module_init.h			\
 					\
 	server_context.h		\
+	server_thread_pool.h		\
+	fixed_thread_pool.h		\
 	server_app.h
 
 mary_mtsafe_headers = 			\
@@ -252,6 +254,7 @@ libmary_1_0_la_SOURCES =		\
 					\
 	module.cpp			\
 					\
+	fixed_thread_pool.cpp		\
 	server_app.cpp
 
 mary_extra_dist = libmary_config.h.in

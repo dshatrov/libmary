@@ -116,6 +116,8 @@
 #include <libmary/util_dev.h>
 
 #include <libmary/server_context.h>
+#include <libmary/server_thread_pool.h>
+#include <libmary/fixed_thread_pool.h>
 #include <libmary/server_app.h>
 
 
