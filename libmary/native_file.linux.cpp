@@ -215,13 +215,11 @@ NativeFile::resetFd ()
     fd = -1;
 }
 
-mt_throws
-NativeFile::NativeFile (ConstMemory const &filename,
-			Uint32      const  open_flags,
-			AccessMode  const  access_mode)
+mt_throws Result
+NativeFile::open (ConstMemory const filename,
+		  Uint32      const open_flags,
+		  AccessMode  const access_mode)
 {
-    exc_none ();
-
     int flags = 0;
     switch (access_mode) {
 	case AccessMode::ReadOnly:
@@ -254,26 +252,42 @@ NativeFile::NativeFile (ConstMemory const &filename,
 	 * value, while man 3 open _does_. This means that EINTR should
 	 * be handled for all invocations of open() in MyCpp (and all
 	 * over MyNC). */
-	fd = open (filename_str,
-		   // Note that O_DIRECT affects kernel-level caching/buffering
-		   // and should not be set here.
-		   flags,
-		   S_IRUSR | S_IWUSR);
+	fd = ::open (filename_str,
+		     // Note that O_DIRECT affects kernel-level caching/buffering
+		     // and should not be set here.
+		     flags,
+		     S_IRUSR | S_IWUSR);
 	if (fd == -1) {
 	    if (errno == EINTR)
 		continue;
 
 	    exc_throw <PosixException> (errno);
 	    exc_push <IoException> ();
-	    return;
+	    return Result::Failure;
 	}
 
 	break;
     }
+
+    return Result::Success;
+}
+
+mt_throws
+NativeFile::NativeFile (ConstMemory const filename,
+			Uint32      const open_flags,
+			AccessMode  const access_mode)
+{
+    exc_none ();
+    open (filename, open_flags, access_mode);
 }
 
 NativeFile::NativeFile (int fd)
     : fd (fd)
+{
+}
+
+NativeFile::NativeFile ()
+    : fd (-1)
 {
 }
 

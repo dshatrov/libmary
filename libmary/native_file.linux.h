@@ -90,12 +90,18 @@ public:
     }
 #endif
 
+    mt_throws Result open (ConstMemory filename,
+			   Uint32      open_flags,
+			   AccessMode  access_mode);
+
     // TODO Separate method mt_throws Result open().
-    mt_throws NativeFile (ConstMemory const &filename,
-			  Uint32             open_flags,
-			  AccessMode         access_mode);
+    mt_throws NativeFile (ConstMemory filename,
+			  Uint32      open_flags,
+			  AccessMode  access_mode);
 
     NativeFile (int fd);
+
+    NativeFile ();
 
     ~NativeFile ();
 };
