@@ -89,17 +89,18 @@ DeferredConnectionSender::toGlobOutputQueue (bool const add_ref)
     in_output_queue = true;
     mutex.unlock ();
 
-    // TODO Move this to a method of dcs_queue.
-    assert (dcs_queue);
-    dcs_queue->queue_mutex.lock ();
-    dcs_queue->output_queue.append (this);
-    dcs_queue->queue_mutex.unlock ();
-
+    // It is important to ref() before adding the sender to output_queue.
     if (add_ref) {
 	Object * const coderef_container = getCoderefContainer();
 	if (coderef_container)
 	    coderef_container->ref ();
     }
+
+    // TODO Move this to a method of dcs_queue.
+    assert (dcs_queue);
+    dcs_queue->queue_mutex.lock ();
+    dcs_queue->output_queue.append (this);
+    dcs_queue->queue_mutex.unlock ();
 
     dcs_queue->deferred_processor->trigger ();
 }
