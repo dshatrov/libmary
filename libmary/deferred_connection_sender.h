@@ -45,18 +45,8 @@ class DeferredConnectionSender : public Sender,
 {
     friend class DeferredConnectionSenderQueue;
 
-public:
-    struct Backend
-    {
-	// @cb_desc should be called after poll iteration ends.
-	void (*trigger) (CbDesc<GenericCallback> const &cb_desc,
-			 void *cb_data);
-    };
-
 private:
     mt_const DeferredConnectionSenderQueue *dcs_queue;
-
-    mt_const Cb<Backend> backend;
 
   mt_mutex (mutex)
   mt_begin
@@ -89,15 +79,11 @@ public:
 
     void closeAfterFlush ();
 
-    void setBackend (CbDesc<Backend> const &cb_desc)
-    {
-	backend = cb_desc;
-    }
-
-    void setConnection (Connection * const mt_nonnull conn)
+    mt_const void setConnection (Connection * const mt_nonnull conn)
     {
 	conn_sender_impl.setConnection (conn);
-	conn->setOutputFrontend (Cb<Connection::OutputFrontend> (&conn_output_frontend, this, getCoderefContainer()));
+	conn->setOutputFrontend (Cb<Connection::OutputFrontend> (
+		&conn_output_frontend, this, getCoderefContainer()));
     }
 
     mt_const void setQueue (DeferredConnectionSenderQueue * const dcs_queue)
