@@ -316,7 +316,8 @@ public:
 	FrontendError,
 	BackendError,
 	BackendMalfunction,
-	ProtocolError
+	ProtocolError,
+	NotImplemented
     };
 
 private:
