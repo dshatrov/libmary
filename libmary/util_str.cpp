@@ -166,9 +166,49 @@ static ConstMemory strTo_stripWhitespace (ConstMemory const &mem)
     return ConstMemory (begin, len);
 }
 
+mt_throws Result strToInt32 (char const  * const cstr,
+			     Int32       * const ret_val,
+			     char const ** const ret_endptr,
+			     int           const base)
+{
+    if (!cstr || *cstr == 0) {
+	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	return Result::Failure;
+    }
+
+    char *endptr = (char*) cstr;
+    long long_val = strtol (cstr, &endptr, base);
+
+    if (ret_endptr)
+	*ret_endptr = endptr;
+
+    if (long_val == LONG_MIN ||
+	long_val == LONG_MAX)
+    {
+	// Note that MT-safe errno implies useless overhead of accessing
+	// thread-local storage.
+	if (errno == EINVAL || errno == ERANGE) {
+	    exc_throw <PosixException> (errno);
+	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    return Result::Failure;
+	}
+    }
+
+    if (long_val < Int32_Min ||
+	long_val > Int32_Max)
+    {
+	exc_throw <NumericConversionException> (NumericConversionException::Overflow);
+	return Result::Failure;
+    }
+
+    *ret_val = (Int32) long_val;
+
+    return Result::Success;
+}
+
 mt_throws Result strToInt32_safe (char const * const cstr,
-				  Int32 * const ret_val,
-				  int const base)
+				  Int32      * const ret_val,
+				  int          const base)
 {
     if (!cstr || *cstr == 0) {
 	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
@@ -207,6 +247,25 @@ mt_throws Result strToInt32_safe (char const * const cstr,
     return Result::Success;
 }
 
+mt_throws Result strToInt32 (ConstMemory    const mem_,
+			     Int32        * const ret_val,
+			     Byte        ** const ret_endptr,
+			     int            const base)
+{
+    ConstMemory const mem = strTo_stripWhitespace (mem_);
+
+    Byte tmp_str [130];
+    if (mem.len() >= sizeof (tmp_str)) {
+	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	return Result::Failure;
+    }
+
+    memcpy (tmp_str, mem.mem(), mem.len());
+    tmp_str [mem.len()] = 0;
+
+    return strToInt32 ((char const*) tmp_str, ret_val, (char const **) ret_endptr, base);
+}
+
 mt_throws Result strToInt32_safe (ConstMemory const &mem_,
 				  Int32 * const ret_val,
 				  int const base)
@@ -225,9 +284,47 @@ mt_throws Result strToInt32_safe (ConstMemory const &mem_,
     return strToInt32_safe ((char const*) tmp_str, ret_val, base);
 }
 
+mt_throws Result strToInt64 (char const  * const cstr,
+			     Int64       * const ret_val,
+			     char const ** const ret_endptr,
+			     int           const base)
+{
+    if (!cstr || *cstr == 0) {
+	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	return Result::Failure;
+    }
+
+    char *endptr = (char*) cstr;
+    long llong_val = strtoll (cstr, &endptr, base);
+
+    if (ret_endptr)
+	*ret_endptr = endptr;
+
+    if (llong_val == LLONG_MIN ||
+	llong_val == LLONG_MAX)
+    {
+	if (errno == EINVAL || errno == ERANGE) {
+	    exc_throw <PosixException> (errno);
+	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    return Result::Failure;
+	}
+    }
+
+    if (llong_val < Int64_Min ||
+	llong_val > Int64_Max)
+    {
+	exc_throw <NumericConversionException> (NumericConversionException::Overflow);
+	return Result::Failure;
+    }
+
+    *ret_val = (Int64) llong_val;
+
+    return Result::Success;
+}
+
 mt_throws Result strToInt64_safe (char const * const cstr,
-				  Int64 * const ret_val,
-				  int const base)
+				  Int64      * const ret_val,
+				  int          const base)
 {
     if (!cstr || *cstr == 0) {
 	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
@@ -264,6 +361,25 @@ mt_throws Result strToInt64_safe (char const * const cstr,
     return Result::Success;
 }
 
+mt_throws Result strToInt64 (ConstMemory    const mem_,
+			     Int64        * const ret_val,
+			     Byte        ** const ret_endptr,
+			     int            const base)
+{
+    ConstMemory const mem = strTo_stripWhitespace (mem_);
+
+    Byte tmp_str [130];
+    if (mem.len() >= sizeof (tmp_str)) {
+	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	return Result::Failure;
+    }
+
+    memcpy (tmp_str, mem.mem(), mem.len());
+    tmp_str [mem.len()] = 0;
+
+    return strToInt64 ((char const*) tmp_str, ret_val, (char const **) ret_endptr, base);
+}
+
 mt_throws Result strToInt64_safe (ConstMemory const &mem_,
 				  Int64 * const ret_val,
 				  int const base)
@@ -282,9 +398,43 @@ mt_throws Result strToInt64_safe (ConstMemory const &mem_,
     return strToInt64_safe ((char const*) tmp_str, ret_val, base);
 }
 
-mt_throws Result strToUint32_safe (char const *cstr,
-				   Uint32 * const ret_val,
-				   int const base)
+mt_throws Result strToUint32 (char const  * const cstr,
+			      Uint32      * const ret_val,
+			      char const ** const ret_endptr,
+			      int           const base)
+{
+    if (!cstr || *cstr == 0) {
+	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	return Result::Failure;
+    }
+
+    char *endptr = (char*) cstr;
+    unsigned long ulong_val = strtoul (cstr, &endptr, base);
+
+    if (ret_endptr)
+	*ret_endptr = endptr;
+
+    if (ulong_val == ULONG_MAX) {
+	if (errno == EINVAL || errno == ERANGE) {
+	    exc_throw <PosixException> (errno);
+	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    return Result::Failure;
+	}
+    }
+
+    if (ulong_val > Uint32_Max) {
+	exc_throw <NumericConversionException> (NumericConversionException::Overflow);
+	return Result::Failure;
+    }
+
+    *ret_val = (Uint32) ulong_val;
+
+    return Result::Success;
+}
+
+mt_throws Result strToUint32_safe (char const * const cstr,
+				   Uint32     * const ret_val,
+				   int          const base)
 {
     if (!cstr || *cstr == 0) {
 	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
@@ -317,6 +467,25 @@ mt_throws Result strToUint32_safe (char const *cstr,
     return Result::Success;
 }
 
+mt_throws Result strToUint32 (ConstMemory    const mem_,
+			      Uint32       * const ret_val,
+			      Byte        ** const ret_endptr,
+			      int            const base)
+{
+    ConstMemory const mem = strTo_stripWhitespace (mem_);
+
+    Byte tmp_str [130];
+    if (mem.len() >= sizeof (tmp_str)) {
+	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	return Result::Failure;
+    }
+
+    memcpy (tmp_str, mem.mem(), mem.len());
+    tmp_str [mem.len()] = 0;
+
+    return strToUint32 ((char const*) tmp_str, ret_val, (char const **) ret_endptr, base);
+}
+
 mt_throws Result strToUint32_safe (ConstMemory const &mem_,
 				   Uint32 * const ret_val,
 				   int const base)
@@ -335,9 +504,43 @@ mt_throws Result strToUint32_safe (ConstMemory const &mem_,
     return strToUint32_safe ((char const*) tmp_str, ret_val, base);
 }
 
-mt_throws Result strToUint64_safe (char const *cstr,
-				   Uint64 * const ret_val,
-				   int const base)
+mt_throws Result strToUint64 (char const  * const cstr,
+			      Uint64      * const ret_val,
+			      char const ** const ret_endptr,
+			      int           const base)
+{
+    if (!cstr || *cstr == 0) {
+	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	return Result::Failure;
+    }
+
+    char *endptr = (char*) cstr;
+    unsigned long long ullong_val = strtoull (cstr, &endptr, base);
+
+    if (ret_endptr)
+	*ret_endptr = endptr;
+
+    if (ullong_val == ULLONG_MAX) {
+	if (errno == EINVAL || errno == ERANGE) {
+	    exc_throw <PosixException> (errno);
+	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    return Result::Failure;
+	}
+    }
+
+    if (ullong_val > Uint64_Max) {
+	exc_throw <NumericConversionException> (NumericConversionException::Overflow);
+	return Result::Failure;
+    }
+
+    *ret_val = (Uint64) ullong_val;
+
+    return Result::Success;
+}
+
+mt_throws Result strToUint64_safe (char const * const cstr,
+				   Uint64     * const ret_val,
+				   int          const base)
 {
     if (!cstr || *cstr == 0) {
 	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
@@ -368,6 +571,25 @@ mt_throws Result strToUint64_safe (char const *cstr,
     *ret_val = (Uint64) ullong_val;
 
     return Result::Success;
+}
+
+mt_throws Result strToUint64_safe (ConstMemory    const mem_,
+				   Uint64       * const ret_val,
+				   Byte        ** const ret_endptr,
+				   int            const base)
+{
+    ConstMemory const mem = strTo_stripWhitespace (mem_);
+
+    Byte tmp_str [130];
+    if (mem.len() >= sizeof (tmp_str)) {
+	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	return Result::Failure;
+    }
+
+    memcpy (tmp_str, mem.mem(), mem.len());
+    tmp_str [mem.len()] = 0;
+
+    return strToUint64 ((char const*) tmp_str, ret_val, (char const **) ret_endptr, base);
 }
 
 mt_throws Result strToUint64_safe (ConstMemory const &mem_,
