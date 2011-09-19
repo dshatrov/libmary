@@ -163,13 +163,19 @@ private:
     mt_throws Result do_print_ (String * const mt_nonnull str,
 				Format const & /* fmt */)
     {
-	return writeFull (str->mem(), NULL /* nwritten */);
+	if (str)
+	    return writeFull (str->mem(), NULL /* nwritten */);
+
+	return Result::Success;
     }
 
     mt_throws Result do_print_ (Ref<String> const mt_nonnull &str,
 				Format const & /* fmt */)
     {
-	return writeFull (str->mem(), NULL /* nwritten */);
+	if (str)
+	    return writeFull (str->mem(), NULL /* nwritten */);
+
+	return Result::Success;
     }
 
     // Everything which cannot be easily treated as a byte array needs a call
