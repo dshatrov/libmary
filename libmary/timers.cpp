@@ -26,7 +26,7 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_timers ("timers", LogLevel::N);
+LogGroup libMary_logGroup_timers ("timers", LogLevel::I);
 }
 
 Timers::TimerKey
@@ -36,9 +36,15 @@ Timers::addTimer_microseconds (TimerCallback * const cb,
 			       Time            const time_microseconds,
 			       bool            const periodical)
 {
+//    logD_ (_func, "time_microseconds: ", time_microseconds);
+
     Timer * const timer = new Timer (cb, cb_data, coderef_container);
     timer->periodical = periodical;
     timer->due_time = getTimeMicroseconds() + time_microseconds;
+    if (timer->due_time < time_microseconds) {
+	logW_ (_func, "Expiration time overflow");
+	timer->due_time = (Time) -1;
+    }
 
     logD (timers, _func, "getTimeMicroseconds(): ", getTimeMicroseconds(), ", due_time: ", timer->due_time);
 
@@ -87,6 +93,10 @@ Timers::restartTimer (TimerKey const timer_key)
 
     chain->timer_list.remove (timer);
     timer->due_time = getTimeMicroseconds() + chain->interval_microseconds;
+    if (timer->due_time < chain->interval_microseconds) {
+	logW_ (_func, "Expiration time overflow");
+	timer->due_time = (Time) -1;
+    }
 
     chain->timer_list.append (timer);
 
@@ -171,6 +181,10 @@ Timers::processTimers ()
 	chain->timer_list.remove (timer);
 	if (timer->periodical) {
 	    timer->due_time += chain->interval_microseconds;
+	    if (timer->due_time < chain->interval_microseconds) {
+		logW_ (_func, "Expiration time overflow");
+		timer->due_time = (Time) -1;
+	    }
 	    chain->timer_list.append (timer);
 	} else {
 	    timer->active = false;
