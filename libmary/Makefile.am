@@ -20,8 +20,7 @@ AM_CXXFLAGS = -std=gnu++0x $(COMMON_CFLAGS)
 
 INCLUDES = -I$(top_srcdir)
 
-mary_private_headers =		\
-	libmary_thread_local.h
+mary_private_headers =
 
 mary_target_headers =			\
 	libmary_config.h		\
