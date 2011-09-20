@@ -33,7 +33,7 @@ mt_throws Result strToInt32 (char const  *cstr,
 
 mt_throws Result strToInt32 (ConstMemory   mem,
 			     Int32        *ret_val,
-			     Byte        **ret_endptr,
+			     Byte const  **ret_endptr,
 			     int           base = 0);
 
 mt_throws Result strToInt64 (char const  *cstr,
@@ -43,7 +43,7 @@ mt_throws Result strToInt64 (char const  *cstr,
 
 mt_throws Result strToInt64 (ConstMemory   mem,
 			     Int64        *ret_val,
-			     Byte        **ret_endptr,
+			     Byte const  **ret_endptr,
 			     int           base = 0);
 
 mt_throws Result strToUint32 (char const  *cstr,
@@ -53,7 +53,7 @@ mt_throws Result strToUint32 (char const  *cstr,
 
 mt_throws Result strToUint32 (ConstMemory   mem,
 			      Uint32       *ret_val,
-			      Byte        **ret_endptr,
+			      Byte const  **ret_endptr,
 			      int           base = 0);
 
 mt_throws Result strToUint64 (char const  *cstr,
@@ -63,7 +63,7 @@ mt_throws Result strToUint64 (char const  *cstr,
 
 mt_throws Result strToUint64 (ConstMemory   mem,
 			      Uint64       *ret_val,
-			      Byte        **ret_endptr,
+			      Byte const  **ret_endptr,
 			      int           base = 0);
 
 mt_throws Result strToInt32_safe (char const *cstr,

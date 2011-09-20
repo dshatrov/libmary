@@ -249,7 +249,7 @@ mt_throws Result strToInt32_safe (char const * const cstr,
 
 mt_throws Result strToInt32 (ConstMemory    const mem_,
 			     Int32        * const ret_val,
-			     Byte        ** const ret_endptr,
+			     Byte const  ** const ret_endptr,
 			     int            const base)
 {
     ConstMemory const mem = strTo_stripWhitespace (mem_);
@@ -263,7 +263,14 @@ mt_throws Result strToInt32 (ConstMemory    const mem_,
     memcpy (tmp_str, mem.mem(), mem.len());
     tmp_str [mem.len()] = 0;
 
-    return strToInt32 ((char const*) tmp_str, ret_val, (char const **) ret_endptr, base);
+    char const *endptr;
+    if (!strToInt32 ((char const*) tmp_str, ret_val, &endptr, base))
+	return Result::Failure;
+
+    if (ret_endptr)
+	*ret_endptr = mem_.mem() + ((Byte*) endptr - tmp_str);
+
+    return Result::Success;
 }
 
 mt_throws Result strToInt32_safe (ConstMemory const &mem_,
@@ -363,7 +370,7 @@ mt_throws Result strToInt64_safe (char const * const cstr,
 
 mt_throws Result strToInt64 (ConstMemory    const mem_,
 			     Int64        * const ret_val,
-			     Byte        ** const ret_endptr,
+			     Byte const  ** const ret_endptr,
 			     int            const base)
 {
     ConstMemory const mem = strTo_stripWhitespace (mem_);
@@ -377,7 +384,14 @@ mt_throws Result strToInt64 (ConstMemory    const mem_,
     memcpy (tmp_str, mem.mem(), mem.len());
     tmp_str [mem.len()] = 0;
 
-    return strToInt64 ((char const*) tmp_str, ret_val, (char const **) ret_endptr, base);
+    char const *endptr;
+    if (!strToInt64 ((char const*) tmp_str, ret_val, &endptr, base))
+	return Result::Failure;
+
+    if (ret_endptr)
+	*ret_endptr = mem_.mem() + ((Byte*) endptr - tmp_str);
+
+    return Result::Success;
 }
 
 mt_throws Result strToInt64_safe (ConstMemory const &mem_,
@@ -469,7 +483,7 @@ mt_throws Result strToUint32_safe (char const * const cstr,
 
 mt_throws Result strToUint32 (ConstMemory    const mem_,
 			      Uint32       * const ret_val,
-			      Byte        ** const ret_endptr,
+			      Byte const  ** const ret_endptr,
 			      int            const base)
 {
     ConstMemory const mem = strTo_stripWhitespace (mem_);
@@ -483,7 +497,14 @@ mt_throws Result strToUint32 (ConstMemory    const mem_,
     memcpy (tmp_str, mem.mem(), mem.len());
     tmp_str [mem.len()] = 0;
 
-    return strToUint32 ((char const*) tmp_str, ret_val, (char const **) ret_endptr, base);
+    char const *endptr;
+    if (!strToUint32 ((char const*) tmp_str, ret_val, &endptr, base))
+	return Result::Failure;
+
+    if (ret_endptr)
+	*ret_endptr = mem_.mem() + ((Byte*) endptr - tmp_str);
+
+    return Result::Success;
 }
 
 mt_throws Result strToUint32_safe (ConstMemory const &mem_,
@@ -575,7 +596,7 @@ mt_throws Result strToUint64_safe (char const * const cstr,
 
 mt_throws Result strToUint64_safe (ConstMemory    const mem_,
 				   Uint64       * const ret_val,
-				   Byte        ** const ret_endptr,
+				   Byte const  ** const ret_endptr,
 				   int            const base)
 {
     ConstMemory const mem = strTo_stripWhitespace (mem_);
@@ -589,7 +610,14 @@ mt_throws Result strToUint64_safe (ConstMemory    const mem_,
     memcpy (tmp_str, mem.mem(), mem.len());
     tmp_str [mem.len()] = 0;
 
-    return strToUint64 ((char const*) tmp_str, ret_val, (char const **) ret_endptr, base);
+    char const *endptr;
+    if (!strToUint64 ((char const*) tmp_str, ret_val, &endptr, base))
+	return Result::Failure;
+
+    if (ret_endptr)
+	*ret_endptr = mem_.mem() + ((Byte*) endptr - tmp_str);
+
+    return Result::Success;
 }
 
 mt_throws Result strToUint64_safe (ConstMemory const &mem_,
