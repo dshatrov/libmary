@@ -189,6 +189,8 @@ DeferredConnectionSender::DeferredConnectionSender (Object * const coderef_conta
 
 DeferredConnectionSender::~DeferredConnectionSender ()
 {
+//    logD_ (_func, "0x", fmt_hex, (UintPtr) this);
+
     // Doing lock/unlock to ensure that ~ConnectionSenderImpl() will see correct
     // data.
     mutex.lock();

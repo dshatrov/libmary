@@ -51,7 +51,7 @@ public:
 	return grab (new String);
     }
 
-    // TOOD toHumamString() ?
+    // TOOD toHumanString() ?
 
     Exception ()
 	: cause (NULL)

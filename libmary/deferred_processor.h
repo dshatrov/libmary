@@ -129,6 +129,7 @@ public:
     // Returns 'true' if there are more tasks to process.
     bool process ();
 
+    // Schedules processing of permanent tasks.
     void trigger ();
 
     mt_const void setBackend (CbDesc<Backend> const &backend)
