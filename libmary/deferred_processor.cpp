@@ -31,6 +31,8 @@ LogGroup libMary_logGroup_dp ("deferred_processor", LogLevel::N);
 mt_mutex (deferred_processor->mutex) void
 DeferredProcessor::Registration::rescheduleTask (Task * const mt_nonnull task)
 {
+    logD (dp, _func, "0x", fmt_hex, (UintPtr) this);
+
     if (task->scheduled ||
 	task->processing)
     {
@@ -51,6 +53,8 @@ void
 DeferredProcessor::Registration::scheduleTask (Task * const mt_nonnull task,
 					       bool   const permanent)
 {
+    logD (dp, _func, "0x", fmt_hex, (UintPtr) this);
+
     deferred_processor->mutex.lock ();
 
     if (task->scheduled ||
@@ -211,10 +215,13 @@ DeferredProcessor::process ()
 		assert (!task->permanent);
 		task->scheduled = false;
 		task->processing = true;
+		task->registration = NULL;
 	    }
-
 	    processing_task_list.stealAppend (reg->task_list.getFirst(), reg->task_list.getLast());
 	    reg->task_list.clear ();
+
+	    registration_list.remove (reg);
+	    reg->scheduled = false;
 	}
     }
 
@@ -268,6 +275,7 @@ DeferredProcessor::process ()
 	!registration_list.isEmpty())
     {
 	mutex.unlock ();
+	logD (dp, _func, "extra iteration needed");
 	return true;
     }
 
