@@ -145,5 +145,60 @@ Size timeToString (Memory const &mem,
     return (Size) res;
 }
 
+Result parseDuration (ConstMemory   const mem,
+		      Time        * const mt_nonnull ret_duration)
+{
+    Size offs = 0;
+
+    Uint32 num [3] = { 0, 0, 0 };
+
+    int i;
+    for (i = 0; i < 3; ++i) {
+	while (offs < mem.len() && mem.mem() [offs] == ' ')
+	    ++offs;
+
+	Byte const *endptr;
+	if (!strToUint32 (mem.region (offs), &num [i], &endptr, 10 /* base */))
+	    return Result::Failure;
+
+	offs = endptr - mem.mem();
+
+	while (offs < mem.len() && mem.mem() [offs] == ' ')
+	    ++offs;
+
+	if (i < 2) {
+	    if (mem.mem() [offs] != ':')
+		break;
+
+	    ++offs;
+	}
+    }
+
+    while (offs < mem.len() && mem.mem() [offs] == ' ')
+	++offs;
+
+    if (offs != mem.len())
+	return Result::Failure;
+
+    switch (i) {
+	case 0:
+	    *ret_duration = (Time) num [0];
+	    break;
+	case 1:
+	    *ret_duration = ((Time) num [0] * 60) + ((Time) num [1]);
+	    break;
+	case 2:
+	    unreachable ();
+	    break;
+	case 3:
+	    *ret_duration = ((Time) num [0] * 3600) + ((Time) num [1] * 60) + ((Time) num [2]);
+	    break;
+	default:
+	    unreachable ();
+    }
+
+    return Result::Success;
+}
+
 }
 

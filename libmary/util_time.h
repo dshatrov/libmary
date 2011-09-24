@@ -74,6 +74,9 @@ enum {
 Size timeToString (Memory const &buf,
 		   Time time);
 
+Result parseDuration (ConstMemory  mem,
+		      Time        * mt_nonnull ret_duration);
+
 }
 
 
