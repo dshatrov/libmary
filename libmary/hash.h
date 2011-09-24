@@ -45,8 +45,8 @@ public:
 class Hash_Default;
 
 template <class HashName = Hash_Default>
-class HashEntry : public IntrusiveAvlTree_Node<>,
-		  public IntrusiveListElement<>
+class HashEntry : public IntrusiveAvlTree_Node<HashName>,
+		  public IntrusiveListElement<HashName>
 {
 //    template <class T, class HashName> friend class Hash_common;
     template <class T, class KeyType, class Extractor, class Comparator, class Hasher, class HashName_> friend class Hash_anybase;
@@ -116,7 +116,7 @@ private:
     class Cell
     {
     public:
-	IntrusiveAvlTree< T, Extractor, Comparator > tree;
+	IntrusiveAvlTree< T, Extractor, Comparator, HashName > tree;
     };
 
     bool growing;
@@ -124,7 +124,7 @@ private:
     Cell *hash_table;
     Size  hash_size;
 
-    IntrusiveList<T> node_list;
+    IntrusiveList<T, HashName> node_list;
 
 public:
     bool isEmpty () const
@@ -149,6 +149,14 @@ public:
     {
 	hash_table [entry->unrolled_hash % hash_size].tree.remove (entry);
 	node_list.remove (entry);
+    }
+
+    void clear ()
+    {
+	node_list.clear ();
+
+	delete[] hash_table;
+	hash_table = new Cell [hash_size];
     }
 
     template <class C>
@@ -193,7 +201,7 @@ class Foo {};
 	friend class Hash_anybase< T, KeyType, Extractor, Comparator, Hasher, HashName >;
 
     private:
-	typename IntrusiveList<T>::iter node_iter;
+	typename IntrusiveList<T, HashName>::iter node_iter;
 
     public:
 	iter ()
@@ -210,7 +218,7 @@ class Foo {};
 	static iter fromVoidPtr (void *ptr)
 	{
 	    iter it;
-	    it.node_iter = IntrusiveList<T>::iter::fromVoidPtr (ptr);
+	    it.node_iter = IntrusiveList<T, HashName>::iter::fromVoidPtr (ptr);
 	    return it;
 	}
     };
