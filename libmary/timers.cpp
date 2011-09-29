@@ -30,15 +30,13 @@ LogGroup libMary_logGroup_timers ("timers", LogLevel::I);
 }
 
 Timers::TimerKey
-Timers::addTimer_microseconds (TimerCallback * const cb,
-			       void          * const cb_data,
-			       Object        * const coderef_container,
-			       Time            const time_microseconds,
-			       bool            const periodical)
+Timers::addTimer_microseconds (CbDesc<TimerCallback> const &cb,
+			       Time const time_microseconds,
+			       bool const periodical)
 {
 //    logD_ (_func, "time_microseconds: ", time_microseconds);
 
-    Timer * const timer = new Timer (cb, cb_data, coderef_container);
+    Timer * const timer = new Timer (cb);
     timer->periodical = periodical;
     timer->due_time = getTimeMicroseconds() + time_microseconds;
     if (timer->due_time < time_microseconds) {

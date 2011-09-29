@@ -64,10 +64,8 @@ private:
 
 	mt_mutex (Timers::mutex) bool active;
 
-	Timer (TimerCallback * const cb,
-	       void          * const cb_data,
-	       Object        * const coderef_container)
-	    : timer_cb (cb, cb_data, coderef_container),
+	Timer (CbDesc<TimerCallback> const &timer_cb)
+	    : timer_cb (timer_cb),
 	      active (true)
 	{
 	}
@@ -121,15 +119,35 @@ public:
 		       Time            const time_seconds,
 		       bool            const periodical = false)
     {
-	return addTimer_microseconds (cb, cb_data, coderef_container, time_seconds * 1000000, periodical);
+	return addTimer_microseconds (CbDesc<TimerCallback> (cb, cb_data, coderef_container),
+				      time_seconds * 1000000,
+				      periodical);
     }
 
     // Every call to addTimer_microseconds() must be matched with a call deleteTimer().
-    TimerKey addTimer_microseconds (TimerCallback *cb,
-				    void          *cb_data,
-				    Object        *coderef_container,
-				    Time           time_microseconds,
-				    bool           periodical = false);
+    TimerKey addTimer (CbDesc<TimerCallback> const &cb,
+		       Time time_seconds,
+		       bool periodical)
+    {
+	return addTimer_microseconds (cb, time_seconds * 1000000, periodical);
+    }
+
+    // Every call to addTimer() must be matched with a call deleteTimer().
+    TimerKey addTimer_microseconds (TimerCallback * const cb,
+				    void          * const cb_data,
+				    Object        * const coderef_container,
+				    Time            const time_microseconds,
+				    bool            const periodical)
+    {
+	return addTimer_microseconds (CbDesc<TimerCallback> (cb, cb_data, coderef_container),
+				      time_microseconds,
+				      periodical);
+    }
+
+    // Every call to addTimer_microseconds() must be matched with a call deleteTimer().
+    TimerKey addTimer_microseconds (CbDesc<TimerCallback> const &cb,
+				    Time time_microseconds,
+				    bool periodical);
 
     // A non-periodical timer can be restarted only if it has not yet expired.
     void restartTimer (TimerKey timer_key);
