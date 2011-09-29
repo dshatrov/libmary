@@ -88,7 +88,7 @@ static inline bool defaultLogLevelOn (unsigned const loglevel)
 }
 
 #define logLevelOn(group, loglevel)	\
-	((loglevel) >= libMary_logGroup_ ## group .getLogLevel())
+	((loglevel) >= (unsigned) libMary_logGroup_ ## group .getLogLevel())
 
 extern Mutex _libMary_log_mutex;
 
