@@ -176,9 +176,9 @@ FixedThreadPool::spawn ()
 void
 FixedThreadPool::stop ()
 {
+#ifdef LIBMARY_MT_SAFE
     should_stop.set (1);
 
-#ifdef LIBMARY_MT_SAFE
     mutex.lock ();
 
     {
