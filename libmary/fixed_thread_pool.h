@@ -106,6 +106,8 @@ public:
     {
 #ifdef LIBMARY_MT_SAFE
 	multi_thread->setNumThreads (num_threads);
+#else
+	(void) num_threads;
 #endif
     }
 
