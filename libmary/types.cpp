@@ -24,7 +24,7 @@ namespace M {
 
 Size
 AsyncIoResult::toString_ (Memory const &mem,
-			  Format const &fmt)
+			  Format const & /* fmt */)
 {
     switch (value) {
 	case Normal:
