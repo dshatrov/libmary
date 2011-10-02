@@ -17,39 +17,3 @@
 */
 
 
-#ifndef __LIBMARY__DEPENDENT_CODE_REFERENCED__H__
-#define __LIBMARY__DEPENDENT_CODE_REFERENCED__H__
-
-
-#include <libmary/code_referenced.h>
-
-
-namespace M {
-
-class DependentCodeReferenced : public CodeReferenced
-{
-private:
-    CodeReferenced * const container;
-
-public:
-    void codeRef ()
-    {
-	container->codeRef ();
-    }
-
-    void codeUnref ()
-    {
-	container->codeUnref ();
-    }
-
-    DependentCodeReferenced (CodeReferenced * const container)
-	: container (container)
-    {
-    }
-};
-
-}
-
-
-#endif /* __LIBMARY__DEPENDENT_CODE_REFERENCED__H__ */
-

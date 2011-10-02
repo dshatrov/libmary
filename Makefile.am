@@ -8,5 +8,6 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libmary-1.0.pc
 
 clean-local:
-	make -C tests clean
+# Tests are not in dist yet.
+#	make -C tests clean
 
