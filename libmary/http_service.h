@@ -86,6 +86,8 @@ private:
 			   public IntrusiveListElement<>
     {
     public:
+	bool valid;
+
 	WeakCodeRef weak_http_service;
 	HttpService *unsafe_http_service;
 
@@ -124,7 +126,8 @@ private:
 
     StateMutex mutex;
 
-    mt_mutex (mutex) void releaseHttpConnection (HttpConnection * mt_nonnull _http_conn);
+    mt_mutex (mutex) void releaseHttpConnection (HttpConnection * mt_nonnull http_conn);
+    mt_mutex (mutex) void destroyHttpConnection (HttpConnection * mt_nonnull http_conn);
 
     static void connKeepaliveTimerExpired (void *_http_conn);
 

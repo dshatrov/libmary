@@ -41,7 +41,8 @@ HttpService::tcp_server_frontend = {
 };
 
 HttpService::HttpConnection::HttpConnection ()
-    : tcp_conn      (this),
+    : valid (true),
+      tcp_conn      (this),
       conn_sender   (this),
       conn_receiver (this),
       http_server   (this)
@@ -64,6 +65,23 @@ HttpService::releaseHttpConnection (HttpConnection * const mt_nonnull http_conn)
 }
 
 void
+HttpService::destroyHttpConnection (HttpConnection * const mt_nonnull http_conn)
+{
+    mutex.lock ();
+    if (!http_conn->valid) {
+	mutex.unlock ();
+	return;
+    }
+    http_conn->valid = false;
+
+    releaseHttpConnection (http_conn);
+    conn_list.remove (http_conn);
+    mutex.unlock ();
+
+    http_conn->unref ();
+}
+
+void
 HttpService::connKeepaliveTimerExpired (void * const _http_conn)
 {
     HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
@@ -81,12 +99,7 @@ HttpService::connKeepaliveTimerExpired (void * const _http_conn)
   // TODO FIXME Should httpMessageBody() callback be called here to report
   // an error to the client? See httpClosed() for reference.
 
-    self->mutex.lock ();
-    self->releaseHttpConnection (http_conn);
-    self->conn_list.remove (http_conn);
-    self->mutex.unlock ();
-
-    http_conn->unref ();
+    self->destroyHttpConnection (http_conn);
 }
 
 void
@@ -222,13 +235,14 @@ HttpService::httpClosed (Exception * const exc_,
 
     logD (http_service, _func, "http_conn 0x", fmt_hex, (UintPtr) http_conn, ", refcount: ", fmt_def, http_conn->getRefCount(), ", cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
 
-  // TODO Release http_conn and unref it.
+    if (http_conn->cur_handler) {
+	Size accepted = 0;
+	http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody,
+		/* ( */ (HttpRequest*) NULL, &http_conn->conn_sender, Memory(), &accepted, http_conn->cur_msg_data /* ) */);
+	http_conn->cur_handler = NULL;
+	logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
+    }
 
-    if (!http_conn->cur_handler)
-	return;
-
-#if 0
-// Unnecessary
     CodeRef http_service_ref;
     if (http_conn->weak_http_service.isValid()) {
 	http_service_ref = http_conn->weak_http_service;
@@ -236,13 +250,8 @@ HttpService::httpClosed (Exception * const exc_,
 	    return;
     }
     HttpService * const self = http_conn->unsafe_http_service;
-#endif
 
-    Size accepted = 0;
-    http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody,
-	    /* ( */ (HttpRequest*) NULL, &http_conn->conn_sender, Memory(), &accepted, http_conn->cur_msg_data /* ) */);
-    http_conn->cur_handler = NULL;
-    logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
+    self->destroyHttpConnection (http_conn);
 }
 
 bool
