@@ -59,6 +59,10 @@ public:
     operator Value () const { return value; }
     LogLevel (Value const value) : value (value) {}
     LogLevel () {}
+
+    static Result fromString (ConstMemory  str,
+			      LogLevel    * mt_nonnull ret_loglevel);
+
 private:
     Value value;
 };
@@ -76,6 +80,11 @@ public:
 };
 
 extern LogGroup libMary_logGroup_default;
+
+static inline LogGroup* getDefaultLogGroup ()
+{
+    return &libMary_logGroup_default;
+}
 
 static inline unsigned getDefaultLogLevel ()
 {

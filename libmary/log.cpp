@@ -35,6 +35,44 @@ LogGroup libMary_logGroup_default ("default", LogLevel::All);
 
 Mutex _libMary_log_mutex;
 
+Result
+LogLevel::fromString (ConstMemory   const str,
+		      LogLevel    * const mt_nonnull ret_loglevel)
+{
+    LogLevel loglevel = LogLevel::Info;
+
+    if (equal (str, "A") || equal (str, "All")) {
+	loglevel = LogLevel::All;
+    } else
+    if (equal (str, "D") || equal (str, "Debug")) {
+	loglevel = LogLevel::Debug;
+    } else
+    if (equal (str, "I") || equal (str, "Info")) {
+	loglevel = LogLevel::Info;
+    } else
+    if (equal (str, "W") || equal (str, "Warning")) {
+	loglevel = LogLevel::Warning;
+    } else
+    if (equal (str, "E") || equal (str, "Error")) {
+	loglevel = LogLevel::Error;
+    } else
+    if (equal (str, "H") || equal (str, "High")) {
+	loglevel = LogLevel::High;
+    } else
+    if (equal (str, "F") || equal (str, "Failure")) {
+	loglevel = LogLevel::Failure;
+    } else
+    if (equal (str, "N") || equal (str, "None")) {
+	loglevel = LogLevel::None;
+    } else {
+	*ret_loglevel = LogLevel::Info;
+	return Result::Failure;
+    }
+
+    *ret_loglevel = loglevel;
+    return Result::Success;
+}
+
 LogGroup::LogGroup (ConstMemory const &group_name,
 		    unsigned    const loglevel)
     : loglevel (loglevel)
