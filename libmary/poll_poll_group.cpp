@@ -341,6 +341,18 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 	    mutex.unlock ();
 	}
 
+	bool trigger_break = false;
+	if (trigger_pipe_ready) {
+	    if (!commonTriggerPipeRead (trigger_pipe [0]))
+		goto _poll_interrupted;
+
+	    mutex.lock ();
+	    triggered = false;
+	    mutex.unlock ();
+
+	    trigger_break = true;
+	}
+
 	if (frontend) {
 	    bool extra_iteration_needed = false;
 	    frontend.call_ret (&extra_iteration_needed, frontend->pollIterationEnd);
@@ -351,16 +363,8 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 	if (deferred_processor.process ())
 	    got_deferred_tasks = true;
 
-	if (trigger_pipe_ready) {
-	    if (!commonTriggerPipeRead (trigger_pipe [0]))
-		goto _poll_interrupted;
-
-	    mutex.lock ();
-	    triggered = false;
-	    mutex.unlock ();
-
+	if (trigger_break)
 	    break;
-	}
 
 	// TODO This is the reason for double poll() on timeouts.
 	//      Fix this in all kinds of poll groups.

@@ -395,6 +395,18 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	    mutex.unlock ();
 	} // if (nfds > 0)
 
+	bool trigger_break = false;
+	if (FD_ISSET (trigger_pipe [0], &rfds)) {
+	    if (!commonTriggerPipeRead (trigger_pipe [0]))
+		goto _select_interrupted;
+
+	    mutex.lock ();
+	    triggered = false;
+	    mutex.unlock ();
+
+	    trigger_break = true;
+	}
+
 	if (frontend) {
 	    bool extra_iteration_needed = false;
 	    frontend.call_ret (&extra_iteration_needed, frontend->pollIterationEnd);
@@ -405,16 +417,8 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	if (deferred_processor.process ())
 	    got_deferred_tasks = true;
 
-	if (FD_ISSET (trigger_pipe [0], &rfds)) {
-	    if (!commonTriggerPipeRead (trigger_pipe [0]))
-		goto _select_interrupted;
-
-	    mutex.lock ();
-	    triggered = false;
-	    mutex.unlock ();
-
+	if (trigger_break)
 	    break;
-	}
 
 	if (elapsed_microsec >= timeout_microsec) {
 	  // Timeout expired.

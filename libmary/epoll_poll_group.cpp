@@ -269,6 +269,29 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	processPollableDeletionQueue ();
 	mutex.unlock ();
 
+	bool trigger_break = false;
+	{
+	  // Dealing with trigger() logics.
+	  // It is important to allow re-triggering the PollGroup before calling
+	  // frontend->pollIterationEnd(), so that no trigger requests get lost.
+
+	    if (trigger_pipe_ready) {
+		if (!commonTriggerPipeRead (trigger_pipe [0]))
+		    return Result::Failure;
+	    }
+
+	    mutex.lock ();
+	    // TODO We can keep 'block_trigger_pipe' set till the next call to epoll_wait().
+	    block_trigger_pipe = false;
+	    if (triggered) {
+		triggered = false;
+		mutex.unlock ();
+		trigger_break = true;
+	    } else {
+		mutex.unlock ();
+	    }
+	}
+
 	if (frontend) {
 	    bool extra_iteration_needed = false;
 	    frontend.call_ret (&extra_iteration_needed, frontend->pollIterationEnd);
@@ -279,20 +302,8 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	if (deferred_processor.process ())
 	    got_deferred_tasks = true;
 
-	if (trigger_pipe_ready) {
-	    if (!commonTriggerPipeRead (trigger_pipe [0]))
-		return Result::Failure;
-	}
-
-	mutex.lock ();
-	block_trigger_pipe = false;
-	if (triggered) {
-	    triggered = false;
-	    mutex.unlock ();
+	if (trigger_break)
 	    break;
-	} else {
-	    mutex.unlock ();
-	}
 
 	if (elapsed_microsec >= timeout_microsec) {
 	  // Timeout expired.
