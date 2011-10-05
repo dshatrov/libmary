@@ -80,6 +80,12 @@ public:
 };
 
 extern LogGroup libMary_logGroup_default;
+extern LogLevel libMary_globalLogLevel;
+
+static inline void setGlobalLogLevel (LogLevel const loglevel)
+{
+    libMary_globalLogLevel = loglevel;
+}
 
 static inline LogGroup* getDefaultLogGroup ()
 {
@@ -96,8 +102,9 @@ static inline bool defaultLogLevelOn (unsigned const loglevel)
     return loglevel >= getDefaultLogLevel();
 }
 
-#define logLevelOn(group, loglevel)	\
-	((loglevel) >= (unsigned) libMary_logGroup_ ## group .getLogLevel())
+#define logLevelOn(group, loglevel)				\
+	((loglevel) >= (unsigned) libMary_globalLogLevel &&	\
+	 (loglevel) >= (unsigned) libMary_logGroup_ ## group .getLogLevel())
 
 extern Mutex _libMary_log_mutex;
 
@@ -169,7 +176,9 @@ extern char const _libMary_loglevel_str_N [5];
 // TODO Inlining this huge switch() statement for every invocation of log() is insane.
 #define _libMary_log_macro(log_func, group, loglevel, ...)			\
 	do {									\
-	    if (mt_unlikely ((loglevel) >= libMary_logGroup_ ## group .getLogLevel())) {	\
+	    if (mt_unlikely ((loglevel) >= libMary_logGroup_ ## group .getLogLevel() &&	\
+			     (loglevel) >= libMary_globalLogLevel))		\
+	    {									\
 		exc_block ();							\
 		switch (loglevel) {						\
 		    case LogLevel::All:						\
@@ -205,7 +214,9 @@ extern char const _libMary_loglevel_str_N [5];
 #if 0
 #define _libMary_log_macro(log_func, group, loglevel, ...)			\
 	do {									\
-	    if ((loglevel) >= libMary_logGroup_ ## group .getLogLevel()) {	\
+	    if ((loglevel) >= libMary_logGroup_ ## group .getLogLevel() &&	\
+		(loglevel) >= libMary_globalLogLevel))				\
+	    {									\
 		exc_block ();							\
 		char const (*loglevel_str) [4];					\
 		switch (loglevel) {						\
@@ -244,7 +255,9 @@ extern char const _libMary_loglevel_str_N [5];
 
 #define _libMary_log_macro_s(log_func, group, loglevel, loglevel_str, ...)	\
 	do {									\
-	    if (mt_unlikely ((loglevel) >= libMary_logGroup_ ## group .getLogLevel())) {	\
+	    if (mt_unlikely ((loglevel) >= libMary_logGroup_ ## group .getLogLevel() &&	\
+		(loglevel) >= libMary_globalLogLevel))				\
+	    {									\
 		exc_block ();							\
 		log_func<loglevel_str> (__VA_ARGS__);				\
 		exc_unblock ();							\

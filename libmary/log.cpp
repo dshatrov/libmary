@@ -32,6 +32,7 @@ char const _libMary_loglevel_str_F [5] = " F ";
 char const _libMary_loglevel_str_N [5] = " N ";
 
 LogGroup libMary_logGroup_default ("default", LogLevel::All);
+LogLevel libMary_globalLogLevel (LogLevel::All);
 
 Mutex _libMary_log_mutex;
 
