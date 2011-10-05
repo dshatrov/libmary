@@ -34,7 +34,7 @@ namespace {
 LogGroup libMary_logGroup_epoll ("epoll", LogLevel::D);
 }
 
-void
+mt_mutex (mutex) void
 EpollPollGroup::processPollableDeletionQueue ()
 {
     PollableDeletionQueue::iter iter (pollable_deletion_queue);
@@ -138,6 +138,8 @@ EpollPollGroup::removePollable (PollableKey const mt_nonnull key)
 {
     PollableEntry * const pollable_entry = static_cast <PollableEntry*> (key);
 
+    logD_ (_func, "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry);
+
     {
 	int const res = epoll_ctl (efd, EPOLL_CTL_DEL, pollable_entry->fd, NULL /* event */);
 	if (res == -1) {
@@ -203,15 +205,6 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	    return Result::Failure;
 	}
 
-#if 0
-// Deprecated.
-	if (nfds == 0) {
-	  // Timeout expired.
-	    got_deferred_tasks = deferred_processor.process ();
-	    break;
-	}
-#endif
-
 	got_deferred_tasks = false;
 
 	if (frontend)
@@ -219,10 +212,12 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 
 	bool trigger_pipe_ready = false;
 
+	mutex.lock ();
+	block_trigger_pipe = true;
+
 	if (nfds > 0) {
-	    mutex.lock ();
-	    bool const saved_triggered = triggered;
-	    triggered = true;
+	    // We keep the mutex locked to ensure that we see valid contents
+	    // of PollableEntry objects.
 	    for (int i = 0; i < nfds; ++i) {
 		PollableEntry * const pollable_entry = static_cast <PollableEntry*> (events [i].data.ptr);
 		uint32_t const epoll_event_flags = events [i].events;
@@ -246,6 +241,7 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 		    continue;
 		}
 
+		// This check is not really necessary, but we have 'mutex' locked anyway.
 		if (pollable_entry->valid) {
 		    if (epoll_event_flags & EPOLLIN)
 			event_flags |= PollGroup::Input;
@@ -263,18 +259,15 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 			event_flags |= PollGroup::Error;
 
 		    if (event_flags) {
-			mutex.unlock ();
-			pollable_entry->pollable.call (pollable_entry->pollable->processEvents, /* ( */ event_flags /* ) */);
-			mutex.lock ();
+			pollable_entry->pollable.call_mutex (
+				pollable_entry->pollable->processEvents, mutex, /* ( */ event_flags /* ) */);
 		    }
 		}
 	    } // for (;;) - for all fds.
-
-	    processPollableDeletionQueue ();
-
-	    triggered = saved_triggered;
-	    mutex.unlock ();
 	} // if (nfds > 0)
+
+	processPollableDeletionQueue ();
+	mutex.unlock ();
 
 	if (frontend) {
 	    bool extra_iteration_needed = false;
@@ -289,19 +282,23 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	if (trigger_pipe_ready) {
 	    if (!commonTriggerPipeRead (trigger_pipe [0]))
 		return Result::Failure;
+	}
 
-	    mutex.lock ();
+	mutex.lock ();
+	block_trigger_pipe = false;
+	if (triggered) {
 	    triggered = false;
 	    mutex.unlock ();
-
 	    break;
+	} else {
+	    mutex.unlock ();
 	}
 
 	if (elapsed_microsec >= timeout_microsec) {
 	  // Timeout expired.
 	    break;
 	}
-    }
+    } // for (;;)
 
     return Result::Success;
 }
@@ -313,11 +310,11 @@ EpollPollGroup::trigger ()
 	return Result::Success;
 
     mutex.lock ();
-    if (triggered) {
+    triggered = true;
+    if (block_trigger_pipe) {
 	mutex.unlock ();
 	return Result::Success;
     }
-    triggered = true;
     mutex.unlock ();
 
     return triggerPipeWrite ();
@@ -374,6 +371,7 @@ EpollPollGroup::EpollPollGroup (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
       efd (-1),
       triggered (false),
+      block_trigger_pipe (false),
       // Initializing to 'true' to process deferred tasks scheduled before we
       // enter poll() the first time.
       got_deferred_tasks (true),

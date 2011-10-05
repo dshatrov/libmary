@@ -57,6 +57,7 @@ private:
 
     mt_const int trigger_pipe [2];
     mt_mutex (mutex) bool triggered;
+    mt_mutex (mutex) bool block_trigger_pipe;
 
     // Should be accessed from event processing thread only.
     bool got_deferred_tasks;
@@ -72,7 +73,7 @@ private:
 
     mt_throws Result doActivate (PollableEntry * mt_nonnull pollable_entry);
 
-    void processPollableDeletionQueue ();
+    mt_mutex (mutex) void processPollableDeletionQueue ();
 
     mt_throws Result triggerPipeWrite ();
 
