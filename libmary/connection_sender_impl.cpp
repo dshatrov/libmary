@@ -40,6 +40,8 @@ ConnectionSenderImpl::setSendState (Sender::SendState const new_state)
     if (new_state == send_state)
 	return;
 
+    logD_ (_func, "Send state: ", (unsigned) new_state);
+
     send_state = new_state;
     if (frontend
 	&& (*frontend)
@@ -600,11 +602,14 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 		}
 	    } else {
 		assert (gotDataToSend());
+#if 0
+// Unnecessary
 		if (enable_processing_barrier
 		    && msg_entry == processing_barrier)
 		{
 		    processing_barrier_hit = true;
 		}
+#endif
 
 		break;
 	    }
@@ -911,11 +916,14 @@ ConnectionSenderImpl::sendPendingMessages_vector_react (Size num_written)
 	    }
 	} else {
 	    assert (gotDataToSend());
+#if 0
+// Unnecessary
 	    if (mt_unlikely (enable_processing_barrier
 			     && msg_entry == processing_barrier))
 	    {
 		processing_barrier_hit = true;
 	    }
+#endif
 
 	    break;
 	}

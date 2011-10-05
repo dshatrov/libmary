@@ -61,15 +61,15 @@ private:
 
     StateMutex mutex;
 
-    mt_mutex (mutex) mt_unlocks (mutex) void toGlobOutputQueue (bool add_ref);
+    mt_unlocks (mutex) void toGlobOutputQueue (bool add_ref);
 
-    mt_mutex (mutex) mt_unlocks (mutex) void closeIfNeeded ();
+    mt_unlocks (mutex) void closeIfNeeded ();
 
     static Connection::OutputFrontend const conn_output_frontend;
 
     static void processOutput (void *_self);
 
-    mt_mutex (mutex) mt_unlocks (mutex) void doFlush ();
+    mt_unlocks (mutex) void doFlush ();
 
 public:
     void sendMessage (MessageEntry * mt_nonnull msg_entry,

@@ -78,7 +78,7 @@ Connection::OutputFrontend const DeferredConnectionSender::conn_output_frontend 
     processOutput
 };
 
-mt_mutex (mutex) mt_unlocks (mutex) void
+mt_unlocks (mutex) void
 DeferredConnectionSender::toGlobOutputQueue (bool const add_ref)
 {
     if (in_output_queue) {
@@ -105,7 +105,7 @@ DeferredConnectionSender::toGlobOutputQueue (bool const add_ref)
     dcs_queue->deferred_processor->trigger ();
 }
 
-mt_mutex (mutex) mt_unlocks (mutex) void
+mt_unlocks (mutex) void
 DeferredConnectionSender::closeIfNeeded ()
 {
     if (close_after_flush &&
@@ -148,7 +148,7 @@ DeferredConnectionSender::sendMessage (MessageEntry * const mt_nonnull msg_entry
     mutex.unlock ();
 }
 
-mt_mutex (mutex) mt_unlocks (mutex) void
+mt_unlocks (mutex) void
 DeferredConnectionSender::doFlush ()
 {
     if (ready_for_output
@@ -247,6 +247,8 @@ DeferredConnectionSenderQueue::process (void *_self)
 	assert (deferred_sender->in_output_queue);
 	deferred_sender->in_output_queue = false;
 
+	// TODO markProcessingBarrier() is useless now, since we check
+	// if the barrier has been hit without unlocking the mutex.
 	deferred_sender->conn_sender_impl.markProcessingBarrier ();
 
 	AsyncIoResult const res = deferred_sender->conn_sender_impl.sendPendingMessages ();
@@ -293,6 +295,9 @@ DeferredConnectionSenderQueue::process (void *_self)
 	    if (coderef_container)
 		coderef_container->unref ();
 	} else {
+	    // TEST
+	    assert (0);
+
 	    mt_unlocks (deferred_sender->mutex) deferred_sender->toGlobOutputQueue (false /* add_ref */);
 	    extra_iteration_needed = true;
 	}
