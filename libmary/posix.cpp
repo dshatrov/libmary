@@ -55,7 +55,10 @@ void libMary_posixInit ()
     tzset ();
 
     outs = new NativeFile (STDOUT_FILENO);
+    assert (outs);
+
     errs = new NativeFile (STDERR_FILENO);
+    assert (errs);
 
 #if 0
     static BufferedOutputStream logs_buffered (errs, 4096);
@@ -64,6 +67,7 @@ void libMary_posixInit ()
     // Allocating on heap to avoid problems with deinitialization order
     // of static data.
     logs = new BufferedOutputStream (errs, 4096);
+    assert (logs);
 
     if (!updateTime ())
 	logE_ (_func, exc->toString());
