@@ -224,6 +224,8 @@ TcpConnection::read (Memory const &mem,
     if (ret_nread)
 	*ret_nread = (Size) res;
 
+//#if 0
+// TEST (uncomment)
     if ((Size) res < len) {
 	if (hup_received) {
 	    return AsyncIoResult::Normal_Eof;
@@ -232,6 +234,7 @@ TcpConnection::read (Memory const &mem,
 	    return AsyncIoResult::Normal_Again;
 	}
     }
+//#endif
 
     return AsyncIoResult::Normal;
 }
