@@ -94,7 +94,7 @@ public:
 			   Uint32      open_flags,
 			   AccessMode  access_mode);
 
-    // TODO Separate method mt_throws Result open().
+    // Deprecated in favor of open().
     mt_throws NativeFile (ConstMemory filename,
 			  Uint32      open_flags,
 			  AccessMode  access_mode);

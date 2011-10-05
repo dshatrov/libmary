@@ -242,6 +242,9 @@ NativeFile::open (ConstMemory const filename,
     if (open_flags & OpenFlags::Truncate)
 	flags |= O_TRUNC;
 
+    if (open_flags & OpenFlags::Append)
+	flags |= O_APPEND;
+
     // TODO Variable length arrays are no good for ISO C++.
     char filename_str [filename.len() + 1];
     memcpy (filename_str, filename.mem(), filename.len());

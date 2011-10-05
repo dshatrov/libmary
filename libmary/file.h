@@ -54,7 +54,8 @@ public:
     public:
 	enum Value {
 	    Create   = 0x1,
-	    Truncate = 0x2
+	    Truncate = 0x2,
+	    Append   = 0x4
 	};
 	operator Uint32 () const { return value; }
 	OpenFlags (Value value) : value (value) {}
