@@ -30,8 +30,8 @@ Legend:
     [M] Command line parsing
     [*] String to number conversion
     [ ] Unicode, UTF-8
-[*] Basic containers
-    [ ] List                   // For cases when Intrusive* can't be used.
+[v] Basic containers
+    [v] List                   // For cases when Intrusive* can't be used.
     [v] IntrusiveList          // The most common choice.
     [v] IntrusiveCircularList  // Lightweight list head.
     [M] AvlTree
@@ -41,7 +41,7 @@ Legend:
     [M] Hash
     [M] VStack
     [M] VSlab
-    [*] Iterators (LibMary style + MyCpp)
+    [v] Iterators (LibMary style + MyCpp)
 [*] Multithreading
     [*] Thread-local data
     [v] Atomic operations
@@ -60,7 +60,7 @@ Legend:
 	[v] select backend
 	[v] poll packend
 	[ ] Win32 backend
-	[ ] Threaded pollers
+	[*] Threaded pollers
     [v] Logging
 [v] Networking
     [v] TcpServer
