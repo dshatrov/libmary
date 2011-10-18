@@ -105,6 +105,7 @@ public:
     void remove (EntryKey const key)
     {
 	hash.remove (key.entry);
+	delete key.entry;
     }
 
     template <class C>
