@@ -102,7 +102,7 @@ MultiThread::join ()
 {
     mutex.lock ();
 
-    assert (num_active_threads == num_threads);
+    assert (num_active_threads <= num_threads);
     for (Count i = 0; i < num_threads; ++i) {
 	Ref<Thread> const thread = thread_list.getFirst();
 	thread_list.remove (thread_list.getFirstElement());
