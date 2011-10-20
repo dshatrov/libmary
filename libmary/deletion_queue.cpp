@@ -126,8 +126,9 @@ deletionQueue_process ()
 	else
 	    last->atomic_shadow.set_nonatomic (static_cast <void*> (next_obj));
 
-	// TODO Why nullify? Explain. I guess this is just for convenience when
-	// debugging etc.
+	// We used obj->atomic_shadow as a linked list pointer, but Object
+	// expects to be a Shadow pointer. Nullifying 'atomic_shadow' to avoid
+	// confusion.
 	obj->atomic_shadow.set_nonatomic (NULL);
 
 	DEBUG (

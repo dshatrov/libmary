@@ -89,7 +89,7 @@ public:
     WeakRef& operator = (T * const obj)
     {
 	if (obj)
-	    shadow = obj->getShadow ();
+	    shadow = obj->getShadow();
 	else
 	    shadow = NULL;
 
@@ -99,9 +99,10 @@ public:
     }
 
     WeakRef (T * const obj)
-	: shadow (obj ? obj->getShadow () : NULL),
-	  typed_weak_ptr (obj)
+	: typed_weak_ptr (obj)
     {
+	if (obj)
+	    shadow = obj->getShadow();
     }
 
     WeakRef ()

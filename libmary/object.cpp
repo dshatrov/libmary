@@ -107,15 +107,13 @@ Object::last_unref ()
 	}
     }
 
-#if 0
-// Shadow is unrefed in ~Object().
-// This is necessary to prevent statically allocated Objects from leaking
-// their Shadows.
-
+    // Releasing 'shadow' early so that 'atomic_shadow' field can be used
+    // for other purposes (as deletion queue linked list pointer).
     shadow->unref ();
-// There's no real need in clearing the 'shadow' field.
-//    atomic_shadow.set (NULL);
-#endif
+    // Shadow is also unrefed in ~Object().
+    // This is necessary to prevent statically allocated Objects from leaking
+    // their Shadows. Nullifying 'atomic_shadow' to avoid duplicate unref().
+    atomic_shadow.set (NULL);
 
     do_delete ();
 }
