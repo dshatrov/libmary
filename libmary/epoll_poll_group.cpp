@@ -160,7 +160,7 @@ EpollPollGroup::removePollable (PollableKey const mt_nonnull key)
 mt_throws Result
 EpollPollGroup::poll (Uint64 const timeout_microsec)
 {
-//    logD_ (_func, "timeout: ", timeout_microsec);
+    logD (epoll, _func, "timeout: ", timeout_microsec);
 
     Time const start_microsec = getTimeMicroseconds ();
 
@@ -302,8 +302,10 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	if (deferred_processor.process ())
 	    got_deferred_tasks = true;
 
-	if (trigger_break)
+	if (trigger_break) {
+	    logD (epoll, _func, "trigger_break");
 	    break;
+	}
 
 	if (elapsed_microsec >= timeout_microsec) {
 	  // Timeout expired.
@@ -317,8 +319,12 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 mt_throws Result
 EpollPollGroup::trigger ()
 {
-    if (poll_tlocal && poll_tlocal == libMary_getThreadLocal())
+    if (poll_tlocal && poll_tlocal == libMary_getThreadLocal()) {
+	mutex.lock ();
+	triggered = true;
+	mutex.unlock ();
 	return Result::Success;
+    }
 
     mutex.lock ();
     triggered = true;
