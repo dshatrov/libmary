@@ -34,8 +34,9 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_mwritev ("deferred_sender_mwritev", LogLevel::N);
-LogGroup libMary_logGroup_sender ("deferred_sender", LogLevel::N);
+LogGroup libMary_logGroup_mwritev ("deferred_sender_mwritev", LogLevel::I);
+LogGroup libMary_logGroup_sender ("deferred_sender", LogLevel::I);
+LogGroup libMary_logGroup_close ("deferred_sender_close", LogLevel::I);
 }
 
 #ifdef LIBMARY_ENABLE_MWRITEV
@@ -108,11 +109,16 @@ DeferredConnectionSender::toGlobOutputQueue (bool const add_ref)
 mt_unlocks (mutex) void
 DeferredConnectionSender::closeIfNeeded ()
 {
+    logD (close, fmt_hex, (UintPtr) this, fmt_def, " ", _func,
+	  "close_after_flush: ", close_after_flush, ", "
+	  "gotDataToSend: ", conn_sender_impl.gotDataToSend());
+
     if (close_after_flush &&
-	!conn_sender_impl.gotDataToSend ())
+	!conn_sender_impl.gotDataToSend())
     {
 	mutex.unlock ();
 
+	logD (close, _func, "calling frontend->closed");
 	if (frontend && frontend->closed)
 	    frontend.call (frontend->closed, /*(*/ (Exception*) NULL /* exc_ */);
     } else {
@@ -172,6 +178,7 @@ void
 DeferredConnectionSender::closeAfterFlush ()
 {
     mutex.lock ();
+    logD (close, _func, "in_output_queue: ", in_output_queue);
     close_after_flush = true;
     mt_unlocks (mutex) closeIfNeeded ();
 }
@@ -238,6 +245,7 @@ DeferredConnectionSenderQueue::process (void *_self)
     ProcessingQueue::iter iter (processing_queue);
     while (!processing_queue.iter_done (iter)) {
 	DeferredConnectionSender * const deferred_sender = processing_queue.iter_next (iter);
+	logD (sender, _func, "deferred_sender: 0x", fmt_hex, (UintPtr) deferred_sender);
 
 	// The only place where 'deferred_sender' may be removed from the queue
 	// is its destructor, which won't be called because 'deferred_sender' is
@@ -255,6 +263,8 @@ DeferredConnectionSenderQueue::process (void *_self)
 	if (res == AsyncIoResult::Error ||
 	    res == AsyncIoResult::Eof)
 	{
+	    logD (sender, _func, "res: ", res);
+
 	    deferred_sender->ready_for_output = false;
 
 	    // exc is NULL for Eof.
