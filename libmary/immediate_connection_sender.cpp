@@ -32,6 +32,9 @@ Connection::OutputFrontend const ImmediateConnectionSender::conn_output_frontend
 mt_mutex (mutex) mt_unlocks (mutex) void
 ImmediateConnectionSender::closeIfNeeded ()
 {
+//    logD_ (_func, "close_after_flush: ", close_after_flush, ", "
+//	   "gotDataToSend(): ", conn_sender_impl.gotDataToSend());
+
     if (close_after_flush &&
 	!conn_sender_impl.gotDataToSend ())
     {
@@ -46,6 +49,8 @@ ImmediateConnectionSender::closeIfNeeded ()
 void
 ImmediateConnectionSender::processOutput (void * const _self)
 {
+//    logD_ (_func_);
+
     ImmediateConnectionSender * const self = static_cast <ImmediateConnectionSender*> (_self);
 
     self->mutex.lock ();
@@ -70,6 +75,7 @@ ImmediateConnectionSender::processOutput (void * const _self)
     else
 	self->ready_for_output = true;
 
+//    logD_ (_func, "calling closeIfNeeded()");
     self->closeIfNeeded ();
     // 'mutex' has been unlocked by closeIfNeeded().
 }
@@ -90,6 +96,8 @@ ImmediateConnectionSender::sendMessage (MessageEntry  * const mt_nonnull msg_ent
 mt_mutex (mutex) mt_unlocks (mutex) void
 ImmediateConnectionSender::doFlush ()
 {
+//    logD_ (_func_);
+
     if (!ready_for_output) {
 	mutex.unlock ();
 	return;
@@ -101,16 +109,22 @@ ImmediateConnectionSender::doFlush ()
     {
 	ready_for_output = false;
 	mutex.unlock ();
+
 	// TODO It might be better to return Result from flush().
-	logE_ (_func, exc->toString());
+	// exc is NULL for Eof.
+	if (res == AsyncIoResult::Error)
+	    logE_ (_func, exc->toString());
+
 	if (frontend && frontend->closed)
 	    frontend.call (frontend->closed, /*(*/ exc /*)*/);
+
 	return;
     }
 
     if (res == AsyncIoResult::Again)
 	ready_for_output = false;
 
+//    logD_ (_func, "calling closeIfNeeded()");
     mt_unlocks (mutex) closeIfNeeded ();
 }
 
