@@ -396,15 +396,20 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	} // if (nfds > 0)
 
 	bool trigger_break = false;
-	if (FD_ISSET (trigger_pipe [0], &rfds)) {
-	    if (!commonTriggerPipeRead (trigger_pipe [0]))
-		goto _select_interrupted;
+	{
+	    if (FD_ISSET (trigger_pipe [0], &rfds)) {
+		if (!commonTriggerPipeRead (trigger_pipe [0]))
+		    goto _select_interrupted;
+	    }
 
 	    mutex.lock ();
-	    triggered = false;
-	    mutex.unlock ();
-
-	    trigger_break = true;
+	    if (triggered) {
+		triggered = false;
+		mutex.unlock ();
+		trigger_break = true;
+	    } else {
+		mutex.unlock ();
+	    }
 	}
 
 	if (frontend) {
@@ -458,8 +463,12 @@ SelectPollGroup::trigger ()
 {
     logD (select, _func_);
 
-    if (poll_tlocal && poll_tlocal == libMary_getThreadLocal())
+    if (poll_tlocal && poll_tlocal == libMary_getThreadLocal()) {
+	mutex.lock ();
+	triggered = true;
+	mutex.unlock ();
 	return Result::Success;
+    }
 
     mutex.lock ();
     return mt_unlocks (mutex) doTrigger ();
