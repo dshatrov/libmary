@@ -28,7 +28,7 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_server_app ("server_app", LogLevel::N);
+LogGroup libMary_logGroup_server_app ("server_app", LogLevel::I);
 }
 
 ActivePollGroup::Frontend ServerApp::poll_frontend = {
@@ -201,6 +201,7 @@ ServerApp::run ()
 #endif
 
     for (;;) {
+	logD (server_app, _func, "iteration");
 	if (!poll_group.poll (timers.getSleepTime_microseconds())) {
 	    logE_ (_func, "poll_group.poll() failed: ", exc->toString());
 	    stop ();
