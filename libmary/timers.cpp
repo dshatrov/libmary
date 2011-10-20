@@ -71,8 +71,10 @@ Timers::addTimer_microseconds (CbDesc<TimerCallback> const &cb,
 
     mutex.unlock ();
 
-    if (first_timer)
+    if (first_timer) {
+	logD (timers, _func, "calling first_added_cb()");
 	first_added_cb.call_ ();
+    }
 
     return timer;
 }
@@ -145,13 +147,17 @@ Timers::getSleepTime_microseconds ()
   MutexLock l (&mutex);
 
     TimerChain * const chain = expiration_tree.getLeftmost();
-    if (chain == NULL)
+    if (chain == NULL) {
+	logD (timers, _func, ": null chain");
 	return (Time) -1;
+    }
 
-    if (chain->nearest_time <= cur_time)
+    if (chain->nearest_time <= cur_time) {
+	logD (timers, _func, ": now");
 	return 0;
+    }
 
-//    logD_ (_func, ": nearest: ", chain->nearest_time, ", cur: ", cur_time, ", delta: ", chain->nearest_time - cur_time);
+    logD (timers, _func, ": nearest: ", chain->nearest_time, ", cur: ", cur_time, ", delta: ", chain->nearest_time - cur_time);
 
     return chain->nearest_time - cur_time;
 }
