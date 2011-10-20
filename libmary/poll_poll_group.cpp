@@ -342,15 +342,20 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 	}
 
 	bool trigger_break = false;
-	if (trigger_pipe_ready) {
-	    if (!commonTriggerPipeRead (trigger_pipe [0]))
-		goto _poll_interrupted;
+	{
+	    if (trigger_pipe_ready) {
+		if (!commonTriggerPipeRead (trigger_pipe [0]))
+		    goto _poll_interrupted;
+	    }
 
 	    mutex.lock ();
-	    triggered = false;
-	    mutex.unlock ();
-
-	    trigger_break = true;
+	    if (triggered) {
+		triggered = false;
+		mutex.unlock ();
+		trigger_break = true;
+	    } else {
+		mutex.unlock ();
+	    }
 	}
 
 	if (frontend) {
@@ -404,8 +409,12 @@ PollPollGroup::doTrigger ()
 mt_throws Result
 PollPollGroup::trigger ()
 {
-    if (poll_tlocal && poll_tlocal == libMary_getThreadLocal())
+    if (poll_tlocal && poll_tlocal == libMary_getThreadLocal()) {
+	mutex.lock ();
+	triggered = true;
+	mutex.unlock ();
 	return Result::Success;
+    }
 
     mutex.lock ();
     return mt_unlocks (mutex) doTrigger ();
