@@ -132,11 +132,20 @@ public:
     }
 
     template <class C>
-    void setNoUnref (C* const ref)
+    void setNoUnref (C * const ref)
     {
 	obj = ref;
 	if (ref)
 	    /*static_cast <Referenced*>*/ (obj)->libMary_ref ();
+    }
+
+    template <class C>
+    void setNoRef (C * const ref)
+    {
+	if (obj != NULL)
+	    /*static_cast <Referenced*>*/ (obj)->libMary_unref ();
+
+	obj = ref;
     }
 
     template <class C>
