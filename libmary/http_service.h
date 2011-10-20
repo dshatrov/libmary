@@ -117,6 +117,8 @@ private:
 
     Time keepalive_timeout_microsec;
 
+    mt_const bool no_keepalive_conns;
+
     TcpServer tcp_server;
 
     typedef IntrusiveList<HttpConnection> ConnectionList;
@@ -131,6 +133,8 @@ private:
 
     static void connKeepaliveTimerExpired (void *_http_conn);
 
+    static void doCloseHttpConnection (HttpConnection *http_conn);
+
   mt_iface (HttpServer::Frontend)
     static HttpServer::Frontend const http_frontend;
 
@@ -144,6 +148,17 @@ private:
 
     static void httpClosed (Exception *exc_,
 			    void      *cb_data);
+  mt_iface_end()
+
+  mt_iface (Sender::Frontend)
+    static Sender::Frontend const sender_frontend;
+
+// TODO
+//    void senderStateChanged (Sender::SendState  send_state,
+//			     void              *_http_conn);
+
+    static void senderClosed (Exception *exc_,
+			      void      *_http_conn);
   mt_iface_end()
 
     bool acceptOneConnection ();
@@ -169,7 +184,8 @@ public:
     mt_throws Result init (PollGroup * mt_nonnull poll_group,
 			   Timers    * mt_nonnull timers,
 			   PagePool  * mt_nonnull page_pool,
-			   Time       keeaplive_timeout_microsec);
+			   Time       keeaplive_timeout_microsec,
+                           bool       no_keeaplive_conns);
 
     HttpService (Object *coderef_container);
 

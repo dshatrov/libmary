@@ -57,6 +57,8 @@ private:
     ConstMemory *path;
     Count num_path_elems;
 
+    bool keepalive;
+
     // TODO Map of get params + iterator over get params, ordered (intrusive list).
 
 public:
@@ -88,9 +90,20 @@ public:
 	return num_path_elems;
     }
 
+    void setKeepalive (bool const keepalive)
+    {
+	this->keepalive = keepalive;
+    }
+
+    bool getKeepalive() const
+    {
+	return keepalive;
+    }
+
     HttpRequest ()
 	: path (NULL),
-	  num_path_elems (0)
+	  num_path_elems (0),
+	  keepalive (true)
     {
     }
 

@@ -25,18 +25,21 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_http_service ("http_service", LogLevel::I);
+LogGroup libMary_logGroup_http_service ("http_service", LogLevel::N);
 }
 
-HttpServer::Frontend const
-HttpService::http_frontend = {
+HttpServer::Frontend const HttpService::http_frontend = {
     httpRequest,
     httpMessageBody,
     httpClosed
 };
 
-TcpServer::Frontend const
-HttpService::tcp_server_frontend = {
+Sender::Frontend const HttpService::sender_frontend = {
+    NULL, // sendStateChanged
+    senderClosed
+};
+
+TcpServer::Frontend const HttpService::tcp_server_frontend = {
     accepted
 };
 
@@ -122,12 +125,15 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
     http_conn->cur_msg_data = NULL;
 //    logD_ (_func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
 
+    self->mutex.lock ();
+
+    if (self->no_keepalive_conns)
+	req->setKeepalive (false);
+
   // Searching for a handler with the longest matching path.
   //
   //     /a/b/c/  - last path element should be empty;
   //     /a/b/c   - last path element is "c".
-
-    self->mutex.lock ();
 
     Namespace *cur_namespace = &self->root_namespace;
     Count const num_path_els = req->getNumPathElems();
@@ -175,6 +181,8 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 		"Content-Length: ", reply_body.len(), "\r\n"
 		"\r\n",
 		reply_body);
+	if (self->no_keepalive_conns)
+	  http_conn->conn_sender.closeAfterFlush ();
 	return;
     }
     HandlerEntry * const handler = handler_key.getDataPtr();
@@ -225,16 +233,8 @@ HttpService::httpMessageBody (HttpRequest * const mt_nonnull req,
 }
 
 void
-HttpService::httpClosed (Exception * const exc_,
-			 void      * const _http_conn)
+HttpService::doCloseHttpConnection (HttpConnection * const http_conn)
 {
-    HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
-
-    if (exc_)
-	logE_ (_func, exc_->toString());
-
-    logD (http_service, _func, "http_conn 0x", fmt_hex, (UintPtr) http_conn, ", refcount: ", fmt_def, http_conn->getRefCount(), ", cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
-
     if (http_conn->cur_handler) {
 	Size accepted = 0;
 	http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody,
@@ -252,6 +252,32 @@ HttpService::httpClosed (Exception * const exc_,
     HttpService * const self = http_conn->unsafe_http_service;
 
     self->destroyHttpConnection (http_conn);
+}
+
+void
+HttpService::httpClosed (Exception * const exc_,
+			 void      * const _http_conn)
+{
+    HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
+
+    if (exc_)
+	logE_ (_func, exc_->toString());
+
+    logD (http_service, _func, "http_conn 0x", fmt_hex, (UintPtr) http_conn, ", refcount: ", fmt_def, http_conn->getRefCount(), ", cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
+
+    doCloseHttpConnection (http_conn);
+}
+
+void
+HttpService::senderClosed (Exception * const exc_,
+			   void      * const _http_conn)
+{
+    HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
+
+    if (exc_)
+	logE_ (_func, exc_->toString());
+
+    doCloseHttpConnection (http_conn);
 }
 
 bool
@@ -283,6 +309,7 @@ HttpService::acceptOneConnection ()
     http_conn->cur_msg_data = NULL;
 
     http_conn->conn_sender.setConnection (&http_conn->tcp_conn);
+    http_conn->conn_sender.setFrontend (CbDesc<Sender::Frontend> (&sender_frontend, http_conn, http_conn));
     http_conn->conn_receiver.setConnection (&http_conn->tcp_conn);
     http_conn->conn_receiver.setFrontend (http_conn->http_server.getReceiverFrontend());
     http_conn->http_server.setSender (&http_conn->conn_sender, page_pool);
@@ -397,12 +424,14 @@ mt_throws Result
 HttpService::init (PollGroup * const mt_nonnull poll_group,
 		   Timers    * const mt_nonnull timers,
 		   PagePool  * const mt_nonnull page_pool,
-		   Time        const keepalive_timeout_microsec)
+		   Time        const keepalive_timeout_microsec,
+		   bool        const no_keepalive_conns)
 {
     this->poll_group = poll_group;
     this->timers = timers;
     this->page_pool = page_pool;
     this->keepalive_timeout_microsec = keepalive_timeout_microsec;
+    this->no_keepalive_conns = no_keepalive_conns;
 
     if (!tcp_server.open ())
 	return Result::Failure;
@@ -418,6 +447,7 @@ HttpService::HttpService (Object * const coderef_container)
       timers (NULL),
       page_pool (NULL),
       keepalive_timeout_microsec (0),
+      no_keepalive_conns (false),
       tcp_server (coderef_container)
 {
 }
