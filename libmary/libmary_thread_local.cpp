@@ -47,6 +47,7 @@ LibMary_ThreadLocal::LibMary_ThreadLocal ()
       saved_monotime (0)
 {
     memset (&localtime, 0, sizeof (localtime));
+    memset (timezone_str, ' ', sizeof (timezone_str));
 
 #ifndef PLATFORM_WIN32
     strerr_buf_size = 4096;
