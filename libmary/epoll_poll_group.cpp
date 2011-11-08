@@ -31,7 +31,7 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_epoll ("epoll", LogLevel::D);
+LogGroup libMary_logGroup_epoll ("epoll", LogLevel::I);
 }
 
 mt_mutex (mutex) void
