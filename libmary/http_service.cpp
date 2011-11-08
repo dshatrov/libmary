@@ -61,8 +61,10 @@ HttpService::HttpConnection::~HttpConnection ()
 mt_mutex (mutex) void
 HttpService::releaseHttpConnection (HttpConnection * const mt_nonnull http_conn)
 {
-    if (http_conn->conn_keepalive_timer)
+    if (http_conn->conn_keepalive_timer) {
 	timers->deleteTimer (http_conn->conn_keepalive_timer);
+	http_conn->conn_keepalive_timer = NULL;
+    }
 
     poll_group->removePollable (http_conn->pollable_key);
 }
