@@ -89,6 +89,8 @@ public:
     // Saved monotonic clock value in seconds.
     Time saved_monotime;
 
+    char timezone_str [5];
+
     LibMary_MwritevData mwritev;
 
     LibMary_ThreadLocal ();
