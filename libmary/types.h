@@ -41,12 +41,41 @@ class EmptyBase {};
 // Evil macro to save a few keystrokes for logE_ (_func, ...)
 
 // _func2 and _func3 are a workaround to stringify __LINE__.
-#define _func3(line) __FILE__ ":" #line, ConstMemory ("    ", sizeof (#line) < 5 ? 5 - sizeof (#line) : 0), ":", __func__
-// No line padding  #define _func3(line) __FILE__ ":" #line ":", __func__
-#define _func2(line) _func3(line)
 
-#define _func  _func2(__LINE__), ": "
-#define _func_ _func2(__LINE__)
+#define _func3(line)								 		\
+	__FILE__,										\
+	":" #line,								 		\
+	":", __func__, ":",									\
+	ConstMemory ("                                         " /* 41 spaces */, 		\
+		     sizeof (__FILE__) + sizeof (#line) + sizeof (__func__) + 3 < 40 + 1 ?	\
+			     40 - sizeof (__FILE__) - sizeof (#line) - sizeof (__func__) - 3 + 1 : 1)
+
+#define _func3_(line)								 		\
+	__FILE__,										\
+	":" #line,								 		\
+	":", __func__,										\
+	ConstMemory ("                                         " /* 40 spaces */, 		\
+		     sizeof (__FILE__) + sizeof (#line) + sizeof (__func__) + 2 < 39 + 1 ?	\
+			     39 - sizeof (__FILE__) - sizeof (#line) - sizeof (__func__) - 2 + 1 : 1)
+
+#if 0
+// _func2 and _func3 are a workaround to stringify __LINE__.
+#define _func3(line)								\
+	__FILE__,								\
+	ConstMemory ("                    " /* 20 spaces */,			\
+		     sizeof (__FILE__) < 20 ? 20 - sizeof (__FILE__) : 0),	\
+	":" #line,								\
+	ConstMemory ("    " /* 5 spaces */,					\
+		     sizeof (#line) < 5 ? 5 - sizeof (#line) : 0),		\
+	":", __func__
+#endif
+
+// No line padding  #define _func3(line) __FILE__ ":" #line ":", __func__
+#define _func2(line)  _func3(line)
+#define _func2_(line) _func3_(line)
+
+#define _func  _func2(__LINE__)
+#define _func_ _func2_(__LINE__)
 
 class Result
 {

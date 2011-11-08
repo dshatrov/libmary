@@ -36,6 +36,67 @@ LogLevel libMary_globalLogLevel (LogLevel::All);
 
 Mutex _libMary_log_mutex;
 
+#if 0
+void _libMary_log_printLoglevel (LogLevel const loglevel)
+{
+    switch (loglevel) {
+	case LogLevel::All:
+	    logs->print ("A");
+	    break;
+	case LogLevel::Debug:
+	    logs->print ("D");
+	    break;
+	case LogLevel::Info:
+	    logs->print ("I");
+	    break;
+	case LogLevel::Warning:
+	    logs->print ("W");
+	    break;
+	case LogLevel::Error:
+	    logs->print ("E");
+	    break;
+	case LogLevel::High:
+	    logs->print ("H");
+	    break;
+	case LogLevel::Failure:
+	    logs->print ("F");
+	    break;
+	case LogLevel::None:
+	    logs->print ("N");
+	    break;
+	default:
+	    unreachable ();
+    }
+}
+#endif
+
+char const * LogLevel::toCompactCstr ()
+{
+    switch (value) {
+	case LogLevel::All:
+	    return "A";
+	case LogLevel::Debug:
+	    return "D";
+	case LogLevel::Info:
+	    return "I";
+	case LogLevel::Warning:
+	    return "W";
+	case LogLevel::Error:
+	    return "E";
+	case LogLevel::High:
+	    return "H";
+	case LogLevel::Failure:
+	    return "F";
+	case LogLevel::None:
+	    return "N";
+	default:
+	    unreachable ();
+    }
+
+    // unreachable
+    return "";
+}
+
 Result
 LogLevel::fromString (ConstMemory   const str,
 		      LogLevel    * const mt_nonnull ret_loglevel)

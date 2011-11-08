@@ -60,6 +60,8 @@ public:
     LogLevel (Value const value) : value (value) {}
     LogLevel () {}
 
+    char const * toCompactCstr ();
+
     static Result fromString (ConstMemory  str,
 			      LogLevel    * mt_nonnull ret_loglevel);
 
@@ -140,26 +142,41 @@ void _libMary_do_log_unlocked (Format const & /* fmt */, Format const &new_fmt, 
     _libMary_do_log_unlocked (new_fmt, args...);
 }
 
-template <char const (&loglevel_str) [5], class ...Args>
-void _libMary_log_unlocked (Args const &...args)
+template <class ...Args>
+void _libMary_log_unlocked (char const * const loglevel_str, Args const &...args)
 {
+    exc_block ();
+
     LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
     Format fmt;
     fmt.min_digits = 2;
-    _libMary_do_log_unlocked (fmt, tlocal->localtime.tm_hour, ":", tlocal->localtime.tm_min, ":", tlocal->localtime.tm_sec, loglevel_str, fmt_def, args...);
+#if 0
+    _libMary_do_log_unlocked (
+	    fmt_def, "[", tlocal->localtime.tm_year + 1900, "/", fmt, tlocal->localtime.tm_mon, "/", tlocal->localtime.tm_mday, " ",
+	    tlocal->localtime.tm_hour, ":", tlocal->localtime.tm_min, ":", tlocal->localtime.tm_sec, " ",
+	    ConstMemory::forObject (tlocal->timezone_str), "]",
+	    loglevel_str);
+#endif
+    _libMary_do_log_unlocked (
+	    fmt_def, tlocal->localtime.tm_year + 1900, "/", fmt, tlocal->localtime.tm_mon, "/", tlocal->localtime.tm_mday, " ",
+	    tlocal->localtime.tm_hour, ":", tlocal->localtime.tm_min, ":", tlocal->localtime.tm_sec,
+	    loglevel_str);
+    _libMary_do_log_unlocked (fmt_def, args...);
+    logs->print_ ("\n", fmt_def);
     logs->flush ();
+
+    exc_unblock ();
 }
 
-template <char const (&loglevel_str) [5], class ...Args>
-void _libMary_log (Args const &...args)
+template <class ...Args>
+void _libMary_log (char const * const loglevel_str, Args const &...args)
 {
     logLock ();
-    _libMary_log_unlocked<loglevel_str> (args...);
+    _libMary_log_unlocked (loglevel_str, args...);
     logUnlock ();
 }
 
-// Note that it is possible to substitute variadic macros with other language
-// constructs while preserving the same calling syntax.
+void _libMary_log_printLoglevel (LogLevel loglevel);
 
 extern char const _libMary_loglevel_str_A [5];
 extern char const _libMary_loglevel_str_D [5];
@@ -170,134 +187,64 @@ extern char const _libMary_loglevel_str_H [5];
 extern char const _libMary_loglevel_str_F [5];
 extern char const _libMary_loglevel_str_N [5];
 
-// Macros allows to avoid evaluation of the args if we're not going to put
-// the message into the log.
+// These macros allow to avoid evaluation of args when we're not going to put
+// the message in the log.
 
-// TODO Inlining this huge switch() statement for every invocation of log() is insane.
-#define _libMary_log_macro(log_func, group, loglevel, ...)			\
-	do {									\
+#define _libMary_log_macro(log_func, group, loglevel, ...)				\
+	do {										\
 	    if (mt_unlikely ((loglevel) >= libMary_logGroup_ ## group .getLogLevel() &&	\
-			     (loglevel) >= libMary_globalLogLevel))		\
-	    {									\
-		exc_block ();							\
-		switch (loglevel) {						\
-		    case LogLevel::All:						\
-			log_func<_libMary_loglevel_str_A> (__VA_ARGS__);	\
-			break;							\
-		    case LogLevel::Debug:					\
-			log_func<_libMary_loglevel_str_D> (__VA_ARGS__);	\
-			break;							\
-		    case LogLevel::Info:					\
-			log_func<_libMary_loglevel_str_I> (__VA_ARGS__);	\
-			break;							\
-		    case LogLevel::Warning:					\
-			log_func<_libMary_loglevel_str_W> (__VA_ARGS__);	\
-			break;							\
-		    case LogLevel::Error:					\
-			log_func<_libMary_loglevel_str_E> (__VA_ARGS__);	\
-			break;							\
-		    case LogLevel::High:					\
-			log_func<_libMary_loglevel_str_H> (__VA_ARGS__);	\
-			break;							\
-		    case LogLevel::Failure:					\
-			log_func<_libMary_loglevel_str_F> (__VA_ARGS__);	\
-			break;							\
-		    case LogLevel::None:					\
-			log_func<_libMary_loglevel_str_N> (__VA_ARGS__);	\
-			break;							\
-		    default:							\
-			unreachable ();						\
-		}								\
-		exc_unblock ();							\
-	    }									\
+			     (loglevel) >= libMary_globalLogLevel))			\
+	    {										\
+		(log_func) ((loglevel).toCompactCstr(), __VA_ARGS__);			\
+	    }										\
 	} while (0)
-#if 0
-#define _libMary_log_macro(log_func, group, loglevel, ...)			\
-	do {									\
-	    if ((loglevel) >= libMary_logGroup_ ## group .getLogLevel() &&	\
-		(loglevel) >= libMary_globalLogLevel))				\
-	    {									\
-		exc_block ();							\
-		char const (*loglevel_str) [4];					\
-		switch (loglevel) {						\
-		    case LogLevel::All:						\
-			loglevel_str = &"] A ";					\
-			break;							\
-		    case LogLevel::Debug:					\
-			loglevel_str = &"] D ";					\
-			break;							\
-		    case LogLevel::Info:					\
-			loglevel_str = &"] I ";					\
-			break;							\
-		    case LogLevel::Warning:					\
-			loglevel_str = &"] W ";					\
-			break;							\
-		    case LogLevel::Error:					\
-			loglevel_str = &"] E ";					\
-			break;							\
-		    case LogLevel::High:					\
-			loglevel_str = &"] H ";					\
-			break;							\
-		    case LogLevel::Failure:					\
-			loglevel_str = &"] F ";					\
-			break;							\
-		    case LogLevel::None:					\
-			loglevel_str = &"] N ";					\
-			break;							\
-		    default:							\
-			unreachable ();						\
-		}								\
-		log_func (*loglevel_str, __VA_ARGS__);				\
-		exc_unblock ();							\
-	    }									\
-	} while (0)
-#endif
 
-#define _libMary_log_macro_s(log_func, group, loglevel, loglevel_str, ...)	\
-	do {									\
+#define _libMary_log_macro_s(log_func, group, loglevel, loglevel_str, ...)		\
+	do {										\
 	    if (mt_unlikely ((loglevel) >= libMary_logGroup_ ## group .getLogLevel() &&	\
-		(loglevel) >= libMary_globalLogLevel))				\
-	    {									\
-		exc_block ();							\
-		log_func<loglevel_str> (__VA_ARGS__);				\
-		exc_unblock ();							\
-	    }									\
+			     (loglevel) >= libMary_globalLogLevel))			\
+	    {										\
+		(log_func) ((loglevel_str), __VA_ARGS__);				\
+	    }										\
 	} while (0)
 
-#define log(group, loglevel, ...)          _libMary_log_macro (_libMary_log,          group,   loglevel, __VA_ARGS__, "\n")
-#define log_unlocked(group, loglevel, ...) _libMary_log_macro (_libMary_log_unlocked, group,   loglevel, __VA_ARGS__, "\n")
-#define log_(loglevel, ...)                _libMary_log_macro (_libMary_log,          default, loglevel, __VA_ARGS__, "\n")
-#define log_unlocked_(loglevel, ...)       _libMary_log_macro (_libMary_log_unlocked, default, loglevel, __VA_ARGS__, "\n")
+#define log__(...)         _libMary_log_macro_s (_libMary_log,          default, LogLevel::None, _libMary_loglevel_str_N, __VA_ARGS__)
+#define log__unlocked(...) _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::None, _libMary_loglevel_str_N, __VA_ARGS__)
 
-#define logD(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::Debug, _libMary_loglevel_str_D, __VA_ARGS__, "\n")
-#define logD_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::Debug, _libMary_loglevel_str_D, __VA_ARGS__, "\n")
-#define logD_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::Debug, _libMary_loglevel_str_D, __VA_ARGS__, "\n")
-#define logD_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::Debug, _libMary_loglevel_str_D, __VA_ARGS__, "\n")
+#define log(group, loglevel, ...)          _libMary_log_macro (_libMary_log,          group,   (loglevel), __VA_ARGS__)
+#define log_unlocked(group, loglevel, ...) _libMary_log_macro (_libMary_log_unlocked, group,   (loglevel), __VA_ARGS__)
+#define log_(loglevel, ...)                _libMary_log_macro (_libMary_log,          default, (loglevel), __VA_ARGS__)
+#define log_unlocked_(loglevel, ...)       _libMary_log_macro (_libMary_log_unlocked, default, (loglevel), __VA_ARGS__)
 
-#define logI(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::Info, _libMary_loglevel_str_I, __VA_ARGS__, "\n")
-#define logI_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::Info, _libMary_loglevel_str_I, __VA_ARGS__, "\n")
-#define logI_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::Info, _libMary_loglevel_str_I, __VA_ARGS__, "\n")
-#define logI_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::Info, _libMary_loglevel_str_I, __VA_ARGS__, "\n")
+#define logD(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::D, _libMary_loglevel_str_D, __VA_ARGS__)
+#define logD_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::D, _libMary_loglevel_str_D, __VA_ARGS__)
+#define logD_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::D, _libMary_loglevel_str_D, __VA_ARGS__)
+#define logD_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::D, _libMary_loglevel_str_D, __VA_ARGS__)
 
-#define logW(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::Warning, _libMary_loglevel_str_W, __VA_ARGS__, "\n")
-#define logW_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::Warning, _libMary_loglevel_str_W, __VA_ARGS__, "\n")
-#define logW_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::Warning, _libMary_loglevel_str_W, __VA_ARGS__, "\n")
-#define logW_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::Warning, _libMary_loglevel_str_W, __VA_ARGS__, "\n")
+#define logI(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::I, _libMary_loglevel_str_I, __VA_ARGS__)
+#define logI_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::I, _libMary_loglevel_str_I, __VA_ARGS__)
+#define logI_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::I, _libMary_loglevel_str_I, __VA_ARGS__)
+#define logI_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::I, _libMary_loglevel_str_I, __VA_ARGS__)
 
-#define logE(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::Error, _libMary_loglevel_str_E,  __VA_ARGS__, "\n")
-#define logE_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::Error, _libMary_loglevel_str_E, __VA_ARGS__, "\n")
-#define logE_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::Error, _libMary_loglevel_str_E, __VA_ARGS__, "\n")
-#define logE_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::Error, _libMary_loglevel_str_E, __VA_ARGS__, "\n")
+#define logW(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::W, _libMary_loglevel_str_W, __VA_ARGS__)
+#define logW_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::W, _libMary_loglevel_str_W, __VA_ARGS__)
+#define logW_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::W, _libMary_loglevel_str_W, __VA_ARGS__)
+#define logW_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::W, _libMary_loglevel_str_W, __VA_ARGS__)
 
-#define logH(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::High, _libMary_loglevel_str_H, __VA_ARGS__, "\n")
-#define logH_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::High, _libMary_loglevel_str_H, __VA_ARGS__, "\n")
-#define logH_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::High, _libMary_loglevel_str_H, __VA_ARGS__, "\n")
-#define logH_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::High, _libMary_loglevel_str_H, __VA_ARGS__, "\n")
+#define logE(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::E, _libMary_loglevel_str_E, __VA_ARGS__)
+#define logE_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::E, _libMary_loglevel_str_E, __VA_ARGS__)
+#define logE_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::E, _libMary_loglevel_str_E, __VA_ARGS__)
+#define logE_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::E, _libMary_loglevel_str_E, __VA_ARGS__)
 
-#define logF(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::Failure, _libMary_loglevel_str_F, __VA_ARGS__, "\n")
-#define logF_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::Failure, _libMary_loglevel_str_F, __VA_ARGS__, "\n")
-#define logF_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::Failure, _libMary_loglevel_str_F, __VA_ARGS__, "\n")
-#define logF_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::Failure, _libMary_loglevel_str_F, __VA_ARGS__, "\n")
+#define logH(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::H, _libMary_loglevel_str_H, __VA_ARGS__)
+#define logH_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::H, _libMary_loglevel_str_H, __VA_ARGS__)
+#define logH_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::H, _libMary_loglevel_str_H, __VA_ARGS__)
+#define logH_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::H, _libMary_loglevel_str_H, __VA_ARGS__)
+
+#define logF(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::F, _libMary_loglevel_str_F, __VA_ARGS__)
+#define logF_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::F, _libMary_loglevel_str_F, __VA_ARGS__)
+#define logF_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::F, _libMary_loglevel_str_F, __VA_ARGS__)
+#define logF_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::F, _libMary_loglevel_str_F, __VA_ARGS__)
 
 }
 
