@@ -106,6 +106,7 @@ private:
     mt_mutex (mutex) IntervalTree interval_tree;
     // Chains sorted by nearest_time.
     mt_mutex (mutex) ExpirationTree expiration_tree;
+    mt_mutex (mutex) TimerChain *expiration_tree_leftmost;
 
     mt_const Cb<FirstTimerAddedCallback> first_added_cb;
 
@@ -165,18 +166,13 @@ public:
 	first_added_cb = cb;
     }
 
-    Timers ()
-    {
-    }
+    Timers ();
 
     // @cb is called whenever a new timer appears at the head of timer chain,
     // i.e. when the nearest expiration time changes.
-    Timers (FirstTimerAddedCallback * const cb,
-	    void                    * const cb_data,
-	    Object                  * const coderef_container)
-	: first_added_cb (cb, cb_data, coderef_container)
-    {
-    }
+    Timers (FirstTimerAddedCallback *cb,
+	    void                    *cb_data,
+	    Object                  *coderef_container);
 
     ~Timers ();
 };

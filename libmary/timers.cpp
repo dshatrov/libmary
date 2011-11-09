@@ -57,13 +57,14 @@ Timers::addTimer_microseconds (CbDesc<TimerCallback> const &cb,
 	chain->nearest_time = timer->due_time;
 
 	if (expiration_tree.isEmpty()
-	    || expiration_tree.getLeftmost()->nearest_time < chain->nearest_time)
+	    || expiration_tree_leftmost->nearest_time < chain->nearest_time)
 	{
 	    first_timer = true;
 	}
 
 	interval_tree.add (chain);
 	expiration_tree.add (chain);
+	expiration_tree_leftmost = expiration_tree.getLeftmost();
     }
 
     timer->chain = chain;
@@ -102,6 +103,7 @@ Timers::restartTimer (TimerKey const timer_key)
 
     chain->nearest_time = chain->timer_list.getFirst()->due_time;
     expiration_tree.add (chain);
+    expiration_tree_leftmost = expiration_tree.getLeftmost();
 
     mutex.unlock ();
 }
@@ -121,6 +123,7 @@ Timers::deleteTimer (TimerKey const timer_key)
 
 	chain->timer_list.remove (timer);
 	if (chain->timer_list.isEmpty ()) {
+	    expiration_tree_leftmost = expiration_tree.getLeftmost();
 	    interval_tree.remove (chain);
 	    mutex.unlock ();
 
@@ -132,6 +135,7 @@ Timers::deleteTimer (TimerKey const timer_key)
 
 	chain->nearest_time = chain->timer_list.getFirst ()->due_time;
 	expiration_tree.add (chain);
+	expiration_tree_leftmost = expiration_tree.getLeftmost();
     }
 
     mutex.unlock ();
@@ -146,7 +150,7 @@ Timers::getSleepTime_microseconds ()
 
   MutexLock l (&mutex);
 
-    TimerChain * const chain = expiration_tree.getLeftmost();
+    TimerChain * const chain = expiration_tree_leftmost;
     if (chain == NULL) {
 	logD (timers, _func, ": null chain");
 	return (Time) -1;
@@ -169,7 +173,7 @@ Timers::processTimers ()
 
     mutex.lock ();
 
-    TimerChain * const chain = expiration_tree.getLeftmost();
+    TimerChain *chain = expiration_tree_leftmost;
     if (chain == NULL) {
 	mutex.unlock ();
 	return;
@@ -197,6 +201,7 @@ Timers::processTimers ()
 	bool delete_chain;
 	if (chain->timer_list.isEmpty ()) {
 	    expiration_tree.remove (chain);
+	    expiration_tree_leftmost = expiration_tree.getLeftmost();
 	    interval_tree.remove (chain);
 	    delete_chain = true;
 	} else {
@@ -204,6 +209,7 @@ Timers::processTimers ()
 		expiration_tree.remove (chain);
 		chain->nearest_time = chain->timer_list.getFirst ()->due_time;
 		expiration_tree.add (chain);
+		expiration_tree_leftmost = expiration_tree.getLeftmost();
 	    }
 	    delete_chain = false;
 	}
@@ -213,15 +219,33 @@ Timers::processTimers ()
       // 'timer' might have been deleted by the user and should not be used
       // directly anymore.
 
-	if (delete_chain) {
+	if (delete_chain)
 	    delete chain;
-	    return;
-	}
 
 	mutex.lock ();
+
+	// 'chain' might have been deleted due to user's actions in 'timer_cb' callback.
+	chain = expiration_tree_leftmost;
+	if (chain == NULL) {
+	    mutex.unlock ();
+	    return;
+	}
     }
 
     mutex.unlock ();
+}
+
+Timers::Timers ()
+    : expiration_tree_leftmost (NULL)
+{
+}
+
+Timers::Timers (FirstTimerAddedCallback * const cb,
+		void                    * const cb_data,
+		Object                  * const coderef_container)
+    : expiration_tree_leftmost (NULL),
+      first_added_cb (cb, cb_data, coderef_container)
+{
 }
 
 Timers::~Timers ()
