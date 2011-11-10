@@ -97,7 +97,7 @@ GenericInformer::informAll_unlocked (ProxyInformCallback   const mt_nonnull prox
 	if (sbn->weak_code_ref.isValid()) {
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
 	    if (sbn->weak_code_ref.getWeakObject() != tlocal->last_coderef_container) {
-		code_ref  = sbn->weak_code_ref;
+		code_ref = sbn->weak_code_ref;
 		if (code_ref) {
 		    mutex->unlock ();
 
