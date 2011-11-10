@@ -50,6 +50,9 @@ private:
     // We store container pointer to optimize away consequent reference grabs
     // for the same container in runtime. That decreases number of atomic ops
     // performed when processing async events with chains of handler objects.
+    //               ^^^
+    // TODO 11.11.09 This is unnecessary, the pointer can be taken from CodeRef
+    // in all use cases.
     Object *weak_obj;
     // This is Ref<Object::_Shadow>, actually.
     // TODO Зачем здесь вообще weak_ref? Поскольку корректность работы теперь
