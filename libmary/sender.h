@@ -143,6 +143,30 @@ public:
 	    return (Byte*) this + sizeof (*this);
 	}
 
+	Size getTotalMsgLen() const
+	{
+	    return header_len + getPagesDataLen();
+	}
+
+	Size getPagesDataLen () const
+	{
+	    Size pages_data_len = 0;
+	    {
+		PagePool::Page *cur_page = first_page;
+		if (cur_page) {
+		    assert (msg_offset <= cur_page->data_len);
+		    pages_data_len += cur_page->data_len - msg_offset;
+		    cur_page = cur_page->getNextMsgPage ();
+		    while (cur_page) {
+			pages_data_len += cur_page->data_len;
+			cur_page = cur_page->getNextMsgPage ();
+		    }
+		}
+	    }
+
+	    return pages_data_len;
+	}
+
 	static MessageEntry_Pages* createNew (Size const max_header_len)
 	{
 #ifdef LIBMARY_SENDER_VSLAB
