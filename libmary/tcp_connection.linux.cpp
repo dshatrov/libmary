@@ -49,7 +49,7 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_tcp_conn ("tcp_conn", LogLevel::N);
+LogGroup libMary_logGroup_tcp_conn ("tcp_conn", LogLevel::I);
 }
 
 #ifdef LIBMARY_TCP_CONNECTION_NUM_INSTANCES
@@ -119,7 +119,7 @@ TcpConnection::processEvents (Uint32   const event_flags,
 		    self->frontend.call (self->frontend->connected,  /*(*/ (Exception*) NULL /* exc */ /*)*/);
 	    } else {
 		if (opt_val != EINPROGRESS && opt_val != EINTR) {
-		    logE_ (_func, "connection error: ", errnoString (opt_val));
+		    logE_ (_func, "0x", fmt_hex, (UintPtr) self, " Connection error: ", errnoString (opt_val));
 
 		    PosixException posix_exc (opt_val);
 		    InternalException internal_exc (InternalException::BackendError);
@@ -133,7 +133,8 @@ TcpConnection::processEvents (Uint32   const event_flags,
 
 		    return;
 		} else {
-		    logW_ (_func, "got output event, but not connected yet. opt_val: ", opt_val);
+		    logW_ (_func, "0x", fmt_hex, (UintPtr) self,
+			   " Got output event, but not connected yet. opt_val: ", opt_val);
 		    return;
 		}
 	    }
@@ -151,7 +152,7 @@ TcpConnection::processEvents (Uint32   const event_flags,
     }
 
     if (event_flags & PollGroup::Error) {
-	logD_ (_func, "Error");
+	logD_ (_func, "0x", fmt_hex, (UintPtr) self, " Error");
 	if (self->input_frontend && self->input_frontend->processError) {
 	    // TODO getsockopt SO_ERROR + fill PosixException
 	    IoException io_exc;
@@ -164,7 +165,7 @@ TcpConnection::processEvents (Uint32   const event_flags,
 	!(event_flags & PollGroup::Error)  &&
 	!(event_flags & PollGroup::Hup))
     {
-	logD_ (_func, "no events, this: 0x", fmt_hex, (UintPtr) self);
+	logD_ (_func, "0x", fmt_hex, (UintPtr) self, " No events");
 	return;
     }
 }

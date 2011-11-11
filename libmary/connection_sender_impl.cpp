@@ -27,11 +27,11 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_send    ("send",    LogLevel::N);
-LogGroup libMary_logGroup_writev  ("writev",  LogLevel::N);
-LogGroup libMary_logGroup_close   ("close",   LogLevel::N);
-LogGroup libMary_logGroup_hexdump ("hexdump", LogLevel::N);
-LogGroup libMary_logGroup_mwritev ("sender_impl_mwritev", LogLevel::N);
+LogGroup libMary_logGroup_send    ("send",    LogLevel::I);
+LogGroup libMary_logGroup_writev  ("writev",  LogLevel::I);
+LogGroup libMary_logGroup_close   ("close",   LogLevel::I);
+LogGroup libMary_logGroup_hexdump ("hexdump", LogLevel::I);
+LogGroup libMary_logGroup_mwritev ("sender_impl_mwritev", LogLevel::I);
 }
 
 void
@@ -40,7 +40,7 @@ ConnectionSenderImpl::setSendState (Sender::SendState const new_state)
     if (new_state == send_state)
 	return;
 
-    logD_ (_func, "Send state: ", (unsigned) new_state);
+    logD (send, _func, "Send state: ", (unsigned) new_state);
 
     send_state = new_state;
     if (frontend

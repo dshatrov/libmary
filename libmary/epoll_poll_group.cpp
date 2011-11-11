@@ -138,7 +138,7 @@ EpollPollGroup::removePollable (PollableKey const mt_nonnull key)
 {
     PollableEntry * const pollable_entry = static_cast <PollableEntry*> (key);
 
-    logD_ (_func, "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry);
+    logD (epoll, _func, "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry);
 
     {
 	int const res = epoll_ctl (efd, EPOLL_CTL_DEL, pollable_entry->fd, NULL /* event */);

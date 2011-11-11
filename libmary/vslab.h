@@ -190,7 +190,7 @@ public:
     // for all alloc() calls on the same VSlab.
     Ref alloc (Size const size)
     {
-	logD_ (_func, size);
+//	logD_ (_func, size);
 
 	Node *node = NULL;
 	if (free_nodes.isEmpty ()) {

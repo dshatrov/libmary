@@ -109,7 +109,7 @@ VfsPosix::Directory::open (ConstMemory const &_dirname)
     memcpy (dirname, _dirname.mem(), _dirname.len());
     dirname [_dirname.len()] = 0;
 
-    logD_ (_func, "opening ", ConstMemory (dirname, sizeof (dirname)));
+//    logD_ (_func, "opening ", ConstMemory (dirname, sizeof (dirname)));
 
     dir = opendir (dirname);
     if (dir == NULL) {
