@@ -55,6 +55,15 @@ Result serviceToPort (ConstMemory const &service,
     public:
 	Uint32 ip_addr;
 	Uint16 port;
+
+	void reset ()
+	{
+	    ip_addr = 0;
+	    port = 0;
+	}
+
+	Size toString_ (Memory const &mem,
+		        Format const &fmt);
     };
 
     static inline void setIpAddress (Uint32 const ip_addr,
@@ -125,6 +134,9 @@ Result serviceToPort (ConstMemory const &service,
     void setIpAddress (Uint32 ip_addr,
 		       Uint16 port,
 		       struct sockaddr_in *ret_addr);
+
+    void setIpAddress (struct sockaddr_in * mt_nonnull addr,
+		       IpAddress          * mt_nonnull ret_addr);
 
     static inline void setIpAddress (IpAddress const &addr,
 				     struct sockaddr_in * const ret_addr)

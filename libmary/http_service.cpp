@@ -288,8 +288,10 @@ HttpService::acceptOneConnection ()
     HttpConnection * const http_conn = new HttpConnection;
     assert (http_conn);
 
+    IpAddress client_addr;
     {
-	TcpServer::AcceptResult const res = tcp_server.accept (&http_conn->tcp_conn);
+	TcpServer::AcceptResult const res = tcp_server.accept (&http_conn->tcp_conn,
+							       &client_addr);
 	if (res == TcpServer::AcceptResult::Error) {
 	    http_conn->unref ();
 	    logE_ (_func, exc->toString());
@@ -314,6 +316,8 @@ HttpService::acceptOneConnection ()
     http_conn->conn_sender.setFrontend (CbDesc<Sender::Frontend> (&sender_frontend, http_conn, http_conn));
     http_conn->conn_receiver.setConnection (&http_conn->tcp_conn);
     http_conn->conn_receiver.setFrontend (http_conn->http_server.getReceiverFrontend());
+
+    http_conn->http_server.init (client_addr);
     http_conn->http_server.setSender (&http_conn->conn_sender, page_pool);
     http_conn->http_server.setFrontend (Cb<HttpServer::Frontend> (&http_frontend, http_conn, http_conn));
 
@@ -394,7 +398,7 @@ void
 HttpService::addHttpHandler (Cb<HttpHandler> const &cb,
 			     ConstMemory     const &path)
 {
-    logD_ (_func, "Adding handler for \"", path, "\"");
+//    logD_ (_func, "Adding handler for \"", path, "\"");
 
     mutex.lock ();
     addHttpHandler_rec (cb, path, &root_namespace); 

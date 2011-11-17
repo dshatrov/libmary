@@ -127,12 +127,18 @@ TcpServer::open ()
 }
 
 mt_throws TcpServer::AcceptResult
-TcpServer::accept (TcpConnection * const mt_nonnull tcp_connection)
+TcpServer::accept (TcpConnection * const mt_nonnull tcp_connection,
+		   IpAddress     * const ret_addr)
 {
+    if (ret_addr)
+	ret_addr->reset ();
+
     int conn_fd;
     for (;;) {
-	// TODO Remember peer's address in TcpConnection
-	conn_fd = ::accept (fd, NULL /* addr */, NULL /* addr_len */);
+	struct sockaddr_in client_addr;
+	socklen_t client_addr_len = sizeof (client_addr);
+
+	conn_fd = ::accept (fd, (struct sockaddr*) &client_addr, &client_addr_len);
 	if (conn_fd == -1) {
 	    if (errno == EINTR  ||
 		errno == EPROTO ||
@@ -158,6 +164,9 @@ TcpServer::accept (TcpConnection * const mt_nonnull tcp_connection)
 
 	    return AcceptResult::Error;
 	}
+
+	if (ret_addr)
+	    setIpAddress (&client_addr, ret_addr);
 
 	break;
     }

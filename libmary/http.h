@@ -27,6 +27,7 @@
 #include <libmary/sender.h>
 #include <libmary/receiver.h>
 #include <libmary/code_referenced.h>
+#include <libmary/util_net.h>
 
 
 namespace M {
@@ -58,6 +59,8 @@ private:
     Count num_path_elems;
 
     bool keepalive;
+
+    IpAddress client_addr;
 
     // TODO Map of get params + iterator over get params, ordered (intrusive list).
 
@@ -98,6 +101,11 @@ public:
     bool getKeepalive() const
     {
 	return keepalive;
+    }
+
+    IpAddress getClientAddress () const
+    {
+	return client_addr;
     }
 
     HttpRequest ()
@@ -152,6 +160,8 @@ private:
     Sender *sender;
     PagePool *page_pool;
 
+    IpAddress client_addr;
+
     Ref<HttpRequest> cur_req;
 
     RequestState req_state;
@@ -201,6 +211,11 @@ public:
     {
 	this->sender = sender;
 	this->page_pool = page_pool;
+    }
+
+    void init (IpAddress const &client_addr)
+    {
+	this->client_addr = client_addr;
     }
 
     HttpServer (Object * const coderef_container)

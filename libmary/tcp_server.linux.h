@@ -87,7 +87,8 @@ public:
 	Value value;
     };
 
-    mt_throws AcceptResult accept (TcpConnection * mt_nonnull tcp_connection);
+    mt_throws AcceptResult accept (TcpConnection * mt_nonnull tcp_connection,
+				   IpAddress     *ret_addr = NULL);
 
     // Should be called before listen().
     mt_throws Result bind (IpAddress const &ip_addr);

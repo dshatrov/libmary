@@ -313,8 +313,10 @@ HttpServer::processInput (Memory const &_mem,
 	    case RequestState::RequestLine:
 		logD (http, _func, "RequestState::RequestLine");
 	    case RequestState::HeaderField: {
-		if (!self->cur_req)
+		if (!self->cur_req) {
 		    self->cur_req = grab (new HttpRequest);
+		    self->cur_req->client_addr = self->client_addr;
+		}
 
 		bool header_parsed;
 		Size line_accepted;

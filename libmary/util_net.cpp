@@ -230,6 +230,23 @@ Result serviceToPort (ConstMemory const &service,
     return Result::Success;
 }
 
+Size
+IpAddress::toString_ (Memory const &mem,
+		      Format const & /* fmt */)
+{
+    Size offs = 0;
+    offs += toString (mem.region (offs), (ip_addr >> 24) & 0xff, fmt_def);
+    offs += toString (mem.region (offs), ".");
+    offs += toString (mem.region (offs), (ip_addr >> 16) & 0xff, fmt_def);
+    offs += toString (mem.region (offs), ".");
+    offs += toString (mem.region (offs), (ip_addr >>  8) & 0xff, fmt_def);
+    offs += toString (mem.region (offs), ".");
+    offs += toString (mem.region (offs), (ip_addr >>  0) & 0xff, fmt_def);
+    offs += toString (mem.region (offs), ":");
+    offs += toString (mem.region (offs), port);
+    return offs;
+}
+
 Result setIpAddress_default (ConstMemory   const &hostname,
 			     ConstMemory   const &default_host,
 			     Uint16        const &default_port,
@@ -276,6 +293,13 @@ void setIpAddress (Uint32 const ip_addr,
 	ret_addr->sin_addr.s_addr = htonl (ip_addr);
 	ret_addr->sin_port = htons (port);
     }
+}
+
+void setIpAddress (struct sockaddr_in * const mt_nonnull addr,
+		   IpAddress          * const mt_nonnull ret_addr)
+{
+    ret_addr->ip_addr = ntohl (addr->sin_addr.s_addr);
+    ret_addr->port = ntohs (addr->sin_port);
 }
 
 }
