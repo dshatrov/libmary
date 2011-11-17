@@ -40,17 +40,18 @@ public:
 	Debug   =  2000,
 	Info    =  3000,
 	Warning =  4000,
-	Error   =  5000,
-	High    =  6000,
-	Failure =  7000,
+	Access  =  5000,
+	Error   =  6000,
+	High    =  7000,
+	Failure =  8000,
 	None    = 10000,
 	// Short loglevel name aliases are useful to enable/disable certain
 	// loglevels from source quickly. Don't use them if you don't need
 	// to flip between loglevels from time to time.
-	A = All,
 	D = Debug,
 	I = Info,
 	W = Warning,
+	A = Access,
 	E = Error,
 	H = High,
 	F = Failure,
@@ -178,14 +179,14 @@ void _libMary_log (char const * const loglevel_str, Args const &...args)
 
 void _libMary_log_printLoglevel (LogLevel loglevel);
 
-extern char const _libMary_loglevel_str_A [5];
-extern char const _libMary_loglevel_str_D [5];
-extern char const _libMary_loglevel_str_I [5];
-extern char const _libMary_loglevel_str_W [5];
-extern char const _libMary_loglevel_str_E [5];
-extern char const _libMary_loglevel_str_H [5];
-extern char const _libMary_loglevel_str_F [5];
-extern char const _libMary_loglevel_str_N [5];
+extern char const _libMary_loglevel_str_D [4];
+extern char const _libMary_loglevel_str_I [4];
+extern char const _libMary_loglevel_str_W [4];
+extern char const _libMary_loglevel_str_A [9];
+extern char const _libMary_loglevel_str_E [4];
+extern char const _libMary_loglevel_str_H [4];
+extern char const _libMary_loglevel_str_F [4];
+extern char const _libMary_loglevel_str_N [4];
 
 // These macros allow to avoid evaluation of args when we're not going to put
 // the message in the log.
@@ -230,6 +231,11 @@ extern char const _libMary_loglevel_str_N [5];
 #define logW_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::W, _libMary_loglevel_str_W, __VA_ARGS__)
 #define logW_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::W, _libMary_loglevel_str_W, __VA_ARGS__)
 #define logW_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::W, _libMary_loglevel_str_W, __VA_ARGS__)
+
+#define logA(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::A, _libMary_loglevel_str_A, __VA_ARGS__)
+#define logA_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::A, _libMary_loglevel_str_A, __VA_ARGS__)
+#define logA_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::A, _libMary_loglevel_str_A, __VA_ARGS__)
+#define logA_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::A, _libMary_loglevel_str_A, __VA_ARGS__)
 
 #define logE(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::E, _libMary_loglevel_str_E, __VA_ARGS__)
 #define logE_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::E, _libMary_loglevel_str_E, __VA_ARGS__)

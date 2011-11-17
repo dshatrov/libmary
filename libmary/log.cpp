@@ -22,65 +22,33 @@
 
 namespace M {
 
-char const _libMary_loglevel_str_A [5] = " A ";
-char const _libMary_loglevel_str_D [5] = " D ";
-char const _libMary_loglevel_str_I [5] = " I ";
-char const _libMary_loglevel_str_W [5] = " W ";
-char const _libMary_loglevel_str_E [5] = " E ";
-char const _libMary_loglevel_str_H [5] = " H ";
-char const _libMary_loglevel_str_F [5] = " F ";
-char const _libMary_loglevel_str_N [5] = " N ";
+char const _libMary_loglevel_str_D [4] = " D ";
+char const _libMary_loglevel_str_I [4] = " I ";
+char const _libMary_loglevel_str_W [4] = " W ";
+char const _libMary_loglevel_str_A [9] = " ACCESS ";
+char const _libMary_loglevel_str_E [4] = " E ";
+char const _libMary_loglevel_str_H [4] = " H ";
+char const _libMary_loglevel_str_F [4] = " F ";
+char const _libMary_loglevel_str_N [4] = " N ";
 
 LogGroup libMary_logGroup_default ("default", LogLevel::All);
 LogLevel libMary_globalLogLevel (LogLevel::All);
 
 Mutex _libMary_log_mutex;
 
-#if 0
-void _libMary_log_printLoglevel (LogLevel const loglevel)
-{
-    switch (loglevel) {
-	case LogLevel::All:
-	    logs->print ("A");
-	    break;
-	case LogLevel::Debug:
-	    logs->print ("D");
-	    break;
-	case LogLevel::Info:
-	    logs->print ("I");
-	    break;
-	case LogLevel::Warning:
-	    logs->print ("W");
-	    break;
-	case LogLevel::Error:
-	    logs->print ("E");
-	    break;
-	case LogLevel::High:
-	    logs->print ("H");
-	    break;
-	case LogLevel::Failure:
-	    logs->print ("F");
-	    break;
-	case LogLevel::None:
-	    logs->print ("N");
-	    break;
-	default:
-	    unreachable ();
-    }
-}
-#endif
-
 char const * LogLevel::toCompactCstr ()
 {
     switch (value) {
 	case LogLevel::All:
-	    return "A";
+	    return "ALL";
 	case LogLevel::Debug:
 	    return "D";
 	case LogLevel::Info:
 	    return "I";
 	case LogLevel::Warning:
 	    return "W";
+	case LogLevel::Access:
+	    return "ACCESS";
 	case LogLevel::Error:
 	    return "E";
 	case LogLevel::High:
@@ -103,7 +71,7 @@ LogLevel::fromString (ConstMemory   const str,
 {
     LogLevel loglevel = LogLevel::Info;
 
-    if (equal (str, "A") || equal (str, "All")) {
+    if (equal (str, "All")) {
 	loglevel = LogLevel::All;
     } else
     if (equal (str, "D") || equal (str, "Debug")) {
@@ -114,6 +82,9 @@ LogLevel::fromString (ConstMemory   const str,
     } else
     if (equal (str, "W") || equal (str, "Warning")) {
 	loglevel = LogLevel::Warning;
+    } else
+    if (equal (str, "A") || equal (str, "Access")) {
+	loglevel = LogLevel::Access;
     } else
     if (equal (str, "E") || equal (str, "Error")) {
 	loglevel = LogLevel::Error;
