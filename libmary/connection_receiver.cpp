@@ -106,7 +106,7 @@ ConnectionReceiver::doProcessInput ()
 		recv_accepted_pos = 0;
 		break;
 	    case ProcessInputResult::Error:
-		logD_ (_func, "user's input handler failed");
+//		logD_ (_func, "user's input handler failed");
 		if (!error_reported) {
 		    error_reported = true;
 		    if (frontend && frontend->processError) {
