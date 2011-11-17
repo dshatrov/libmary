@@ -25,7 +25,8 @@
 
 #include <libmary/types.h>
 #ifdef LIBMARY_MT_SAFE
-#include <glib/gatomic.h>
+//#include <glib/gatomic.h>
+#include <glib.h>
 #endif
 
 

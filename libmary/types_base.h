@@ -22,7 +22,8 @@
 
 
 // For numeric limits
-#include <glib/gtypes.h>
+//#include <glib/gtypes.h>
+#include <glib.h>
 // Using a C header doesn't feel good.
 #include <stdint.h>
 

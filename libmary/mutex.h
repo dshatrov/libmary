@@ -25,7 +25,8 @@
 
 #include <libmary/types.h>
 #ifdef LIBMARY_MT_SAFE
-#include <glib/gthread.h>
+//#include <glib/gthread.h>
+#include <glib.h>
 #endif
 
 

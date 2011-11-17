@@ -18,7 +18,8 @@
 
 
 #include <libmary/types.h>
-#include <glib/gthread.h>
+//#include <glib/gthread.h>
+#include <glib.h>
 
 #include <libmary/cond.h>
 
