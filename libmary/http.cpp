@@ -40,6 +40,19 @@ Receiver::Frontend const HttpServer::receiver_frontend = {
     processError
 };
 
+HttpRequest::~HttpRequest ()
+{
+    delete[] path;
+
+    {
+	ParameterHash::iter iter (parameter_hash);
+	while (!parameter_hash.iter_done (iter)) {
+	    Parameter * const param = parameter_hash.iter_next (iter);
+	    delete param;
+	}
+    }
+}
+
 Result
 HttpServer::processRequestLine (ConstMemory const &_mem)
 {
@@ -66,7 +79,17 @@ HttpServer::processRequestLine (ConstMemory const &_mem)
 	++path_beg;
     }
 
-    Byte const * const path_end = (Byte const *) memchr (path_beg, 32 /* SP */, mem.len() - path_offs);
+    Byte const *uri_end = (Byte const *) memchr (path_beg, 32 /* SP */, mem.len() - path_offs);
+    if (!uri_end)
+	uri_end = mem.mem() + mem.len();
+
+    Byte const * const params_start = (Byte const *) memchr (path_beg, '?', uri_end - path_beg);
+    Byte const *path_end;
+    if (params_start)
+	path_end = params_start;
+    else
+	path_end = uri_end;
+
     if (!path_end) {
 	logE_ (_func, "Bad request (2) \"", mem, "\"");
 	hexdump (logs, mem);
@@ -125,6 +148,48 @@ HttpServer::processRequestLine (ConstMemory const &_mem)
 	    ++index;
 
 	    path_pos = path_elem_end + 1;
+	}
+    }
+
+    if (params_start) {
+      // Parsing request parameters.
+
+	Byte const *param_pos = params_start + 1; // Skipping '?'
+	while (param_pos < uri_end) {
+	    ConstMemory name;
+	    ConstMemory value;
+	    Byte const *value_start = (Byte const *) memchr (param_pos, '=', uri_end - param_pos);
+	    if (value_start) {
+		++value_start; // Skipping '='
+		if (value_start > uri_end)
+		    value_start = uri_end;
+
+		name = ConstMemory (param_pos, value_start - 1 /*'='*/ - param_pos);
+
+		Byte const *value_end = (Byte const *) memchr (value_start, '&', uri_end - value_start);
+		if (value_end) {
+		    if (value_end > uri_end)
+			value_end = uri_end;
+
+		    value = ConstMemory (value_start, value_end - value_start);
+		    param_pos = value_end + 1; // Skipping '&'
+		} else {
+		    value = ConstMemory (value_start, uri_end - value_start);
+		    param_pos = uri_end;
+		}
+	    } else {
+		name = ConstMemory (param_pos, uri_end - param_pos);
+		param_pos = uri_end;
+	    }
+
+	    logD_ (_func, "parameter: ", name, " = ", value);
+
+	    {
+		HttpRequest::Parameter * const param = new HttpRequest::Parameter;
+		param->name = name;
+		param->value = value;
+		cur_req->parameter_hash.add (param);
+	    }
 	}
     }
 

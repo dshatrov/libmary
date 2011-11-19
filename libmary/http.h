@@ -22,6 +22,7 @@
 
 
 #include <libmary/types.h>
+#include <libmary/hash.h>
 #include <libmary/exception.h>
 #include <libmary/basic_referenced.h>
 #include <libmary/sender.h>
@@ -46,17 +47,33 @@ class HttpServer;
 // Поэтому RtmpConnection.
 // RtmptServer - потому что его нельзя назвать "Connection".
 
-// TODO This is HttpReceiver actually.
 class HttpRequest : public BasicReferenced
 {
     friend class HttpServer;
 
 private:
+    class Parameter : public HashEntry<>
+    {
+    public:
+	ConstMemory name;
+	ConstMemory value;
+    };
+
+    typedef Hash< Parameter,
+		  ConstMemory,
+		  MemberExtractor< Parameter,
+				   ConstMemory,
+				   &Parameter::name >,
+		  MemoryComparator<> >
+	    ParameterHash;
+
     Ref<String> request_line;
     ConstMemory method;
     ConstMemory full_path;
     ConstMemory *path;
     Count num_path_elems;
+
+    ParameterHash parameter_hash;
 
     bool keepalive;
 
@@ -93,6 +110,17 @@ public:
 	return num_path_elems;
     }
 
+    // If ret.mem() == NULL, then the parameter is not set.
+    // If ret.len() == 0, then the parameter has empty value.
+    ConstMemory getParameter (ConstMemory const name)
+    {
+	Parameter * const param = parameter_hash.lookup (name);
+	if (!param)
+	    return ConstMemory();
+
+	return param->value;
+    }
+
     void setKeepalive (bool const keepalive)
     {
 	this->keepalive = keepalive;
@@ -115,11 +143,7 @@ public:
     {
     }
 
-    ~HttpRequest ()
-    {
-//	logD_ (_func, "0x", fmt_hex, (UintPtr) this);
-	delete[] path;
-    }
+    ~HttpRequest ();
 };
 
 class HttpServer : public DependentCodeReferenced
