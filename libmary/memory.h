@@ -37,6 +37,7 @@ public:
     Byte* mem () const { return mem_; }
     Size  len () const { return len_; }
 
+    // TODO rename to isEmpty(). isNull() is for "mem_ == 0" test.
     bool isNull () const { return len_ == 0; }
 
     Memory region (Size const region_start,
@@ -141,6 +142,7 @@ public:
     Byte const * mem () const { return mem_; }
     Size len () const { return len_; }
 
+    // TODO rename to isEmpty(). isNull() is for "mem_ == 0" test.
     bool isNull () const { return len_ == 0; }
 
     ConstMemory region (Size const region_start,
