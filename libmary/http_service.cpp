@@ -18,6 +18,7 @@
 
 
 #include <libmary/log.h>
+#include <libmary/util_dev.h>
 
 #include <libmary/http_service.h>
 
@@ -48,7 +49,10 @@ HttpService::HttpConnection::HttpConnection ()
       tcp_conn      (this),
       conn_sender   (this),
       conn_receiver (this),
-      http_server   (this)
+      http_server   (this),
+      pollable_key  (NULL),
+      conn_keepalive_timer (NULL),
+      preassembly_buf (NULL)
 {
     logD (http_service, _func, "0x", fmt_hex, (UintPtr) this);
 }
@@ -56,6 +60,9 @@ HttpService::HttpConnection::HttpConnection ()
 HttpService::HttpConnection::~HttpConnection ()
 {
     logD (http_service, _func, "0x", fmt_hex, (UintPtr) this);
+
+    if (preassembly_buf)
+	delete[] preassembly_buf;
 }
 
 mt_mutex (mutex) void
@@ -194,12 +201,17 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
     // we'll have to add an extra reference to handler entry here.
     self->mutex.unlock ();
 
-    // TODO if (!preassembly), otherwise collect message body up to a specified limit first.
-    if (handler->cb.call (handler->cb->httpRequest,
-		/* ( */ req, &http_conn->conn_sender, Memory(), &http_conn->cur_msg_data /* ) */))
-    {
-	http_conn->cur_handler = handler;
-	logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
+    http_conn->cur_handler = handler;
+    logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
+
+    http_conn->preassembled_len = 0;
+
+    if (!handler->preassembly || req->getContentLength() == 0) {
+	if (!handler->cb.call (handler->cb->httpRequest,
+		    /* ( */ req, &http_conn->conn_sender, Memory(), &http_conn->cur_msg_data /* ) */))
+	{
+	    http_conn->cur_handler = NULL;
+	}
     }
 }
 
@@ -211,26 +223,90 @@ HttpService::httpMessageBody (HttpRequest * const mt_nonnull req,
 {
     HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
 
-    if (!http_conn->cur_handler)
+    if (!http_conn->cur_handler) {
+	*ret_accepted = mem.len();
 	return;
-
-#if 0
-// Unnecessary
-    CodeRef http_service_ref;
-    if (http_conn->weak_http_service.isValid()) {
-	http_service_ref = http_conn->weak_http_service;
-	if (!http_service_ref)
-	    return;
     }
-    HttpService * const self = http_conn->unsafe_http_service;
-#endif
+
+    if (http_conn->cur_handler->preassembly
+	&& http_conn->preassembled_len < http_conn->cur_handler->preassembly_limit)
+    {
+	Size size = req->getContentLength();
+	if (size > http_conn->cur_handler->preassembly_limit)
+	    size = http_conn->cur_handler->preassembly_limit;
+
+	bool alloc_new = true;
+	if (http_conn->preassembly_buf) {
+	    if (http_conn->preassembly_buf_size >= size)
+		alloc_new = false;
+	    else
+		delete[] http_conn->preassembly_buf;
+	}
+
+	if (alloc_new) {
+	    http_conn->preassembly_buf = new Byte [size];
+	    http_conn->preassembly_buf_size = size;
+	}
+
+	if (mem.len() + http_conn->preassembled_len < mem.len() /* dirty */
+	    || mem.len() + http_conn->preassembled_len >= size)
+	{
+	    *ret_accepted = 0;
+	    if (size > 0) {
+		memcpy (http_conn->preassembly_buf + http_conn->preassembled_len,
+			mem.mem(),
+			size - http_conn->preassembled_len);
+		*ret_accepted = size - http_conn->preassembled_len;
+		http_conn->preassembled_len = size;
+
+		if (http_conn->cur_handler->parse_body_params) {
+//		    logD_ (_func, "Parsing body params:");
+//		    hexdump (logs, ConstMemory (http_conn->preassembly_buf, http_conn->preassembled_len));
+		    req->parseParameters (Memory (http_conn->preassembly_buf, http_conn->preassembled_len));
+		}
+
+		if (!http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpRequest,
+			    /* ( */ req,
+				    &http_conn->conn_sender,
+				    Memory (http_conn->preassembly_buf, http_conn->preassembled_len),
+				    &http_conn->cur_msg_data /* ) */))
+		{
+		    http_conn->cur_handler = NULL;
+		}
+	    }
+
+	    if (*ret_accepted < mem.len()) {
+		Size accepted = 0;
+		if (!http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody,
+			    /* ( */ req,
+				    &http_conn->conn_sender,
+				    mem.region (*ret_accepted),
+				    &accepted,
+				    &http_conn->cur_msg_data /* ) */))
+		{
+		    http_conn->cur_handler = NULL;
+		}
+
+		*ret_accepted += accepted;
+	    }
+	} else {
+	    memcpy (http_conn->preassembly_buf + http_conn->preassembled_len,
+		    mem.mem(),
+		    mem.len());
+	    *ret_accepted = mem.len();
+	    http_conn->preassembled_len += mem.len();
+	}
+
+	return;
+    }
 
     if (!http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody,
 		/* ( */ req, &http_conn->conn_sender, mem, ret_accepted, http_conn->cur_msg_data /* ) */)
-	|| *ret_accepted == mem.len())
+	/* Wrong
+	   || *ret_accepted == mem.len() */)
     {
 	http_conn->cur_handler = NULL;
-	logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
+	*ret_accepted = mem.len();
     }
 }
 
@@ -311,6 +387,9 @@ HttpService::acceptOneConnection ()
 
     http_conn->cur_handler = NULL;
     http_conn->cur_msg_data = NULL;
+    http_conn->preassembly_buf = NULL;
+    http_conn->preassembly_buf_size = 0;
+    http_conn->preassembled_len = 0;
 
     http_conn->conn_sender.setConnection (&http_conn->tcp_conn);
     http_conn->conn_sender.setFrontend (CbDesc<Sender::Frontend> (&sender_frontend, http_conn, http_conn));
@@ -365,9 +444,12 @@ HttpService::accepted (void *_self)
 }
 
 mt_mutex (mutex) void
-HttpService::addHttpHandler_rec (Cb<HttpHandler>   const &cb,
-				 ConstMemory       const &path_,
-				 Namespace       * const nsp)
+HttpService::addHttpHandler_rec (CbDesc<HttpHandler> const &cb,
+				 ConstMemory   const path_,
+				 bool          const preassembly,
+				 Size          const preassembly_limit,
+				 bool          const parse_body_params,
+				 Namespace   * const nsp)
 {
     ConstMemory path = path_;
     if (path.len() > 0 && path.mem() [0] == '/')
@@ -375,7 +457,11 @@ HttpService::addHttpHandler_rec (Cb<HttpHandler>   const &cb,
 
     Byte const *delim = (Byte const *) memchr (path.mem(), '/', path.len());
     if (!delim) {
-	nsp->handler_hash.add (path, cb);
+	HandlerEntry * const handler_entry = nsp->handler_hash.addEmpty (path).getDataPtr();
+	handler_entry->cb = cb;
+	handler_entry->preassembly = preassembly;
+	handler_entry->preassembly_limit = preassembly_limit;
+	handler_entry->parse_body_params = parse_body_params;
 	return;
     }
 
@@ -391,17 +477,30 @@ HttpService::addHttpHandler_rec (Cb<HttpHandler>   const &cb,
 	next_nsp = new_nsp;
     }
 
-    return addHttpHandler_rec (cb, path.region (delim - path.mem() + 1), next_nsp);
+    return addHttpHandler_rec (cb,
+			       path.region (delim - path.mem() + 1),
+			       preassembly,
+			       preassembly_limit,
+			       parse_body_params,
+			       next_nsp);
 }
 
 void
-HttpService::addHttpHandler (Cb<HttpHandler> const &cb,
-			     ConstMemory     const &path)
+HttpService::addHttpHandler (CbDesc<HttpHandler> const &cb,
+			     ConstMemory const path,
+			     bool        const preassembly,
+			     Size        const preassembly_limit,
+			     bool        const parse_body_params)
 {
 //    logD_ (_func, "Adding handler for \"", path, "\"");
 
     mutex.lock ();
-    addHttpHandler_rec (cb, path, &root_namespace); 
+    addHttpHandler_rec (cb,
+			path,
+			preassembly,
+			preassembly_limit,
+			parse_body_params,
+			&root_namespace); 
     mutex.unlock ();
 }
 

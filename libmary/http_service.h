@@ -62,10 +62,24 @@ private:
     class HandlerEntry
     {
     public:
-	Cb<HttpHandler> cb;
+	mt_const Cb<HttpHandler> cb;
 
-	HandlerEntry (Cb<HttpHandler> const &cb)
-	    : cb (cb)
+	mt_const bool preassembly;
+	mt_const Size preassembly_limit;
+	mt_const bool parse_body_params;
+
+	HandlerEntry (CbDesc<HttpHandler> const &cb,
+		      bool                const preassembly,
+		      Size                const preassembly_limit,
+		      bool                const parse_body_params)
+	    : cb (cb),
+	      preassembly (preassembly),
+	      preassembly_limit (preassembly_limit),
+	      parse_body_params (parse_body_params)
+	{
+	}
+
+	HandlerEntry ()
 	{
 	}
     };
@@ -104,6 +118,10 @@ private:
 	// {
 	    HandlerEntry *cur_handler;
 	    void *cur_msg_data;
+
+	    Byte *preassembly_buf;
+	    Size preassembly_buf_size;
+	    Size preassembled_len;
 	// }
 
 	HttpConnection ();
@@ -169,13 +187,19 @@ private:
     static void accepted (void *_self);
   mt_iface_end()
 
-    mt_mutex (mutex) void addHttpHandler_rec (Cb<HttpHandler> const &cb,
-					      ConstMemory     const &path,
-					      Namespace             *nsp);
+    mt_mutex (mutex) void addHttpHandler_rec (CbDesc<HttpHandler> const &cb,
+					      ConstMemory  path,
+					      bool         preassembly,
+					      Size         preassembly_limit,
+					      bool         parse_body_params,
+					      Namespace   *nsp);
 
 public:
-    void addHttpHandler (Cb<HttpHandler> const &cb,
-			 ConstMemory     const &path);
+    void addHttpHandler (CbDesc<HttpHandler> const &cb,
+			 ConstMemory path,
+			 bool        preassembly       = false,
+			 Size        preassembly_limit = 0,
+			 bool        parse_body_params = false);
 
     mt_throws Result bind (IpAddress const &addr);
 

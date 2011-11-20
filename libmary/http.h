@@ -73,6 +73,8 @@ private:
     ConstMemory *path;
     Count num_path_elems;
 
+    Uint64 content_length;
+
     ParameterHash parameter_hash;
 
     bool keepalive;
@@ -110,6 +112,11 @@ public:
 	return num_path_elems;
     }
 
+    Uint64 getContentLength () const
+    {
+	return content_length;
+    }
+
     // If ret.mem() == NULL, then the parameter is not set.
     // If ret.len() == 0, then the parameter has empty value.
     ConstMemory getParameter (ConstMemory const name)
@@ -136,9 +143,12 @@ public:
 	return client_addr;
     }
 
+    void parseParameters (Memory mem);
+
     HttpRequest ()
 	: path (NULL),
 	  num_path_elems (0),
+	  content_length (0),
 	  keepalive (true)
     {
     }
@@ -194,11 +204,11 @@ private:
     // What the "Content-Length" HTTP header said for the current request.
     Size recv_content_length;
 
-    Result processRequestLine (ConstMemory const &mem);
+    Result processRequestLine (Memory mem);
 
     void processHeaderField (ConstMemory const &mem);
 
-    Receiver::ProcessInputResult receiveRequestLine (ConstMemory const &_mem,
+    Receiver::ProcessInputResult receiveRequestLine (Memory _mem,
 						     Size * mt_nonnull ret_accepted,
 						     bool * mt_nonnull ret_header_parsed);
 
