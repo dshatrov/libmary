@@ -124,8 +124,11 @@ HttpServer::processRequestLine (Memory const _mem)
     }
 
     Byte const *uri_end = (Byte const *) memchr (path_beg, 32 /* SP */, mem.len() - path_offs);
-    if (!uri_end)
-	uri_end = mem.mem() + mem.len();
+    if (!uri_end) {
+	logE_ (_func, "Bad request (2) \"", mem, "\"");
+	hexdump (logs, mem);
+	return Result::Failure;
+    }
 
     Byte * const params_start = (Byte*) memchr (path_beg, '?', uri_end - path_beg);
     Byte const *path_end;
@@ -133,12 +136,6 @@ HttpServer::processRequestLine (Memory const _mem)
 	path_end = params_start;
     else
 	path_end = uri_end;
-
-    if (!path_end) {
-	logE_ (_func, "Bad request (2) \"", mem, "\"");
-	hexdump (logs, mem);
-	return Result::Failure;
-    }
 
     cur_req->full_path = ConstMemory (path_beg, path_end - mem.mem() - path_offs);
 
