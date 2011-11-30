@@ -43,8 +43,8 @@ public:
     // It write() returned Failure, then the value of *ret_nwritten indicates
     // how much data has been written successfully before the error occured.
     // This value may be less than the actual number of bytes written, though.
-    virtual mt_throws Result write (ConstMemory const &mem,
-				    Size              *ret_nwritten) = 0;
+    virtual mt_throws Result write (ConstMemory  mem,
+				    Size        *ret_nwritten) = 0;
 
     virtual mt_throws Result writev (struct iovec *iovs,
 				     Count         num_iovs,
@@ -54,8 +54,8 @@ public:
 
   // Non-virtual methods
 
-    mt_throws Result writeFull (ConstMemory const &mem,
-				Size              *ret_nwritten);
+    mt_throws Result writeFull (ConstMemory  mem,
+				Size        *ret_nwritten);
 
     // Array arguments are treated as "char const *" without this workaround.
     template <Size N>

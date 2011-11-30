@@ -19,43 +19,31 @@
 
 #include <libmary/util_common.h>
 
-#include <libmary/output_stream.h>
+#include <libmary/input_stream.h>
 
 
 namespace M {
 
-mt_throws Result
-OutputStream::writev (struct iovec * const iovs,
-		      Count          const num_iovs,
-		      Size         * const ret_nwritten)
+mt_throws IoResult
+InputStream::readFull (Memory   const mem,
+		       Size   * const ret_nread)
 {
-    if (ret_nwritten)
-	*ret_nwritten = 0;
+    Size bread = 0;
+    IoResult res = IoResult::Normal;
 
-    Size total_written = 0;
-    for (Count i = 0; i < num_iovs; ++i) {
-	Size nwritten;
-	Result const res = write (ConstMemory ((Byte const *) iovs [i].iov_base, iovs [i].iov_len), &nwritten);
-	total_written += nwritten;
-	if (!res) {
-	    if (ret_nwritten)
-		*ret_nwritten = total_written;
+    while (bread < mem.len()) {
+	Size last_read;
+	res = read (mem.region (bread, mem.len() - bread), &last_read);
+	if (res != IoResult::Normal)
+	    break;
 
-	    return res;
-	}
+	bread += last_read;
     }
 
-    if (ret_nwritten)
-	*ret_nwritten = total_written;
+    if (ret_nread)
+	*ret_nread = bread;
 
-    return Result::Success;
-}
-
-mt_throws Result
-OutputStream::writeFull (ConstMemory   const mem,
-			 Size        * const nwritten)
-{
-    return writeFull_common (this, mem, nwritten);
+    return res;
 }
 
 }

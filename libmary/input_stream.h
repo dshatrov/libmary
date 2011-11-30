@@ -30,10 +30,15 @@ namespace M {
 class InputStream
 {
 public:
-    virtual IoResult read (Memory const &mem,
-			   Size         *ret_nread)
+    virtual IoResult read (Memory  mem,
+			   Size   *ret_nread)
  		mt_throw ((IoException,
 			   InternalException)) = 0;
+
+  // Non-virtual methods
+
+    mt_throws IoResult readFull (Memory  mem,
+				 Size   *ret_nread);
 };
 
 }

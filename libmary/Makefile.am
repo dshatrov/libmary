@@ -230,6 +230,7 @@ libmary_1_0_la_SOURCES =		\
 					\
 	log.cpp				\
 	file.cpp			\
+	input_stream.cpp		\
 	output_stream.cpp		\
 	buffered_output_stream.cpp	\
 					\
