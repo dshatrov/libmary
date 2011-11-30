@@ -106,6 +106,13 @@ mt_throws Result updateTime ()
 }
 #endif
 
+void splitTime (Time        const unixtime,
+		struct tm * const mt_nonnull ret_tm)
+{
+    time_t tmp_unixtime = (time_t) unixtime;
+    localtime_r (&tmp_unixtime, ret_tm);
+}
+
 void uSleep (unsigned long const microseconds)
 {
     g_usleep ((gulong) microseconds);

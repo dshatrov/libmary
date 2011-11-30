@@ -58,6 +58,9 @@ static inline Time getTimeMicroseconds ()
 
 mt_throws Result updateTime ();
 
+void splitTime (Time       unixtime,
+		struct tm * mt_nonnull ret_tm);
+
 void uSleep (unsigned long const microseconds);
 
 static inline void sSleep (unsigned long const seconds)
