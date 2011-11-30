@@ -67,7 +67,7 @@ private:
     static void setFeedback (Cb<PollGroup::Feedback> const &feedback,
 			     void *_self);
 
-  mt_iface_end(PollGroup::Pollable)
+  mt_iface_end
 
 public:
     mt_throws Result open ();

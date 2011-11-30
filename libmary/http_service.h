@@ -166,7 +166,7 @@ private:
 
     static void httpClosed (Exception *exc_,
 			    void      *cb_data);
-  mt_iface_end()
+  mt_iface_end
 
   mt_iface (Sender::Frontend)
     static Sender::Frontend const sender_frontend;
@@ -177,7 +177,7 @@ private:
 
     static void senderClosed (Exception *exc_,
 			      void      *_http_conn);
-  mt_iface_end()
+  mt_iface_end
 
     bool acceptOneConnection ();
 
@@ -185,7 +185,7 @@ private:
     static TcpServer::Frontend const tcp_server_frontend;
 
     static void accepted (void *_self);
-  mt_iface_end()
+  mt_iface_end
 
     mt_mutex (mutex) void addHttpHandler_rec (CbDesc<HttpHandler> const &cb,
 					      ConstMemory  path,

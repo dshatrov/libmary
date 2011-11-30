@@ -55,7 +55,7 @@
 #define mt_exc_kind(a)
 
 #define mt_iface(a)
-#define mt_iface_end(a)
+#define mt_iface_end
 
 #define mt_async
 #define mt_unsafe

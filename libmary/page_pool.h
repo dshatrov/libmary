@@ -135,8 +135,8 @@ public:
     public:
       mt_iface (OutputStream)
 
-	mt_throws Result write (ConstMemory const &mem,
-				Size * const ret_nwritten)
+	mt_throws Result write (ConstMemory   const mem,
+				Size        * const ret_nwritten)
 	{
 	    page_pool->getFillPages (page_list, mem);
 
@@ -152,7 +152,7 @@ public:
 	    return Result::Success;
 	}
 
-      mt_iface_end (OutputStream)
+      mt_iface_end
 
 	PageListOutputStream (PagePool     * const mt_nonnull page_pool,
 			      PageListHead * const mt_nonnull page_list)

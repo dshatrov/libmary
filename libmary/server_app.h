@@ -104,7 +104,7 @@ private:
 
     static bool pollIterationEnd (void *_thread_ctx);
 
-  mt_iface_end()
+  mt_iface_end
 
 #ifdef LIBMARY_MT_SAFE
     StateMutex mutex;

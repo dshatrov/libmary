@@ -212,7 +212,7 @@ public:
 	  return this;
       }
 
-  mt_iface_end (CodeReferenced)
+  mt_iface_end
 
     mt_locked DeletionSubscriptionKey addDeletionCallback (DeletionCallback  cb,
 							   void             *cb_data,

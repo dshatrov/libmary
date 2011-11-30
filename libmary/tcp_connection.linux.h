@@ -81,7 +81,7 @@ private:
     static void setFeedback (Cb<PollGroup::Feedback> const &feedback,
 			     void *_self);
 
-  mt_iface_end(PollGroup::Pollable)
+  mt_iface_end
 
 public:
   mt_iface (Connection)
@@ -91,7 +91,7 @@ public:
       mt_throws AsyncIoResult read (Memory const &mem,
 				    Size         *ret_nread);
 
-    mt_iface_end (AsyncInputStream)
+    mt_iface_end
 
     mt_iface (AsyncOutputStream)
 
@@ -102,7 +102,7 @@ public:
 				      Count         num_iovs,
 				      Size         *ret_nwritten);
 
-    mt_iface_end (AsyncOutputStream)
+    mt_iface_end
 
     // Note that close() closes the file descriptor, which may cause races
     // if the connection object is still in use, i.e. it is referenced and
@@ -116,7 +116,7 @@ public:
     }
 #endif
 
-  mt_iface_end (Connection)
+  mt_iface_end
 
     void setFrontend (Cb<Frontend> const &frontend)
     {
