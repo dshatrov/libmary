@@ -39,8 +39,8 @@ private:
     mt_throws Result flushBuffer ();
 
 public:
-    mt_throws Result write (ConstMemory const &mem,
-			    Size *ret_nwritten);
+    mt_throws Result write (ConstMemory  mem,
+			    Size        *ret_nwritten);
 
     mt_throws Result flush ();
 

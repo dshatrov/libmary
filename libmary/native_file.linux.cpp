@@ -35,8 +35,8 @@
 namespace M {
 
 mt_throws IoResult
-NativeFile::read (Memory const &mem,
-		  Size * const  ret_nread)
+NativeFile::read (Memory   const mem,
+		  Size   * const ret_nread)
 {
     if (ret_nread)
 	*ret_nread = 0;
@@ -78,8 +78,8 @@ NativeFile::read (Memory const &mem,
 }
 
 mt_throws Result
-NativeFile::write (ConstMemory const &mem,
-		   Size * const ret_nwritten)
+NativeFile::write (ConstMemory   const mem,
+		   Size        * const ret_nwritten)
 {
     if (ret_nwritten)
 	*ret_nwritten = 0;

@@ -47,8 +47,8 @@ BufferedOutputStream::flushBuffer ()
 }
 
 mt_throws Result
-BufferedOutputStream::write (ConstMemory const &mem,
-			     Size * const ret_nwritten)
+BufferedOutputStream::write (ConstMemory   const mem,
+			     Size        * const ret_nwritten)
 {
     if (ret_nwritten)
 	*ret_nwritten = 0;
