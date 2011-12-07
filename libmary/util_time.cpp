@@ -95,8 +95,10 @@ mt_throws Result updateTime ()
 	localtime_r (&cur_unixtime, &tlocal->localtime);
     }
 
-    long const timezone_abs = timezone >= 0 ? timezone : -timezone;
-    tlocal->timezone_str [0] = timezone >= 0 ? '+' : '-';
+//    long const timezone_abs = timezone >= 0 ? timezone : -timezone;
+    long const timezone_abs = 0;
+//    tlocal->timezone_str [0] = timezone >= 0 ? '+' : '-';
+    tlocal->timezone_str [0] = '+';
     tlocal->timezone_str [1] = '0' + timezone_abs / 36000;
     tlocal->timezone_str [2] = '0' + timezone_abs /  3600 % 10;
     tlocal->timezone_str [3] = '0' + timezone_abs /   600 %  6;
