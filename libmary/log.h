@@ -153,13 +153,13 @@ void _libMary_log_unlocked (char const * const loglevel_str, Args const &...args
     fmt.min_digits = 2;
 #if 0
     _libMary_do_log_unlocked (
-	    fmt_def, "[", tlocal->localtime.tm_year + 1900, "/", fmt, tlocal->localtime.tm_mon, "/", tlocal->localtime.tm_mday, " ",
+	    fmt_def, "[", tlocal->localtime.tm_year + 1900, "/", fmt, tlocal->localtime.tm_mon + 1, "/", tlocal->localtime.tm_mday, " ",
 	    tlocal->localtime.tm_hour, ":", tlocal->localtime.tm_min, ":", tlocal->localtime.tm_sec, " ",
 	    ConstMemory::forObject (tlocal->timezone_str), "]",
 	    loglevel_str);
 #endif
     _libMary_do_log_unlocked (
-	    fmt_def, tlocal->localtime.tm_year + 1900, "/", fmt, tlocal->localtime.tm_mon, "/", tlocal->localtime.tm_mday, " ",
+	    fmt_def, tlocal->localtime.tm_year + 1900, "/", fmt, tlocal->localtime.tm_mon + 1, "/", tlocal->localtime.tm_mday, " ",
 	    tlocal->localtime.tm_hour, ":", tlocal->localtime.tm_min, ":", tlocal->localtime.tm_sec,
 	    loglevel_str);
     _libMary_do_log_unlocked (fmt_def, args...);
