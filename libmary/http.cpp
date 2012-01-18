@@ -419,12 +419,15 @@ HttpServer::processInput (Memory const &_mem,
 		Size accepted = toprocess;
 		if (self->frontend && self->frontend->messageBody) {
 		    self->frontend.call (self->frontend->messageBody, /*(*/
-			    self->cur_req, Memory (mem.mem(), toprocess), &accepted /*)*/);
+			    self->cur_req,
+			    Memory (mem.mem(), toprocess),
+			    must_consume /* end_of_request */,
+			    &accepted /*)*/);
 		    assert (accepted <= toprocess);
 		}
 
 		if (must_consume && accepted != toprocess) {
-		    logE (http, _func, "RTMPT request contains an incomplete message");
+		    logE (http, _func, "RTMPT request contains an incomplete RTMP message");
 		    return Receiver::ProcessInputResult::Error;
 		}
 

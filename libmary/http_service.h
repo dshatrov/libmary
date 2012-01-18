@@ -53,6 +53,7 @@ public:
 	Result (*httpMessageBody) (HttpRequest  * mt_nonnull req,
 				   Sender       * mt_nonnull conn_sender,
 				   Memory const &mem,
+				   bool          end_of_request,
 				   Size         * mt_nonnull ret_accepted,
 				   void         *msg_data,
 				   void         *cb_data);
@@ -159,10 +160,11 @@ private:
     static void httpRequest (HttpRequest * mt_nonnull req,
 			     void        *cb_data);
 
-    static void httpMessageBody (HttpRequest * mt_nonnull req,
+    static void httpMessageBody (HttpRequest  * mt_nonnull req,
 				 Memory const &mem,
-				 Size        * mt_nonnull ret_accepted,
-				 void        *cb_data);
+				 bool          end_of_request,
+				 Size         * mt_nonnull ret_accepted,
+				 void         *cb_data);
 
     static void httpClosed (Exception *exc_,
 			    void      *cb_data);

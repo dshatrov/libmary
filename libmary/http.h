@@ -166,6 +166,7 @@ public:
 
 	void (*messageBody) (HttpRequest * mt_nonnull req,
 			     Memory const &mem,
+			     bool         end_of_request,
 			     Size        * mt_nonnull ret_accepted,
 			     void        *cb_data);
 

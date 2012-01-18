@@ -139,6 +139,9 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
     if (self->no_keepalive_conns)
 	req->setKeepalive (false);
 
+    if (http_conn->conn_keepalive_timer)
+	self->timers->restartTimer (http_conn->conn_keepalive_timer);
+
   // Searching for a handler with the longest matching path.
   //
   //     /a/b/c/  - last path element should be empty;
@@ -216,10 +219,11 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 }
 
 void
-HttpService::httpMessageBody (HttpRequest * const mt_nonnull req,
-			      Memory        const &mem,
-			      Size        * const mt_nonnull ret_accepted,
-			      void        * const  _http_conn)
+HttpService::httpMessageBody (HttpRequest  * const mt_nonnull req,
+			      Memory const &mem,
+			      bool           const end_of_request,
+			      Size         * const mt_nonnull ret_accepted,
+			      void         * const  _http_conn)
 {
     HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
 
@@ -277,12 +281,14 @@ HttpService::httpMessageBody (HttpRequest * const mt_nonnull req,
 
 	    if (*ret_accepted < mem.len()) {
 		Size accepted = 0;
-		if (!http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody,
-			    /* ( */ req,
-				    &http_conn->conn_sender,
-				    mem.region (*ret_accepted),
-				    &accepted,
-				    &http_conn->cur_msg_data /* ) */))
+		if (!http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody, /*(*/
+			    req,
+			    &http_conn->conn_sender,
+			    mem.region (*ret_accepted),
+			    end_of_request,
+			    &accepted,
+			    &http_conn->cur_msg_data /*)*/)
+		    || end_of_request)
 		{
 		    http_conn->cur_handler = NULL;
 		}
@@ -300,10 +306,14 @@ HttpService::httpMessageBody (HttpRequest * const mt_nonnull req,
 	return;
     }
 
-    if (!http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody,
-		/* ( */ req, &http_conn->conn_sender, mem, ret_accepted, http_conn->cur_msg_data /* ) */)
-	/* Wrong
-	   || *ret_accepted == mem.len() */)
+    if (!http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody, /*(*/
+		req,
+		&http_conn->conn_sender,
+		mem,
+		end_of_request,
+		ret_accepted,
+		http_conn->cur_msg_data /*)*/)
+	|| end_of_request)
     {
 	http_conn->cur_handler = NULL;
 	*ret_accepted = mem.len();
@@ -315,8 +325,14 @@ HttpService::doCloseHttpConnection (HttpConnection * const http_conn)
 {
     if (http_conn->cur_handler) {
 	Size accepted = 0;
-	http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody,
-		/* ( */ (HttpRequest*) NULL, &http_conn->conn_sender, Memory(), &accepted, http_conn->cur_msg_data /* ) */);
+	http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody, /*(*/
+		(HttpRequest*) NULL,
+		&http_conn->conn_sender,
+		Memory(),
+		true /* end_of_request */,
+		&accepted,
+		http_conn->cur_msg_data /*)*/);
+
 	http_conn->cur_handler = NULL;
 	logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
     }
