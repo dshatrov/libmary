@@ -90,6 +90,7 @@ mary_target_headers =			\
 	input_stream.h			\
 	output_stream.h			\
 	buffered_output_stream.h	\
+	array_output_stream.h		\
 					\
 	async_input_stream.h		\
 	async_output_stream.h		\
