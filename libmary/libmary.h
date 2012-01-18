@@ -74,6 +74,7 @@
 #include <libmary/native_file.h>
 #include <libmary/output_stream.h>
 #include <libmary/buffered_output_stream.h>
+#include <libmary/array_output_stream.h>
 
 #include <libmary/async_input_stream.h>
 #include <libmary/async_output_stream.h>

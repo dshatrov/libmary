@@ -149,8 +149,13 @@ void _libMary_log_unlocked (char const * const loglevel_str, Args const &...args
     exc_block ();
 
     LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
+
     Format fmt;
     fmt.min_digits = 2;
+
+    Format fmt_frac;
+    fmt_frac.min_digits = 4;
+
 #if 0
     _libMary_do_log_unlocked (
 	    fmt_def, "[", tlocal->localtime.tm_year + 1900, "/", fmt, tlocal->localtime.tm_mon + 1, "/", tlocal->localtime.tm_mday, " ",
@@ -158,10 +163,12 @@ void _libMary_log_unlocked (char const * const loglevel_str, Args const &...args
 	    ConstMemory::forObject (tlocal->timezone_str), "]",
 	    loglevel_str);
 #endif
+
     _libMary_do_log_unlocked (
 	    fmt_def, tlocal->localtime.tm_year + 1900, "/", fmt, tlocal->localtime.tm_mon + 1, "/", tlocal->localtime.tm_mday, " ",
-	    tlocal->localtime.tm_hour, ":", tlocal->localtime.tm_min, ":", tlocal->localtime.tm_sec,
+	    tlocal->localtime.tm_hour, ":", tlocal->localtime.tm_min, ":", tlocal->localtime.tm_sec, ".", fmt_frac, tlocal->time_log_frac,
 	    loglevel_str);
+
     _libMary_do_log_unlocked (fmt_def, args...);
     logs->print_ ("\n", fmt_def);
     logs->flush ();

@@ -116,6 +116,7 @@ public:
 	void set (Size offset,
 		  ConstMemory const &mem);
 
+	// TODO Add msg_offset
 	PageListArray (Page * const first_page,
 		       Size const data_len)
 	    : first_page (first_page),

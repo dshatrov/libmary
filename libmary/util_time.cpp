@@ -65,6 +65,8 @@ mt_throws Result updateTime ()
     Time const new_seconds = ts.tv_sec;
     Time const new_microseconds = (Uint64) ts.tv_sec * 1000000 + (Uint64) ts.tv_nsec / 1000;
 
+    tlocal->time_log_frac = ts.tv_nsec % 1000000000 / 100000;
+
     if (new_seconds >= tlocal->time_seconds)
 	tlocal->time_seconds = new_seconds;
     else

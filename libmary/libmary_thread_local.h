@@ -84,6 +84,8 @@ public:
     Time time_microseconds;
     Time unixtime;
 
+    Time time_log_frac;
+
     struct tm localtime;
     Time saved_unixtime;
     // Saved monotonic clock value in seconds.
