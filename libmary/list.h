@@ -567,17 +567,60 @@ public:
 
     void iter_begin (iter &iter) const
     {
-	iter.cur = getFirstElement ();
+	iter.cur = getFirstElement();
     }
 
-    Element* iter_next (iter &iter) const
+    static Element* iter_next (iter &iter)
     {
 	Element * const el = iter.cur;
 	iter.cur = iter.cur->next;
 	return el;
     }
 
-    bool iter_done (iter &iter) const
+    static bool iter_done (iter &iter)
+    {
+	return iter.cur == NULL;
+    }
+
+  // ___________________________ Reverse iterator ______________________________
+
+    class rev_iter
+    {
+	friend class List;
+
+    private:
+	Element *cur;
+
+	rev_iter (Element * const el) : cur (el) {}
+
+    public:
+	rev_iter () {}
+	rev_iter (List &list) { list.rev_iter_begin (*this); }
+
+	bool operator == (rev_iter const &iter) const
+	{
+	    return cur == iter.cur;
+	}
+
+	bool operator != (rev_iter const &iter) const
+	{
+	    return cur != iter.cur;
+	}
+    };
+
+    void rev_iter_begin (rev_iter &iter) const
+    {
+	iter.cur = getLastElement();
+    }
+
+    static Element* rev_iter_next (rev_iter &iter)
+    {
+	Element * const el = iter.cur;
+	iter.cur = iter.cur->previous;
+	return el;
+    }
+
+    static bool rev_iter_done (rev_iter &iter)
     {
 	return iter.cur == NULL;
     }

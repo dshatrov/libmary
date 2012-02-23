@@ -233,14 +233,57 @@ public:
 	iter.cur = getFirst ();
     }
 
-    T* iter_next (iter &iter) const
+    static T* iter_next (iter &iter)
     {
 	T * const obj = iter.cur;
 	iter.cur = getNext (iter.cur);
 	return obj;
     }
 
-    bool iter_done (iter &iter) const
+    static bool iter_done (iter &iter)
+    {
+	return iter.cur == NULL;
+    }
+
+  // ___________________________ Reverse iterator ______________________________
+
+    class rev_iter
+    {
+	friend class IntrusiveList;
+
+    private:
+	T *cur;
+
+	rev_iter (T * const el) : cur (el) {}
+
+    public:
+	rev_iter () {}
+	rev_iter (IntrusiveList &list) { list.rev_iter_begin (*this); }
+
+	bool operator == (rev_iter const &iter) const
+	{
+	    return cur == iter.cur;
+	}
+
+	bool operator != (rev_iter const &iter) const
+	{
+	    return cur != iter.cur;
+	}
+    };
+
+    void rev_iter_begin (rev_iter &iter) const
+    {
+	iter.cur = getLast();
+    }
+
+    static T* rev_iter_next (rev_iter &iter)
+    {
+	T * const obj = iter.cur;
+	iter.cur = getPrevious (iter.cur);
+	return obj;
+    }
+
+    static bool rev_iter_done (rev_iter &iter)
     {
 	return iter.cur == NULL;
     }
