@@ -218,6 +218,10 @@ Timers::processTimers ()
 
       // 'timer' might have been deleted by the user and should not be used
       // directly anymore.
+      //
+      // We can't delete the timer ourselves here for a similar reason: its
+      // lifetime is controlled by the user, so we can't tie it to callback's
+      // weak_obj.
 
 	if (delete_chain)
 	    delete chain;
