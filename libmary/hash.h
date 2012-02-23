@@ -194,8 +194,6 @@ public:
 
   // Iterators
 
-class Foo {};
-
     class iter
     {
 	friend class Hash_anybase< T, KeyType, Extractor, Comparator, Hasher, HashName >;
