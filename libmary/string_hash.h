@@ -73,6 +73,7 @@ public:
 	EntryKey (Entry * const entry) : entry (entry) {}
     public:
 	operator bool () const { return entry; }
+	ConstMemory getKey() const { return entry->str->mem(); };
 	T getData () const { return entry->data; }
 	T* getDataPtr() const { return &entry->data; }
 	EntryKey () : entry (NULL) {}
@@ -135,25 +136,25 @@ public:
     {
 	friend class StringHash_anybase;
     private:
-	typename StrHash::iter iter;
+	typename StrHash::iter _iter;
     public:
 	iter () {}
-	iter (StringHash_anybase &hash) : iter (hash.hash) {}
+	iter (StringHash_anybase &hash) : _iter (hash.hash) {}
     };
 
     void iter_begin (iter &iter) const
     {
-	hash.iter_begin (iter.iter);
+	hash.iter_begin (iter._iter);
     }
 
     EntryKey iter_next (iter &iter) const
     {
-	return hash.iter_next (iter.iter);
+	return hash.iter_next (iter._iter);
     }
 
     bool iter_done (iter &iter) const
     {
-	return hash.iter_done (iter.iter);
+	return hash.iter_done (iter._iter);
     }
 };
 
