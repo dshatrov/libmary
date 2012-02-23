@@ -355,6 +355,7 @@ public:
 	    DEBUG (
 	      fprintf (stderr, "Cb::call_unlocks_mutex: callback not set, obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
 	    )
+	    mutex.unlock ();
 	    return false;
 	}
 
@@ -370,6 +371,7 @@ public:
 		DEBUG (
 		  fprintf (stderr, "Cb::call_unlocks_mutex: obj 0x%lx gone\n", (unsigned long) weak_code_ref.getWeakObject());
 		)
+		mutex.unlock ();
 		return false;
 	    }
 	    DEBUG (
@@ -380,8 +382,8 @@ public:
 	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
 
 	    mutex.unlock ();
-	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 
+	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 	    tocall (args..., tmp_cb_data);
 
 	    tlocal->last_coderef_container = prv_coderef_container;
@@ -397,11 +399,52 @@ public:
 	  fprintf (stderr, "Cb::call_unlocks_mutex: simple path, obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
 	)
 	mutex.unlock ();
+
 	// Be careful not to use any data members of class Cb after the mutex is unlocked.
 	tocall (args..., tmp_cb_data);
+
 	DEBUG (
 	  fprintf (stderr, "Cb::call_unlocks_mutex: done\n");
 	)
+	return true;
+    }
+
+    // Doesn't unlock the mutex when 'false' is returned.
+    template <class CB, class MutexType, class ...Args>
+    bool call_unlocks_mutex_if_called (CB tocall, MutexType &mutex, Args const &...args) const
+    {
+	if (!tocall)
+	    return false;
+
+	void * const tmp_cb_data = cb_data;
+
+	if (weak_code_ref.isValid ()) {
+	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
+	    if (weak_code_ref.getWeakObject() == tlocal->last_coderef_container)
+		goto _simple_path;
+
+	    CodeRef const code_ref = weak_code_ref;
+	    if (!code_ref)
+		return false;
+
+	    Object * const prv_coderef_container = tlocal->last_coderef_container;
+	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
+
+	    mutex.unlock ();
+	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
+
+	    tocall (args..., tmp_cb_data);
+
+	    tlocal->last_coderef_container = prv_coderef_container;
+	    return true;
+	}
+
+      _simple_path:
+	mutex.unlock ();
+
+	// Be careful not to use any data members of class Cb after the mutex is unlocked.
+	tocall (args..., tmp_cb_data);
+
 	return true;
     }
 
@@ -433,6 +476,12 @@ public:
     bool call_unlocks_mutex_ (MutexType &mutex, Args const &...args) const
     {
 	return call_unlocks_mutex (cb, mutex, args...);
+    }
+
+    template <class MutexType, class ...Args>
+    bool call_unlocks_mutex_if_called_ (MutexType &mutex, Args const &...args) const
+    {
+	return call_unlocks_mutex_if_called (cb, mutex, args...);
     }
 
 #if 0
