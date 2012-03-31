@@ -69,7 +69,9 @@ mt_throws Result libMary_mwritev (int   const num_fds,
 		logD_ ("    #", j, ": "
 		       "0x", fmt_hex, (UintPtr) iovs [i][j].iov_base, ": "
 		       "", fmt_def, iovs [i][j].iov_len);
+                logLock ();
 		hexdump (logs, ConstMemory ((Byte const *) iovs [i][j].iov_base, iovs [i][j].iov_len));
+                logUnlock ();
 		total_len += iovs [i][j].iov_len;
 	    }
 	}

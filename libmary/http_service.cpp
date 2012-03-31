@@ -265,7 +265,9 @@ HttpService::httpMessageBody (HttpRequest  * const mt_nonnull req,
 
 		if (http_conn->cur_handler->parse_body_params) {
 //		    logD_ (_func, "Parsing body params:");
+//                  logLock ();
 //		    hexdump (logs, ConstMemory (http_conn->preassembly_buf, http_conn->preassembled_len));
+//                  logUnlock ();
 		    req->parseParameters (Memory (http_conn->preassembly_buf, http_conn->preassembled_len));
 		}
 

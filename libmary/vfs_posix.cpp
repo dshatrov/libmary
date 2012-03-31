@@ -189,7 +189,9 @@ VfsPosix::stat (ConstMemory const &_name)
 	stat_data->file_type = FileType::Socket;
     else {
 	logE_ (_func, "Unknown file type:");
+        logLock ();
 	hexdump (logs, ConstMemory::forObject (stat_buf.st_mode));
+        logUnlock ();
 	exc_throw <InternalException> (InternalException::BackendMalfunction);
 	return NULL;
     }

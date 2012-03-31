@@ -193,7 +193,9 @@ NativeFile::stat (FileStat * const mt_nonnull ret_stat)
     else {
 	exc_throw <InternalException> (InternalException::BackendMalfunction);
 	logE_ (_func, "Unknown file type:");
+        logLock ();
 	hexdump (logs, ConstMemory::forObject (stat_buf.st_mode));
+        logUnlock ();
 	return Result::Failure;
     }
 

@@ -108,7 +108,9 @@ HttpServer::processRequestLine (Memory const _mem)
     Byte const *path_beg = (Byte const *) memchr (mem.mem(), 32 /* SP */, mem.len());
     if (!path_beg) {
 	logE_ (_func, "Bad request (1) \"", mem, "\"");
+        logLock ();
 	hexdump (logs, mem);
+        logUnlock ();
 	return Result::Failure;
     }
 
@@ -126,7 +128,9 @@ HttpServer::processRequestLine (Memory const _mem)
     Byte const *uri_end = (Byte const *) memchr (path_beg, 32 /* SP */, mem.len() - path_offs);
     if (!uri_end) {
 	logE_ (_func, "Bad request (2) \"", mem, "\"");
+        logLock ();
 	hexdump (logs, mem);
+        logUnlock ();
 	return Result::Failure;
     }
 
@@ -221,7 +225,9 @@ HttpServer::processHeaderField (ConstMemory const &mem)
     Byte const * const header_name_end = (Byte const *) memchr (mem.mem(), ':', mem.len());
     if (!header_name_end) {
 	logE_ (_func, "bad header line: ", mem);
+        logLock ();
 	hexdump (logs, mem);
+        logUnlock ();
 	return;
     }
 
@@ -273,8 +279,11 @@ HttpServer::receiveRequestLine (Memory const _mem,
 				bool * const mt_nonnull ret_header_parsed)
 {
     logD (http, _func, _mem.len(), " bytes");
-    if (logLevelOn (http, LogLevel::Debug))
+    if (logLevelOn (http, LogLevel::Debug)) {
+        logLock ();
 	hexdump (logs, _mem);
+        logUnlock ();
+    }
 
     *ret_accepted = 0;
     *ret_header_parsed = false;
