@@ -523,6 +523,7 @@ public:
 	cb = cb_desc.cb;
 	cb_data = cb_desc.cb_data;
 	weak_code_ref = cb_desc.coderef_container;
+        ref_data = cb_desc.ref_data;
 
 	return *this;
     }
