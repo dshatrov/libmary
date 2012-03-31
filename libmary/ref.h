@@ -70,6 +70,9 @@ private:
 
     void do_ref (T* const ref)
     {
+        if (obj == ref)
+            return;
+
 	if (obj != NULL)
 	    /*static_cast <Referenced*>*/ (obj)->libMary_unref ();
 
@@ -151,7 +154,7 @@ public:
     template <class C>
     Ref& operator = (Ref<C> const &ref)
     {
-	do_ref (ref.obj);
+        do_ref (ref.obj);
 	return *this;
     }
 

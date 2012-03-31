@@ -50,6 +50,9 @@ public:
 
     VirtRef& operator = (VirtReferenced * const ref)
     {
+        if (this->ref == ref)
+            return *this;
+
 	if (this->ref)
 	    this->ref->virt_unref ();
 
@@ -62,7 +65,7 @@ public:
 
     VirtRef& operator = (VirtRef const &virt_ref)
     {
-	if (this == &virt_ref)
+	if (this == &virt_ref || ref == virt_ref.ref)
 	    return *this;
 
 	if (ref)
@@ -76,8 +79,8 @@ public:
     }
 
     VirtRef (VirtRef const &virt_ref)
+        : ref (virt_ref.ref)
     {
-	ref = virt_ref.ref;
 	if (ref)
 	    ref->virt_ref ();
     }
