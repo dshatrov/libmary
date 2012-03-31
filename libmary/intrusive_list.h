@@ -191,6 +191,19 @@ public:
 	last = NULL;
     }
 
+    Count countNumElements () const
+    {
+        Count count = 0;
+
+        Element *cur_el = first;
+        while (cur_el) {
+            ++count;
+            cur_el = cur_el->next;
+        }
+
+        return count;
+    }
+
     IntrusiveList ()
 	: first (NULL),
 	  last (NULL)
@@ -417,6 +430,21 @@ public:
     void clear ()
     {
 	first = NULL;
+    }
+
+    Count countNumElements () const
+    {
+        Element *cur_el = first;
+        if (!cur_el)
+            return 0;
+
+        Count count = 0;
+        do {
+            ++count;
+            cur_el = cur_el->next;
+        } while (cur_el != first);
+
+        return count;
     }
 
     IntrusiveCircularList ()
