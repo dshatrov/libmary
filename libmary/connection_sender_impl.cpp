@@ -210,6 +210,8 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
     mt_throw ((IoException,
 	       InternalException))
 {
+    logD (send, _func, "msg_list len: ", msg_list.countNumElements());
+
     for (;;) {
 	if (!gotDataToSend()) {
 	    logD (send, _func, "no data to send");
@@ -243,6 +245,9 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 	// Note: Comments in boost headers tell that posix platforms are not
 	// required to define IOV_MAX.
 	struct iovec iovs [IOV_MAX];
+// TEST for valgrind, this has no effect.
+//        memset (iovs, 0, sizeof (iovs));
+
 #if 0
 	sendPendingMessages_vector (false /* count_iovs */,
 				    true  /* fill_iovs */,
@@ -263,11 +268,13 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 #if 0
 	// Dump of all iovs.
 	if (defaultLogLevelOn (LogLevel::Debug)) {
-	    logD (writev, _func, "iovs:");
+            logLock ();
+	    log_unlocked (libMary_logGroup_writev.getLogLevel(), _func, "iovs:");
 	    for (Count i = 0; i < num_iovs; ++i) {
 		logD (writev, "    #", i, ": 0x", (UintPtr) iovs [i].iov_base, ": ", iovs [i].iov_len);
 		hexdump (logs, ConstMemory ((Byte const *) iovs [i].iov_base, iovs [i].iov_len));
 	    }
+            logUnlock ();
 	}
 #endif
 
@@ -276,6 +283,7 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 	    bool tmp_processing_barrier_hit = processing_barrier_hit;
 	    processing_barrier_hit = false;
 
+            logD (send, _func, "writev: num_iovs: ", num_iovs);
 	    AsyncIoResult const res = conn->writev (iovs, num_iovs, &num_written);
 	    if (res == AsyncIoResult::Again) {
 		if (send_state == Sender::ConnectionReady)
