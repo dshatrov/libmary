@@ -22,6 +22,7 @@
 #include <cstdio>
 
 #include <libmary/log.h>
+#include <libmary/util_dev.h>
 
 #include <libmary/page_pool.h>
 
@@ -371,6 +372,22 @@ PagePool::~PagePool ()
     }
 
     mutex.unlock ();
+}
+
+void
+PagePool::dumpPages (OutputStream * const mt_nonnull outs,
+                     PageListHead * const mt_nonnull page_list)
+{
+    Page *page = page_list->first;
+    Count i = 1;
+    while (page) {
+        outs->print ("\nPage #", i, "\n");
+        hexdump (outs, page->mem());
+        page = page->getNextMsgPage();
+        ++i;
+    }
+    outs->print ("\n");
+    outs->flush ();
 }
 
 }

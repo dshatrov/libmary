@@ -219,6 +219,9 @@ public:
 	      Count min_pages);
 
     ~PagePool ();
+
+    static void dumpPages (OutputStream * mt_nonnull outs,
+                           PageListHead * mt_nonnull page_list);
 };
 
 }
