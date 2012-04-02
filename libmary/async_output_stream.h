@@ -42,7 +42,7 @@ public:
 					    Count         num_iovs,
 					    Size         *ret_nwritten);
 
-    virtual ~AsyncOutpuStream () {}
+    virtual ~AsyncOutputStream () {}
 };
 
 }
