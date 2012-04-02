@@ -108,6 +108,8 @@ public:
 	: timers (NULL)
     {
     }
+
+    virtual ~ServerContext () {}
 };
 
 }

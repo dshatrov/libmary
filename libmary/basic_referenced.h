@@ -68,9 +68,7 @@ public:
     {
     }
 
-    virtual ~BasicReferenced ()
-    {
-    }
+    virtual ~BasicReferenced () {}
 };
 
 template <class T>

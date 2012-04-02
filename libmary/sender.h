@@ -248,6 +248,8 @@ public:
     {
 	this->frontend = frontend;
     }
+
+    virtual ~Sender () {}
 };
 
 }

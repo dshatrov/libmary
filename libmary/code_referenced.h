@@ -33,6 +33,8 @@ public:
     // Implemented in code_ref.h to resolve header dependencies.
     template <class T, class CB, class ...Args>
     void async_call (T *self, CB tocall, Args const &...args);
+
+    virtual ~CodeReferenced () {}
 };
 
 class DependentCodeReferenced : public CodeReferenced

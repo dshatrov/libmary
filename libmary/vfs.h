@@ -74,6 +74,8 @@ public:
 #endif
 
     static mt_throws Ref<Vfs> createDefaultLocalVfs (ConstMemory const &root_path);
+
+    virtual ~Vfs () {}
 };
 
 }

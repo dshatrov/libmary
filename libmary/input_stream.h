@@ -39,6 +39,8 @@ public:
 
     mt_throws IoResult readFull (Memory  mem,
 				 Size   *ret_nread);
+
+    virtual ~InputStream () {}
 };
 
 }

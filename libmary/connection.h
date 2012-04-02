@@ -75,6 +75,8 @@ public:
     {
 	this->output_frontend = output_frontend;
     }
+
+    virtual ~Connection () {}
 };
 
 }

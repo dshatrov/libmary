@@ -57,6 +57,8 @@ public:
 	: cause (NULL)
     {
     }
+
+    virtual ~Exception () {}
 };
 
 // TODO Use __FILE__, __LINE__ and __func__ with exceptions.

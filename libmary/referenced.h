@@ -133,9 +133,7 @@ public:
     {
     }
 
-    virtual ~Referenced ()
-    {
-    }
+    virtual ~Referenced () {}
 };
 
 template <class T>

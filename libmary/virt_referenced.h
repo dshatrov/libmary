@@ -40,9 +40,7 @@ public:
     }
 #endif
 
-    virtual ~VirtReferenced ()
-    {
-    }
+    virtual ~VirtReferenced () {}
 };
 
 }

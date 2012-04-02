@@ -34,6 +34,8 @@ public:
 
     virtual void set (Size offset,
 		      ConstMemory const &mem) = 0;
+
+    virtual ~Array () {}
 };
 
 }

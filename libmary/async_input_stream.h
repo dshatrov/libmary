@@ -32,6 +32,8 @@ class AsyncInputStream
 public:
     virtual mt_throws AsyncIoResult read (Memory const &mem,
 					  Size         *ret_nread) = 0;
+
+    virtual ~AsyncInputStream () {}
 };
 
 }

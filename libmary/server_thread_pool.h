@@ -33,6 +33,8 @@ public:
     virtual mt_throws ServerThreadContext* grabThreadContext (ConstMemory const &filename) = 0;
 
     virtual void releaseThreadContext (ServerThreadContext *thread_ctx) = 0;
+
+    virtual ~ServerThreadPool () {}
 };
 
 }

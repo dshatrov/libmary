@@ -41,6 +41,8 @@ public:
     virtual mt_throws AsyncIoResult writev (struct iovec *iovs,
 					    Count         num_iovs,
 					    Size         *ret_nwritten);
+
+    virtual ~AsyncOutpuStream () {}
 };
 
 }

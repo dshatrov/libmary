@@ -62,9 +62,7 @@ public:
     {
     }
 
-    virtual ~Referenced ()
-    {
-    }
+    virtual ~Referenced () {}
 };
 
 }

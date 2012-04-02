@@ -76,6 +76,8 @@ public:
 #ifdef LIBMARY_ENABLE_MWRITEV
     virtual int getFd () = 0;
 #endif
+
+    virtual ~File () {}
 };
 
 }

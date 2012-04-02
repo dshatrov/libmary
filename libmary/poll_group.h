@@ -72,6 +72,8 @@ public:
     virtual mt_throws Result activatePollable (PollableKey mt_nonnull key) = 0;
 
     virtual void removePollable (PollableKey mt_nonnull key) = 0;
+
+    virtual ~PollGroup () {}
 };
 
 }

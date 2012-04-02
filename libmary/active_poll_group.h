@@ -49,6 +49,8 @@ public:
     {
 	this->frontend = frontend;
     }
+
+    virtual ~ActivePollGroup () {}
 };
 
 }

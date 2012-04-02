@@ -52,6 +52,8 @@ public:
 
     virtual mt_throws Result flush () = 0;
 
+    virtual ~OutputStream () {}
+
   // Non-virtual methods
 
     mt_throws Result writeFull (ConstMemory  mem,
