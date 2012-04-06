@@ -82,28 +82,6 @@ private:
     }
 
 public:
-/* TODO Explain why this method is necessary.
-
-    T* ptr () const
-    {
-	return obj;
-    }
-*/
-
-/* TODO Can't we just say "ref == NULL"?
- *      Or simply "if (ref) {}"?
-
-    bool isNull () const
-    {
-	return obj == NULL;
-    }
-
-    operator T* () const
-    {
-	return obj;
-    }
-*/
-
     template <class C>
     operator C* () const
     {
@@ -137,6 +115,9 @@ public:
     template <class C>
     void setNoUnref (C * const ref)
     {
+        if (obj == ref)
+            return;
+
 	obj = ref;
 	if (ref)
 	    /*static_cast <Referenced*>*/ (obj)->libMary_ref ();
@@ -145,6 +126,9 @@ public:
     template <class C>
     void setNoRef (C * const ref)
     {
+        if (obj == ref)
+            return;
+
 	if (obj != NULL)
 	    /*static_cast <Referenced*>*/ (obj)->libMary_unref ();
 
@@ -258,7 +242,8 @@ public:
 	    /*static_cast <Referenced*>*/ (obj)->libMary_unref ();
     }
 
-    // MyCpp compatibility method.
+  // MyCpp compatibility methods.
+
     T* ptr () const
     {
 	return obj;
