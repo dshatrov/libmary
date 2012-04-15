@@ -26,32 +26,72 @@
 
 namespace M {
 
+template <class T> class StringHash_anybase;
+
+class GenericStringHash
+{
+    template <class T> friend class StringHash_anybase;
+
+private:
+    class Entry
+    {
+    public:
+	Ref<String> str;
+
+        Entry (ConstMemory const mem)
+            : str (grab (new String (mem)))
+        {
+        }
+    };
+
+public:
+    // GenericStringHash::EntryKey is useful to create EntryKey fields
+    // inside classes of type T when StringHash<T> is used.
+    class EntryKey
+    {
+        template <class T> friend class StringHash_anybase;
+    private:
+	Entry *entry;
+	EntryKey (Entry * const entry) : entry (entry) {}
+    public:
+	operator bool () const { return entry; }
+	ConstMemory getKey() const { return entry->str->mem(); }
+	EntryKey () : entry (NULL) {}
+
+#if 0
+	// Methods for C API binding.
+	void *getAsVoidPtr () const { return static_cast <void*> (entry); }
+	static EntryKey fromVoidPtr (void *ptr) { return EntryKey (static_cast <Entry*> (ptr)); }
+#endif
+    };
+};
+
 template <class T>
 class StringHash_anybase
 {
 private:
-    class Entry : public HashEntry<>
+    class Entry : public GenericStringHash::Entry,
+                  public HashEntry<>
     {
     public:
-	Ref<String> str;
 	T data;
 
-	Entry (ConstMemory const &mem,
+	Entry (ConstMemory const mem,
 	       T data)
-	    : str (grab (new String (mem))),
+	    : GenericStringHash::Entry (mem),
 	      data (data)
 	{
 	}
 
-	Entry (ConstMemory const &mem)
-	    : str (grab (new String (mem)))
+	Entry (ConstMemory const mem)
+	    : GenericStringHash::Entry (mem)
 	{
 	}
     };
 
     typedef Hash< Entry,
 		  ConstMemory,
-		  MemberExtractor< Entry,
+		  MemberExtractor< GenericStringHash::Entry,
 				   Ref<String>,
 				   &Entry::str,
 				   ConstMemory,
@@ -73,10 +113,20 @@ public:
 	EntryKey (Entry * const entry) : entry (entry) {}
     public:
 	operator bool () const { return entry; }
-	ConstMemory getKey() const { return entry->str->mem(); };
+	ConstMemory getKey() const { return entry->str->mem(); }
 	T getData () const { return entry->data; }
 	T* getDataPtr() const { return &entry->data; }
 	EntryKey () : entry (NULL) {}
+
+        operator GenericStringHash::EntryKey ()
+        {
+            return GenericStringHash::EntryKey (entry);
+        }
+
+        EntryKey (GenericStringHash::EntryKey const mt_nonnull entry_key)
+            : entry (static_cast <Entry*> (entry_key.entry))
+        {
+        }
 
 	// Methods for C API binding.
 	void *getAsVoidPtr () const { return static_cast <void*> (entry); }
@@ -109,6 +159,7 @@ public:
 	delete key.entry;
     }
 
+    // TODO Why not to use "lookup (ConstMemory mem)" ?
     template <class C>
     EntryKey lookup (C key)
     {
