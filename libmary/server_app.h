@@ -68,7 +68,7 @@ private:
 
 	ThreadData ()
 	    : poll_group (this /* coderef_container */),
-	      dcs_queue (this /* coderef_container */)
+	      dcs_queue  (this /* coderef_container */)
 	{
 	}
     };
@@ -119,25 +119,6 @@ public:
     ServerThreadContext* getMainThreadContext ()
     {
 	return &main_thread_ctx;
-    }
-
-    // TODO Deprecated
-    Timers* getTimers ()
-    {
-	return &timers;
-    }
-
-    // TODO Deprecated
-    PollGroup* getMainPollGroup ()
-    {
-	return &poll_group;
-    }
-
-    // TODO Deprecated
-    // TEST For testing purposes only.
-    ActivePollGroup* getActivePollGroup ()
-    {
-	return &poll_group;
     }
 
     mt_throws Result init ();
