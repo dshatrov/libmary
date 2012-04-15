@@ -476,7 +476,8 @@ TcpConnection::TcpConnection (Object * const coderef_container)
       hup_received (false)
 {
 #ifdef LIBMARY_TCP_CONNECTION_NUM_INSTANCES
-    fprintf (stderr, "TcpConnection() : num_instances: %d\n",
+    fprintf (stderr, " TcpConnection(): 0x%lx, num_instances: %d\n",
+             (unsigned long) this,
 	     (int) (num_instances.fetchAdd (1) + 1));
 #endif
 }
@@ -484,9 +485,9 @@ TcpConnection::TcpConnection (Object * const coderef_container)
 TcpConnection::~TcpConnection ()
 {
 #ifdef LIBMARY_TCP_CONNECTION_NUM_INSTANCES
-    fprintf (stderr, "~TcpConnection(): num_instances: %d, this: 0x%lx\n",
-	     (int) (num_instances.fetchAdd (-1) - 1),
-	     (unsigned long) this);
+    fprintf (stderr, "~TcpConnection(): 0x%lx, num_instances: %d\n",
+	     (unsigned long) this,
+	     (int) (num_instances.fetchAdd (-1) - 1));
 #endif
 
     if (fd != -1) {

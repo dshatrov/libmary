@@ -23,7 +23,11 @@
 
 // No libmary #include directives here.
 // This file is meant to be included via libmary/types.h
-
+#if !(defined (__LIBMARY__TYPES__H__)  || \
+      defined (__LIBMARY__STRING__H__) || \
+      defined (__LIBMARY__UTIL_BASE__H__))
+#error libmary/memory.h should not be included directly
+#endif
 
 namespace M {
 
@@ -108,28 +112,6 @@ public:
 	  len_ (0)
     {
     }
-
-#if 0
-// TODO MyCpp should contain compatibility code, not the other way around.
-
-  // MyCpp compatibility.
-
-    operator MyCpp::MemoryDesc () const
-    {
-	return MyCpp::MemoryDesc ((MyCpp::Byte*) mem_, len_);
-    }
-
-    operator MyCpp::ConstMemoryDesc () const
-    {
-	return MyCpp::ConstMemoryDesc ((MyCpp::Byte const *) mem_, len_);
-    }
-
-    Memory (MyCpp::MemoryDesc const &mdesc)
-	: mem_ (mdesc.getMemory()),
-	  len_ (mdesc.getLength())
-    {
-    }
-#endif
 };
 
 class ConstMemory
@@ -234,29 +216,6 @@ public:
 	  len_ (0)
     {
     }
-
-#if 0
-// TODO MyCpp should contain compatibility code, not the other way around.
-
-  // MyCpp compatibility.
-
-    operator MyCpp::ConstMemoryDesc () const
-    {
-	return MyCpp::ConstMemoryDesc ((MyCpp::Byte const *) mem_, len_);
-    }
-
-    ConstMemory (MyCpp::MemoryDesc const &mdesc)
-	: mem_ (mdesc.getMemory()),
-	  len_ (mdesc.getLength())
-    {
-    }
-
-    ConstMemory (MyCpp::ConstMemoryDesc const &mdesc)
-	: mem_ (mdesc.getMemory()),
-	  len_ (mdesc.getLength())
-    {
-    }
-#endif
 };
 
 }

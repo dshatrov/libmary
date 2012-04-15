@@ -124,9 +124,9 @@ protected:
 		    void                *inform_cb_data);
 
     // May unlock and lock 'mutex' in the process.
-    mt_mutex (mutex) void informAll_unlocked (ProxyInformCallback  mt_nonnull proxy_inform_cb,
-					      VoidFunction         inform_cb,
-					      void                *inform_cb_data);
+    mt_unlocks_locks (mutex) void informAll_unlocked (ProxyInformCallback  mt_nonnull proxy_inform_cb,
+                                                      VoidFunction         inform_cb,
+                                                      void                *inform_cb_data);
 
     SubscriptionKey subscribeVoid (CallbackPtr     cb_ptr,
 				   void           *cb_data,
@@ -167,7 +167,7 @@ template <class T>
 class Informer_ : public GenericInformer
 {
 public:
-    typedef void (*InformCallback) (T    *ev_struct,
+    typedef void (*InformCallback) (T /* TODO const */ *ev_struct,
 				    void *cb_data,
 				    void *inform_data);
 
@@ -188,13 +188,13 @@ public:
     }
 
     // May unlock and lock 'mutex' in the process.
-    void informAll_unlocked (InformCallback    const inform_cb,
-			     void            * const inform_cb_data)
+    mt_unlocks_locks (mutex) void informAll_unlocked (InformCallback    const inform_cb,
+                                                      void            * const inform_cb_data)
     {
-	GenericInformer::informAll_unlocked (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
+	mt_unlocks_locks (mutex) GenericInformer::informAll_unlocked (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
     }
 
-    SubscriptionKey subscribe (T              * const ev_struct,
+    SubscriptionKey subscribe (T const        * const ev_struct,
 			       void           * const cb_data,
 			       VirtReferenced * const ref_data,
 			       Object         * const coderef_container)
@@ -207,7 +207,7 @@ public:
 	return subscribeVoid ((void*) cb.cb, cb.cb_data, cb.ref_data, cb.coderef_container);
     }
 
-    SubscriptionKey subscribe_unlocked (T              * const ev_struct,
+    SubscriptionKey subscribe_unlocked (T const        * const ev_struct,
 					void           * const cb_data,
 					VirtReferenced * const ref_data,
 					Object         * const coderef_container)
@@ -253,10 +253,10 @@ public:
     }
 
     // May unlock and lock 'mutex' in the process.
-    void informAll_unlocked (InformCallback    const inform_cb,
-			     void            * const inform_cb_data)
+    mt_unlocks_locks (mutex) void informAll_unlocked (InformCallback    const inform_cb,
+			                              void            * const inform_cb_data)
     {
-	GenericInformer::informAll_unlocked (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
+	mt_unlocks_locks (mutex) GenericInformer::informAll_unlocked (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
     }
 
     SubscriptionKey subscribe (T                const cb,

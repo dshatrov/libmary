@@ -76,7 +76,7 @@ GenericInformer::informAll (ProxyInformCallback   const mt_nonnull proxy_inform_
     mutex->unlock ();
 }
 
-mt_mutex (mutex) void
+mt_unlocks_locks (mutex) void
 GenericInformer::informAll_unlocked (ProxyInformCallback   const mt_nonnull proxy_inform_cb,
 				     VoidFunction          const inform_cb,
 				     void                * const inform_cb_data)

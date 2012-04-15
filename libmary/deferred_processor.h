@@ -110,6 +110,8 @@ public:
 	      permanent_scheduled (false)
 	{
 	}
+
+        // TODO Why don't we call release() in ~Registration()?
     };
     typedef IntrusiveList<Registration, RegistrationList_name> RegistrationList;
     typedef IntrusiveList<Registration, PermanentRegistrationList_name> PermanentRegistrationList;

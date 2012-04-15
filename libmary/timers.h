@@ -46,6 +46,7 @@ private:
     class TimerChain;
 
 public:
+    // TODO TimerKey auto-initializing to NULL.
     typedef Timer* TimerKey;
 
     typedef void (TimerCallback) (void *cb_data);

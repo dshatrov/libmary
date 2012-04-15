@@ -942,6 +942,7 @@ ConnectionSenderImpl::sendPendingMessages_vector_react (Size num_written)
 
     assert (num_written == 0);
 }
+
 void
 ConnectionSenderImpl::queueMessage (Sender::MessageEntry * const mt_nonnull msg_entry)
 {

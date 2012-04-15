@@ -178,8 +178,6 @@ private:
 }
 
 
-// Deprecated include #include <libmary/cb.h>
-
 // For class Format.
 #include <libmary/util_str_base.h>
 
