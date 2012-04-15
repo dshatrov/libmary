@@ -98,10 +98,14 @@ public:
     {
     private:
 	Page * const first_page;
+        Size const first_offset;
 	Size const data_len;
 
+        // 'cached_page' and 'cached_pos' *must* hold the last accessed
+        // position in the array.
 	Page *cached_page;
 	Size cached_pos;
+        Size last_in_page_offset;
 
 	void doGetSet (Size offset,
 		       Byte       * const data_get,
@@ -116,15 +120,59 @@ public:
 	void set (Size offset,
 		  ConstMemory const &mem);
 
-	// TODO Add msg_offset
+        Page* getLastAccessedPage () const
+        {
+            return cached_page;
+        }
+
+        Size getLastAccessedInPageOffset () const
+        {
+            return last_in_page_offset;
+        }
+
+        Page* getNextPageToAccess () const
+        {
+            assert (cached_page);
+            assert (last_in_page_offset <= cached_page->data_len);
+            if (last_in_page_offset == cached_page->data_len)
+                return cached_page->getNextMsgPage();
+
+            return cached_page;
+        }
+
+        Size getNextInPageOffset () const
+        {
+            assert (cached_page);
+            assert (last_in_page_offset <= cached_page->data_len);
+            if (last_in_page_offset == cached_page->data_len)
+                return 0;
+
+            return last_in_page_offset;
+        }
+
+        // Deprecated
 	PageListArray (Page * const first_page,
 		       Size const data_len)
-	    : first_page (first_page),
-	      data_len (data_len),
-	      cached_page (NULL),
-	      cached_pos (0)
+	    : first_page   (first_page),
+              first_offset (0),
+	      data_len     (data_len),
+	      cached_page  (NULL),
+	      cached_pos   (0),
+              last_in_page_offset (0)
 	{
 	}
+
+        PageListArray (Page * const first_page,
+                       Size   const offset,
+                       Size   const data_len)
+            : first_page   (first_page),
+              first_offset (offset),
+              data_len     (data_len + offset),
+              cached_page  (first_page),
+              cached_pos   (0),
+              last_in_page_offset (0)
+        {
+        }
     };
 
     class PageListOutputStream : public OutputStream
@@ -179,6 +227,8 @@ private:
 
     Mutex mutex;
 
+    Page* grabPage ();
+
     void doGetPages (PageListHead * mt_nonnull page_list,
 		     ConstMemory const &mem,
 		     bool fill);
@@ -193,6 +243,11 @@ public:
 
     void getFillPages (PageListHead * mt_nonnull page_list,
 		       ConstMemory const &mem);
+
+    void getFillPagesFromPages (PageListHead * mt_nonnull page_list,
+                                Page         * mt_nonnull from_page,
+                                Size          from_offset,
+                                Size          from_len);
 
     void getPages (PageListHead * mt_nonnull page_list,
 		   Size len);
