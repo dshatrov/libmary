@@ -85,13 +85,17 @@ Result hostToIp (ConstMemory const &host,
     if (WSAStringToAddress (host_str, AF_INET, NULL, (struct sockaddr*) addr, &addr_len))
 #endif
     {
-#ifdef PLATFORM_WIN32
+#if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)
 	libraryLock ();
 	struct hostent * const he_res = gethostbyname (host_str);
 	if (!he_res) {
 	    libraryUnlock ();
 	    return Result::Failure;
 	}
+
+	addr.sin_addr = *(struct in_addr*) he_res->h_addr;
+
+	libraryUnlock ();
 #else
 	struct hostent he_buf;
 	struct hostent *he_res = NULL;
@@ -141,13 +145,9 @@ Result hostToIp (ConstMemory const &host,
 	    break;
 	}
 	assert (he_res);
-#endif
 
 	addr.sin_addr = *(struct in_addr*) he_res->h_addr;
 
-#ifdef PLATFORM_WIN32
-	libraryUnlock ();
-#else
 	if (he_str_buf != he_str_buf_base)
 	    delete[] he_str_buf;
 #endif
@@ -173,6 +173,19 @@ Result serviceToPort (ConstMemory const &service,
     char *endptr;
     Uint16 port = (Uint16) strtoul (service_str, &endptr, 0);
     if (*endptr != 0) {
+#if defined(PLATFORM_WIN32) || defined (PLATFORM_CYGWIN)
+	libraryLock ();
+
+        struct servent * const se_res = getservbyname (service_str, "tcp");
+        if (!se_res) {
+          libraryUnlock ();
+          return Result::Failure;
+        }
+
+	port = se_res->s_port;
+
+	libraryUnlock ();
+#else
 	struct servent se_buf;
 	struct servent *se_res = NULL;
 	char se_str_buf_base [1024];
@@ -222,6 +235,7 @@ Result serviceToPort (ConstMemory const &service,
 
 	if (se_str_buf != se_str_buf_base)
 	    delete[] se_str_buf;
+#endif
     }
 
     if (ret_port)
