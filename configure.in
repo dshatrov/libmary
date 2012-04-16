@@ -12,14 +12,23 @@ AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 
 case "$host" in
+  *-*-cygwin*)
+    platform_cygwin=yes
+    platform_default=no
+    ;;
   *-*-mingw*|*-*-cygwin*)
     platform_win32=yes
+    platform_default=no
     ;;
   *)
     platform_win32=no
+    platform_cygwin=no
+    platform_default=yes
     ;;
 esac
-AM_CONDITIONAL(PLATFORM_WIN32, test x$platform_win32 = xyes)
+AM_CONDITIONAL(PLATFORM_CYGWIN,  test x$platform_cygwin  = xyes)
+AM_CONDITIONAL(PLATFORM_WIN32,   test x$platform_win32   = xyes)
+AM_CONDITIONAL(PLATFORM_DEFAULT, test x$platform_default = xyes)
 
 AC_ARG_ENABLE([mt-safe],
 	      AC_HELP_STRING([--disable-mt-safe],
@@ -38,6 +47,9 @@ AC_ARG_ENABLE([epoll],
 			     [Disable epoll]),
 	      [enable_epoll=$enableval],
 	      [enable_epoll="yes"])
+if test "x$platform_default" = "xno"; then
+    enable_epoll=no
+fi
 AM_CONDITIONAL(LIBMARY_ENABLE_EPOLL, test "x$enable_epoll" = "xyes")
 if test "x$enable_epoll" = "xyes"; then
     AC_DEFINE([LIBMARY_ENABLE_EPOLL], [1], [ ])
