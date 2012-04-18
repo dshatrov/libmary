@@ -16,7 +16,7 @@ case "$host" in
     platform_cygwin=yes
     platform_default=no
     ;;
-  *-*-mingw*|*-*-cygwin*)
+  *-*-mingw*)
     platform_win32=yes
     platform_default=no
     ;;
