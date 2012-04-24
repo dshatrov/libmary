@@ -45,23 +45,24 @@ LibMary_ThreadLocal::LibMary_ThreadLocal ()
       unixtime (0),
 
       saved_unixtime (0),
-      saved_monotime (0)
+      saved_monotime (0),
+
+#ifdef PLATFORM_WIN32
+      prv_win_time_dw (0),
+      win_time_offs (0)
+#endif
 {
     memset (&localtime, 0, sizeof (localtime));
     memset (timezone_str, ' ', sizeof (timezone_str));
 
-#ifndef PLATFORM_WIN32
     strerr_buf_size = 4096;
     strerr_buf = new char [strerr_buf_size];
     assert (strerr_buf);
-#endif
 }
 
 LibMary_ThreadLocal::~LibMary_ThreadLocal ()
 {
-#ifndef PLATFORM_WIN32
     delete[] strerr_buf;
-#endif
 }
 
 #ifdef LIBMARY_MT_SAFE

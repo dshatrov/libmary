@@ -17,3 +17,16 @@
 */
 
 
+#ifndef __LIBMARY__WIN32__H__
+#define __LIBMARY__WIN32__H__
+
+
+namespace M {
+
+void libMary_win32Init ();
+
+}
+
+
+#endif /* __LIBMARY__WIN32__H__ */
+

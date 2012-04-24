@@ -142,6 +142,15 @@ private:
     Value value;
 };
 
+#ifdef PLATFORM_WIN32
+struct iovec {
+    void   *iov_base;
+    size_t  iov_len;
+};
+
+#define IOV_MAX 1024
+#endif
+
 }
 
 

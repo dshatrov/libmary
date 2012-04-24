@@ -26,9 +26,28 @@
 #include <libmary/posix.h>
 #endif
 
+#ifdef PLATFORM_WIN32
+#include <windows.h>
+#endif
+
 #include <libmary/util_time.h>
 
 #include <glib.h>
+
+
+#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_WIN32_SECURE_CRT
+extern "C" {
+    typedef int errno_t;
+
+    errno_t localtime_s (struct tm    *tm,
+                         time_t const *time);
+
+    errno_t gmtime_s (struct tm    *tm,
+                      time_t const *time);
+}
+#endif
+#endif
 
 
 namespace M {
@@ -37,13 +56,23 @@ namespace {
 LogGroup libMary_logGroup_time ("time", LogLevel::None);
 }
 
-#ifdef PLATFORM_WIN32
-#error Not implemented
-#else
 mt_throws Result updateTime ()
 {
     LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
 
+#ifdef PLATFORM_WIN32
+    DWORD const win_time_dw = timeGetTime();
+    if (tlocal->prv_win_time_dw >= win_time_dw) {
+        tlocal->win_time_offs += 0x100000000;
+    }
+    tlocal->prv_win_time_dw = win_time_dw;
+    DWORD const win_time = win_time_dw + tlocal->win_time_offs;
+
+    Time const new_seconds = (Time) win_time / 1000;
+    Time const new_microseconds = (Time) win_time * 1000;
+
+//    tlocal->time_log_frac = new_microseconds % 1000000 / 100;
+#else
     struct timespec ts;
     // Note that clock_gettime is well-optimized on Linux x86_64 and does not carry
     // full syscall overhead (depends on system configuration).
@@ -65,7 +94,10 @@ mt_throws Result updateTime ()
     Time const new_seconds = ts.tv_sec;
     Time const new_microseconds = (Uint64) ts.tv_sec * 1000000 + (Uint64) ts.tv_nsec / 1000;
 
-    tlocal->time_log_frac = ts.tv_nsec % 1000000000 / 100000;
+//    tlocal->time_log_frac = ts.tv_nsec % 1000000000 / 100000;
+#endif
+
+    tlocal->time_log_frac = new_microseconds % 1000000 / 100;
 
     if (new_seconds >= tlocal->time_seconds)
 	tlocal->time_seconds = new_seconds;
@@ -94,7 +126,23 @@ mt_throws Result updateTime ()
 	time_t const cur_unixtime = tlocal->saved_unixtime + (tlocal->time_seconds - tlocal->saved_monotime);
 	tlocal->unixtime = cur_unixtime;
 	// Note that we call tzset() in libMary_posixInit() for localtime_r() to work correctly.
+#ifdef PLATFORM_WIN32
+  #ifdef LIBMARY_WIN32_SECURE_CRT
+        if (localtime_s (&tlocal->localtime, &cur_unixtime) != 0)
+            logF_ (_func, "localtime_s() failed");
+  #else
+        libraryLock ();
+        struct tm * const tmp_localtime = localtime (&cur_unixtime);
+        if (tmp_localtime) {
+            tlocal->localtime = *tmp_localtime;
+        }
+        libraryUnlock ();
+        if (!tmp_localtime)
+            logF_ (_func, "localtime() failed");
+  #endif
+#else
 	localtime_r (&cur_unixtime, &tlocal->localtime);
+#endif
     }
 
 //    long const timezone_abs = timezone >= 0 ? timezone : -timezone;
@@ -108,13 +156,28 @@ mt_throws Result updateTime ()
 
     return Result::Success;
 }
-#endif
 
 void splitTime (Time        const unixtime,
 		struct tm * const mt_nonnull ret_tm)
 {
     time_t tmp_unixtime = (time_t) unixtime;
+#ifdef PLATFORM_WIN32
+  #ifdef LIBMARY_WIN32_SECURE_CRT
+    if (localtime_s (ret_tm, &tmp_unixtime) != 0)
+      logF_ (_func, "localtime_s() failed");
+  #else
+    libraryLock ();
+    struct tm * const tmp_localtime = localtime (&tmp_unixtime);
+    if (tmp_localtime) {
+        *ret_tm = *tmp_localtime;
+    }
+    libraryUnlock ();
+    if (!tmp_localtime)
+        logF_ (_func, "localtime() failed");
+  #endif
+#else
     localtime_r (&tmp_unixtime, ret_tm);
+#endif
 }
 
 void uSleep (unsigned long const microseconds)
@@ -135,7 +198,22 @@ Size timeToString (Memory const &mem,
     time_t t = time;
 
     struct tm tm;
-    if (!gmtime_r (&t, &tm)) {
+#ifdef PLATFORM_WIN32
+  #ifdef LIBMARY_WIN32_SECURE_CRT
+    if (gmtime_s (&tm, &t) != 0)
+  #else
+    libraryLock ();
+    struct tm * const tmp_tm = gmtime (&t);
+    if (tmp_tm) {
+        tm = *tmp_tm;
+    }
+    libraryUnlock ();
+    if (!tmp_tm)
+  #endif
+#else
+    if (!gmtime_r (&t, &tm))
+#endif
+    {
 	logE_ (_func, "gmtime_r() failed");
 
 	if (mem.len() > 0)

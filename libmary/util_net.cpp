@@ -20,10 +20,14 @@
 #include <libmary/types.h>
 
 #include <cstring>
+#ifdef PLATFORM_WIN32
+#include <winsock2.h>
+#else
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#endif
 #include <errno.h>
 
 #include <libmary/log.h>
@@ -82,7 +86,7 @@ Result hostToIp (ConstMemory const &host,
     if (!inet_aton (host_str, &addr.sin_addr))
 #else
     int addr_len = sizeof (addr.sin_addr);
-    if (WSAStringToAddress (host_str, AF_INET, NULL, (struct sockaddr*) addr, &addr_len))
+    if (WSAStringToAddress (host_str, AF_INET, NULL, (struct sockaddr*) &addr, &addr_len))
 #endif
     {
 #if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)

@@ -91,9 +91,13 @@ private:
     StateMutex mutex;
 
 public:
+  mt_iface (ServerThreadPool)
+
     mt_throws ServerThreadContext* grabThreadContext (ConstMemory const &filename);
 
     void releaseThreadContext (ServerThreadContext *thread_ctx);
+
+  mt_iface_end
 
 // Unnecessary    mt_throws Result init ();
 

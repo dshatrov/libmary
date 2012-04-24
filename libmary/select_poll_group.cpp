@@ -26,7 +26,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#ifdef PLATFORM_WIN32
+#include <winsock2.h>
+#else
 #include <sys/select.h>
+#endif
 
 #include <libmary/log.h>
 #include <libmary/posix.h>
@@ -199,7 +203,6 @@ SelectPollGroup::removePollable (PollableKey const mt_nonnull key)
 
 mt_throws Result
 SelectPollGroup::poll (Uint64 const timeout_microsec)
-    mt_throw (InternalException)
 {
     Time const start_microsec = getTimeMicroseconds ();
 
@@ -314,7 +317,18 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	    }
 
 	    nfds = select (largest_fd + 1, &rfds, &wfds, &efds, null_timeout ? NULL : &timeout_val);
-	    if (nfds == -1) {
+#ifdef PLATFORM_WIN32
+            if (nfds == SOCKET_ERROR)
+#else
+	    if (nfds == -1)
+#endif
+            {
+#ifdef PLATFORM_WIN32
+                int const wsa_error_code = WSAGetLastError();
+                exc_throw <WSAException> (wsa_error_code);
+                // TODO Error code to string.
+                logE_ (_func, "select() failed");
+#else
 		if (errno == EINTR) {
 		    SelectedList::iter iter (selected_list);
 		    mutex.lock ();
@@ -331,6 +345,7 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		exc_throw <PosixException> (errno);
 		exc_push <InternalException> (InternalException::BackendError);
 		logE_ (_func, "select() failed: ", errnoString (errno));
+#endif
 		ret_res = Result::Failure;
 		goto _select_interrupted;
 	    } else

@@ -73,6 +73,22 @@ VfsPosix::Directory::getNextEntry (Ref<String> &ret_str)
 {
     ret_str = NULL;
 
+#ifdef PLATFORM_WIN32
+    errno = 0;
+    libraryLock ();
+    struct dirent * const dirent = readdir (dir);
+    if (!dirent) {
+        libraryUnlock ();
+        if (errno == 0)
+            return Result::Success;
+
+        exc_throw <PosixException> (errno);
+        return Result::Failure;
+    }
+
+    ret_str = grab (new String ((char const*) dirent->d_name));
+    libraryUnlock ();
+#else
     ArrayHolder<unsigned char> dirent_array (sizeof (struct dirent) + NAME_MAX + 1);
     struct dirent * const dirent = (struct dirent*) &dirent_array [0];
     struct dirent *retp;
@@ -92,6 +108,8 @@ VfsPosix::Directory::getNextEntry (Ref<String> &ret_str)
     }
 
     ret_str = grab (new String ((char const*) dirent->d_name));
+#endif
+
     return Result::Success;
 }
 
@@ -181,12 +199,14 @@ VfsPosix::stat (ConstMemory const &_name)
     else
     if (S_ISREG (stat_buf.st_mode))
 	stat_data->file_type = FileType::RegularFile;
+#ifndef PLATFORM_WIN32
     else
     if (S_ISLNK (stat_buf.st_mode))
 	stat_data->file_type = FileType::SymbolicLink;
     else
     if (S_ISSOCK (stat_buf.st_mode))
 	stat_data->file_type = FileType::Socket;
+#endif
     else {
 	logE_ (_func, "Unknown file type:");
         logLock ();

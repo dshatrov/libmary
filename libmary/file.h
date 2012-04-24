@@ -64,6 +64,32 @@ public:
 	Value value;
     };
 
+    class FileType
+    {
+    public:
+	enum Value {
+	    BlockDevice,
+	    CharacterDevice,
+	    Fifo,
+	    RegularFile,
+	    Directory,
+	    SymbolicLink,
+	    Socket
+	};
+	operator Value () const { return value; }
+	FileType (Value const value) : value (value) {}
+	FileType () {}
+    private:
+	Value value;
+    };
+
+    class FileStat : public BasicReferenced
+    {
+    public:
+	unsigned long long size;
+	FileType file_type;
+    };
+
     virtual mt_throws Result seek (FileOffset offset,
 				   SeekOrigin origin) = 0;
 

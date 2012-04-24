@@ -78,6 +78,9 @@ AC_ARG_ENABLE([mwritev],
 			     [Enable mwritev]),
 	      [enable_mwritev=$enableval],
 	      [enable_mwritev="no"])
+if test "x$platform_default" = "xno"; then
+    enable_mwritev=no
+fi
 AM_CONDITIONAL(LIBMARY_ENABLE_MWRITEV, test "x$enable_mwritev" = "xyes")
 if test "x$enable_mwritev" = "xyes"; then
     AC_DEFINE([LIBMARY_ENABLE_MWRITEV], [1], [ ])

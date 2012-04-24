@@ -23,6 +23,8 @@
 
 #include <libmary/types.h>
 
+#include <sys/uio.h>
+
 
 namespace M {
 

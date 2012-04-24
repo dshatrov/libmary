@@ -14,7 +14,7 @@ if PLATFORM_CYGWIN
 endif
 
 if PLATFORM_DEFAULT
-    COMMON_CFLAGS += -pthread
+    COMMON_CFLAGS += -DPLATFORM_DEFAULT -pthread
     # For backtraces
     COMMON_CFLAGS += -rdynamic
 endif
@@ -185,21 +185,27 @@ DISTCLEANFILES = libmary_config.h
 
 if PLATFORM_WIN32
 native_file.h: native_file.win32.h
+	rm -f $@
 	ln -s native_file.win32.h native_file.h
 
 tcp_connection.h: tcp_connection.win32.h
+	rm -f $@
 	ln -s tcp_connection.win32.h tcp_connection.h
 
 tcp_server.h: tcp_server.win32.h
+	rm -f $@
 	ln -s tcp_server.win32.h tcp_server.h
 else
 native_file.h: native_file.linux.h
+	rm -f $@
 	ln -s native_file.linux.h native_file.h
 
 tcp_connection.h: tcp_connection.linux.h
+	rm -f $@
 	ln -s tcp_connection.linux.h tcp_connection.h
 
 tcp_server.h: tcp_server.linux.h
+	rm -f $@
 	ln -s tcp_server.linux.h tcp_server.h
 endif
 
@@ -252,7 +258,6 @@ libmary_1_0_la_SOURCES =		\
 	connection_receiver.cpp		\
 					\
 	deferred_processor.cpp		\
-	select_poll_group.cpp		\
 					\
 	http.cpp			\
 	http_service.cpp		\
@@ -281,9 +286,11 @@ mary_linux_sources =			\
 	native_file.linux.cpp		\
 	tcp_connection.linux.cpp	\
 	tcp_server.linux.cpp		\
+	select_poll_group.cpp		\
 	poll_poll_group.cpp
 
 mary_win32_sources =			\
+        win32.cpp                       \
 	native_file.win32.cpp		\
 	tcp_connection.win32.cpp	\
 	tcp_server.win32.cpp

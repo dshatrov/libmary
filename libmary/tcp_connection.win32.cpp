@@ -17,3 +17,77 @@
 */
 
 
+#include <libmary/tcp_connection.h>
+
+
+namespace M {
+
+PollGroup::Pollable const TcpConnection::pollable = {
+    processEvents,
+    getFd,
+    setFeedback
+};
+
+void
+TcpConnection::processEvents (Uint32   const event_flags,
+                              void   * const _self)
+{
+}
+
+int
+TcpConnection::getFd (void * const _self)
+{
+    return 0;
+}
+
+void
+TcpConnection::setFeedback (Cb<PollGroup::Feedback> const &feedback,
+                            void * const _self)
+{
+}
+
+mt_throws AsyncIoResult
+TcpConnection::read (Memory const &mem,
+                     Size * const ret_nwritten)
+{
+    return AsyncIoResult::Normal;
+}
+
+mt_throws AsyncIoResult
+TcpConnection::write (ConstMemory const &mem,
+                      Size * const ret_nwritten)
+{
+    return AsyncIoResult::Normal;
+}
+
+mt_throws AsyncIoResult
+TcpConnection::writev (struct iovec * const iovs,
+                       Count          const num_iovs,
+                       Size         * const ret_nwritten)
+{
+    return AsyncIoResult::Normal;
+}
+
+mt_throws Result
+TcpConnection::close ()
+{
+    return Result::Success;
+}
+
+mt_throws Result
+TcpConnection::connect (IpAddress const &ip_addr)
+{
+    return Result::Success;
+}
+
+TcpConnection::TcpConnection (Object * const coderef_container)
+    : DependentCodeReferenced (coderef_container)
+{
+}
+
+TcpConnection::~TcpConnection ()
+{
+}
+
+}
+

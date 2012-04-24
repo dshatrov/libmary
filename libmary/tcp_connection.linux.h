@@ -132,7 +132,6 @@ public:
     // to ensure proper synchronization of accesses to 'connected' data member.
     mt_throws Result connect (IpAddress const &ip_addr);
 
-
     // Should be called just once by TcpServer.
     void setFd (int const fd)
     {

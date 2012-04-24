@@ -17,7 +17,6 @@
 */
 
 
-#ifndef PLATFORM_WIN32
 /* This is a workaround for an ugly API bug in the GNU C library:
  * portable strerror_r() function requires _GNU_SOURCE macro not
  * to be defined, but g++ defines it unconditionally.
@@ -36,11 +35,46 @@
 #include <libmary/annotations.h>
 
 
+#if 0
+#ifdef PLATFORM_WIN32
+/* errno_t */ int strerror_s (char   *buf,
+                              size_t  buflen,
+                              int     errnum);
+#endif
+#endif
+
+
+void libmary_library_lock ();
+void libmary_library_unlock ();
+
+
+// XSI-compliant strerror_r semantics.
 int _libmary_strerror_r (int      const errnum,
 			 char   * const mt_nonnull buf,
 			 size_t   const buflen)
 {
+#ifdef PLATFORM_WIN32
+#if 0
+    int const res = strerror_s (buf, buflen, errnum);
+    if (res != 0)
+      return -1;
+
+    return 0;
+#endif
+
+    libmary_library_lock ();
+
+    char const * const str = strerror (errnum);
+    size_t len = strlen (str);
+    if (len + 1 >= buflen)
+        len = buflen - 1;
+
+    memcpy (buf, str, len);
+    buf [len] = 0;
+
+    libmary_library_unlock ();
+#else
     return strerror_r (errnum, buf, buflen);
-}
 #endif // PLATFORM_WIN32
+}
 

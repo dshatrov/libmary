@@ -32,6 +32,10 @@
 
 namespace M {
 
+// SelectPollGroup is useless on Win32 because select() can only wait for sockets
+// on Windows, hence there's no way to implement ActivePollGroup::trigger()
+// in an acceptable way.
+
 class SelectPollGroup : public ActivePollGroup,
 			public DependentCodeReferenced
 {

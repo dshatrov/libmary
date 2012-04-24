@@ -20,6 +20,7 @@
 #ifndef __LIBMARY__EXCEPTION__H__
 #define __LIBMARY__EXCEPTION__H__
 
+
 #include <libmary/types.h>
 #include <cstdlib>
 #include <new>
@@ -383,7 +384,9 @@ public:
 };
 #endif
 
-#ifndef PLATFORM_WIN32
+// Any error condition represented by an errno value.
+// Not only for POSIX, but for Win32 as well.
+//
 class PosixException : public IoException // TODO There's no reason to inherit from IoException now.
 {
 public:
@@ -398,6 +401,24 @@ public:
 	: errnum (errnum)
     {
     }
+};
+
+#if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)
+class WSAException : public IoException // TODO There's no reason to inherit from IoException now.
+{
+public:
+  int wsa_error_code;
+
+  Ref<String> toString ()
+  {
+    // TODO Error code to string.
+    return grab (new String ("WSAException"));
+  }
+
+  WSAException (int const wsa_error_code)
+    : wsa_error_code (wsa_error_code)
+  {
+  }
 };
 #endif
 

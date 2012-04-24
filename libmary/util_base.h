@@ -40,6 +40,12 @@
 #include <libmary/mutex.h>
 
 
+extern "C" {
+    void libmary_library_lock ();
+    void libmary_library_unlock ();
+}
+
+
 namespace M {
 
 void unreachable_ (ConstMemory const &mem,

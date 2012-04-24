@@ -28,13 +28,8 @@ namespace M {
 mt_throws Ref<Vfs>
 Vfs::createDefaultLocalVfs (ConstMemory const &root_path)
 {
-#ifndef PLATFORM_WIN32
+    // VfsPosix appears to work under mingw as well.
     return grab (static_cast <Vfs*> (new VfsPosix (root_path)));
-#else
-    // TODO
-    assert (0 && "NYI");
-    return NULL;
-#endif
 }
 
 }

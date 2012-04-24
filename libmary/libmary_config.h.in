@@ -10,14 +10,16 @@
 #undef LIBMARY_USE_POLL
 
 #if !defined (LIBMARY_ENABLE_EPOLL) && !defined (LIBMARY_USE_POLL)
-#define LIBMARY_USE_POLL 1
+#define LIBMARY_USE_SELECT 1
 #endif
 
-#if defined (PLAFORM_WIN32) && !defined (LIBMARY_USE_POLL)
-#define LIBMARY_USE_POLL 1
+#if defined (PLATFORM_WIN32) && !defined (LIBMARY_USE_POLL)
+#define LIBMARY_USE_SELECT 1
 #endif
 
 #undef LIBMARY_ENABLE_MWRITEV
+
+#undef LIBMARY_WIN32_SECURE_CRT
 
 #endif /* __LIBMARY__LIBMARY_CONFIG__H__ */
 

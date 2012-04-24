@@ -17,3 +17,76 @@
 */
 
 
+#include <libmary/native_file.h>
+
+
+namespace M {
+
+mt_throws IoResult
+NativeFile::read (Memory   const mem,
+		  Size   * const ret_nread)
+{
+    return IoResult::Normal;
+}
+
+mt_throws Result
+NativeFile::write (ConstMemory   const mem,
+		   Size        * const ret_nwritten)
+{
+    return Result::Success;
+}
+
+mt_throws Result
+NativeFile::flush ()
+{
+    return Result::Success;
+}
+
+mt_throws Result
+NativeFile::seek (FileOffset const offset,
+		  SeekOrigin const origin)
+{
+    return Result::Success;
+}
+
+mt_throws Result
+NativeFile::tell (FileSize * const ret_pos)
+{
+    return Result::Success;
+}
+
+mt_throws Result
+NativeFile::sync ()
+{
+    return Result::Success;
+}
+
+mt_throws Result
+NativeFile::close (bool const flush_data)
+{
+    return Result::Success;
+}
+
+void
+NativeFile::resetFd ()
+{
+}
+
+mt_throws Result
+NativeFile::open (ConstMemory const filename,
+		  Uint32      const open_flags,
+		  AccessMode  const access_mode)
+{
+    return Result::Success;
+}
+
+NativeFile::NativeFile ()
+{
+}
+
+NativeFile::~NativeFile ()
+{
+}
+
+}
+

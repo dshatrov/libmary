@@ -31,6 +31,21 @@
 #include <libmary/util_base.h>
 
 
+extern "C" {
+
+void libmary_library_lock ()
+{
+    M::libraryLock ();
+}
+
+void libmary_library_unlock ()
+{
+    M::libraryUnlock ();
+}
+
+}
+
+
 namespace M {
 
 Mutex _libMary_library_mutex;

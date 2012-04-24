@@ -33,10 +33,8 @@
 
 namespace M {
 
-#ifndef PLATFORM_WIN32
 Ref<String> errnoToString (int errnum);
 char const* errnoString (int errnum);
-#endif
 
 Ref<String> catenateStrings (ConstMemory const &left,
 			     ConstMemory const &right);

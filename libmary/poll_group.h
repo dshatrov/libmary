@@ -85,7 +85,7 @@ namespace M {
 #if defined (LIBMARY_USE_POLL)
     class PollPollGroup;
     typedef PollPollGroup DefaultPollGroup;
-#elif defined (LIBMARY_USE_SELECT)
+#elif defined (LIBMARY_USE_SELECT) || !defined (PLATFORM_DEFAULT)
     class SelectPollGroup;
     typedef SelectPollGroup DefaultPollGroup;
 #else

@@ -17,3 +17,69 @@
 */
 
 
+#include <libmary/tcp_server.h>
+
+
+namespace M {
+
+PollGroup::Pollable const TcpServer::pollable = {
+    processEvents,
+    getFd,
+    setFeedback
+};
+
+void
+TcpServer::processEvents (Uint32   const event_flags,
+                          void   * const _self)
+{
+}
+
+int
+TcpServer::getFd (void * const _self)
+{
+    return 0;
+}
+
+void
+TcpServer::setFeedback (Cb<PollGroup::Feedback> const &feedback,
+                        void * const _self)
+{
+}
+
+mt_throws Result
+TcpServer::open ()
+{
+    return Result::Success;
+}
+
+mt_throws TcpServer::AcceptResult
+TcpServer::accept (TcpConnection * const mt_nonnull tcp_connection,
+                   IpAddress     * const ret_addr)
+{
+    return AcceptResult::NotAccepted;
+}
+
+mt_throws Result
+TcpServer::bind (IpAddress const &ip_addr)
+{
+    return Result::Success;
+}
+
+mt_throws Result
+TcpServer::listen ()
+{
+    return Result::Success;
+}
+
+mt_throws Result
+TcpServer::close ()
+{
+    return Result::Success;
+}
+
+TcpServer::~TcpServer ()
+{
+}
+
+}
+

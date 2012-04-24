@@ -23,7 +23,14 @@
 
 #include <libmary/types.h>
 #include <time.h>
+
+#ifdef LIBMARY_ENABLE_MWRITEV
 #include <sys/uio.h>
+#endif
+
+#ifdef PLATFORM_WIN32
+#include <windows.h>
+#endif
 
 #include <libmary/exception_buffer.h>
 
@@ -42,6 +49,7 @@ class Exception;
 class CodeReferenced;
 class Object;
 
+#ifdef LIBMARY_ENABLE_MWRITEV
 // DeferredConnectionSender's mwritev data.
 class LibMary_MwritevData
 {
@@ -58,6 +66,7 @@ public:
     {
     }
 };
+#endif
 
 class LibMary_ThreadLocal
 {
@@ -73,10 +82,8 @@ public:
 
     Object *last_coderef_container;
 
-#ifndef PLATFORM_WIN32
     char *strerr_buf;
     Size strerr_buf_size;
-#endif
 
   // Time-related data fields
 
@@ -93,7 +100,14 @@ public:
 
     char timezone_str [5];
 
+#ifdef PLATFORM_WIN32
+    DWORD prv_win_time_dw;
+    Time win_time_offs;
+#endif
+
+#ifdef LIBMARY_ENABLE_MWRITEV
     LibMary_MwritevData mwritev;
+#endif
 
     LibMary_ThreadLocal ();
     ~LibMary_ThreadLocal ();

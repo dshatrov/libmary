@@ -20,7 +20,6 @@
 #include <libmary/libmary_config.h>
 
 #include <libmary/types.h>
-#include <sys/uio.h>
 #include <errno.h>
 
 #ifdef LIBMARY_ENABLE_MWRITEV

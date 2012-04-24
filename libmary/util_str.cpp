@@ -35,14 +35,13 @@ Format fmt_hex (16 /* num_base */, 0 /* min_digits */, (unsigned) -1 /* precisio
 
 extern "C" {
 
-/* See c_util.c for the explanation. */
+/* See util_c.c for the explanation. */
 int _libmary_strerror_r (int     errnum,
 			 char   *buf,
 			 size_t  buflen);
 
 }
 
-#ifndef PLATFORM_WIN32
 Ref<String> errnoToString (int const errnum)
 {
     char buf [4096];
@@ -84,7 +83,6 @@ char const * errnoString (int const errnum)
 
     return tlocal->strerr_buf;
 }
-#endif // PLATFORM_WIN32
 
 Ref<String> catenateStrings (ConstMemory const &left,
 			     ConstMemory const &right)
