@@ -256,18 +256,29 @@ Timers::~Timers ()
 {
     mutex.lock ();
 
-    IntervalTree::Iterator chain_iter (interval_tree);
-    while (!chain_iter.done ()) {
-	TimerChain * const chain = chain_iter.next ();
+    {
+        ChainCleanupList chain_list;
+        {
+            IntervalTree::Iterator chain_iter (interval_tree);
+            while (!chain_iter.done ()) {
+                TimerChain * const chain = chain_iter.next ();
+                chain_list.append (chain);
+            }
+        }
 
-	IntrusiveList<Timer>::iter timer_iter (chain->timer_list);
-	while (!chain->timer_list.iter_done (timer_iter)) {
-	    Timer * const timer = chain->timer_list.iter_next (timer_iter);
-	    assert (timer->active);
-	    delete timer;
-	}
+        ChainCleanupList::iter chain_iter (chain_list);
+        while (!chain_list.iter_done (chain_iter)) {
+            TimerChain * const chain = chain_list.iter_next (chain_iter);
 
-	delete chain;
+            IntrusiveList<Timer>::iter timer_iter (chain->timer_list);
+            while (!chain->timer_list.iter_done (timer_iter)) {
+                Timer * const timer = chain->timer_list.iter_next (timer_iter);
+                assert (timer->active);
+                delete timer;
+            }
+
+            delete chain;
+        }
     }
 
     mutex.unlock ();

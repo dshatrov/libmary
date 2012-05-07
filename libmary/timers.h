@@ -74,10 +74,12 @@ private:
 
     class IntervalTree_name;
     class ExpirationTree_name;
+    class ChainCleanupList_name;
 
     // A chain of timers with the same expiration interval.
     class TimerChain : public IntrusiveAvlTree_Node<IntervalTree_name>,
-		       public IntrusiveAvlTree_Node<ExpirationTree_name>
+		       public IntrusiveAvlTree_Node<ExpirationTree_name>,
+                       public IntrusiveListElement<ChainCleanupList_name>
     {
     public:
 	mt_const Time interval_microseconds;
@@ -102,6 +104,8 @@ private:
 			      DirectComparator<Time>,
 			      ExpirationTree_name >
 	    ExpirationTree;
+
+    typedef IntrusiveList< TimerChain, ChainCleanupList_name > ChainCleanupList;
 
     // Chains sorted by interval_microseconds.
     mt_mutex (mutex) IntervalTree interval_tree;
