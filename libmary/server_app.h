@@ -137,8 +137,12 @@ public:
 #endif
     }
 
+    void release ();
+
     ServerApp (Object *coderef_container,
 	       Count   num_threads = 0);
+
+    ~ServerApp ();
 };
 
 }

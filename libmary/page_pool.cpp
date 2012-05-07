@@ -343,7 +343,7 @@ PagePool::pageUnref (Page * const mt_nonnull page)
 void
 PagePool::msgRef (Page * const mt_nonnull first_page)
 {
-    logD (pool, _func);
+    logD (pool, _func_);
 
     Page *cur_page = first_page;
     while (cur_page) {

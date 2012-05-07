@@ -149,7 +149,7 @@ ServerApp::threadFunc (void * const _self)
     thread_data->poll_group.bindToThread (libMary_getThreadLocal());
     if (!thread_data->poll_group.open ()) {
 	logE_ (_func, "poll_group.open() failed: ", exc->toString());
-	return;
+        goto _return;
     }
 
     thread_data->poll_group.setFrontend (CbDesc<ActivePollGroup::Frontend> (
@@ -168,7 +168,7 @@ ServerApp::threadFunc (void * const _self)
     self->mutex.lock ();
     if (self->should_stop.get()) {
 	self->mutex.unlock ();
-	return;
+        goto _return;
     }
 
     self->thread_data_list.append (thread_data);
@@ -185,6 +185,9 @@ ServerApp::threadFunc (void * const _self)
 	if (self->should_stop.get())
 	    break;
     }
+
+_return:
+    thread_data->dcs_queue.release ();
 }
 #endif // LIBMARY_MT_SAFE
 
@@ -244,6 +247,12 @@ ServerApp::stop ()
 #endif
 }
 
+void
+ServerApp::release ()
+{
+    dcs_queue.release ();
+}
+
 ServerApp::ServerApp (Object * const coderef_container,
 		      Count    const num_threads)
     : DependentCodeReferenced (coderef_container),
@@ -264,6 +273,13 @@ ServerApp::ServerApp (Object * const coderef_container,
 					getCoderefContainer(),
 					NULL /* ref_data */)));
 #endif
+}
+
+ServerApp::~ServerApp ()
+{
+    logD_ (_func_);
+
+    dcs_queue.release ();
 }
 
 }

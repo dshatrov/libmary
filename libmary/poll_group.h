@@ -82,9 +82,12 @@ public:
 namespace M {
     // TODO Rename DefaultPollGroup to DefaultActivePollGroup
     //      and move this into active_poll_group.h
+
 #if defined (LIBMARY_USE_POLL)
     class PollPollGroup;
     typedef PollPollGroup DefaultPollGroup;
+    // TODO FIXME LIBMARY_PLATFORM_DEFAULT should be defined in libmary_config.h
+    //            It makes no sense to use a Makefile.am-defined macros in a public header.
 #elif defined (LIBMARY_USE_SELECT) || !defined (PLATFORM_DEFAULT)
     class SelectPollGroup;
     typedef SelectPollGroup DefaultPollGroup;

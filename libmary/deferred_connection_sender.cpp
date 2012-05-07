@@ -22,6 +22,8 @@
 #include <libmary/types.h>
 #include <errno.h>
 
+#include <libmary/list.h>
+
 #ifdef LIBMARY_ENABLE_MWRITEV
 #include <libmary/mwritev.h>
 #endif
@@ -99,6 +101,7 @@ DeferredConnectionSender::toGlobOutputQueue (bool const add_ref)
     // TODO Move this to a method of dcs_queue.
     assert (dcs_queue);
     dcs_queue->queue_mutex.lock ();
+    assert (!dcs_queue->released);
     dcs_queue->output_queue.append (this);
     dcs_queue->queue_mutex.unlock ();
 
@@ -218,6 +221,7 @@ DeferredConnectionSenderQueue::process (void *_self)
     ProcessingQueue processing_queue;
 
     self->queue_mutex.lock ();
+    assert (!self->released);
 
     if (self->processing) {
 	self->queue_mutex.unlock ();
@@ -304,6 +308,9 @@ DeferredConnectionSenderQueue::process (void *_self)
 	    if (coderef_container)
 		coderef_container->unref ();
 	} else {
+            // TODO I recall thinking that processing barriers are stupid.
+            //      Re-visit this topic.
+
 	    // TEST
 	    assert (0);
 
@@ -337,6 +344,7 @@ DeferredConnectionSenderQueue::process_mwritev (void *_self)
     ProcessingQueue processing_queue;
 
     self->queue_mutex.lock ();
+    assert (!self->released);
 
     if (!mwritev->initialized)
 	mwritevInit (mwritev);
@@ -553,11 +561,82 @@ DeferredConnectionSenderQueue::setDeferredProcessor (DeferredProcessor * const d
     send_reg.scheduleTask (&send_task, true /* permanent */);
 }
 
+void
+DeferredConnectionSenderQueue::release ()
+{
+//    logD_ (_func_);
+
+    List<DeferredConnectionSender*> unref_list;
+
+    queue_mutex.lock ();
+    released = true;
+
+    OutputQueue::iter iter (output_queue);
+    while (!output_queue.iter_done (iter)) {
+        DeferredConnectionSender * const deferred_sender = output_queue.iter_next (iter);
+
+        Object * const coderef_container = deferred_sender->getCoderefContainer();
+        if (coderef_container) {
+            unref_list.append (deferred_sender);
+            coderef_container->ref ();
+        }
+    }
+    output_queue.clear ();
+
+    queue_mutex.unlock ();
+
+    {
+      // Unrefing with 'queue_mutex' unlocked.
+        List<DeferredConnectionSender*>::iter iter (unref_list);
+        while (!unref_list.iter_done (iter)) {
+            DeferredConnectionSender * const deferred_sender = unref_list.iter_next (iter)->data;
+
+            deferred_sender->mutex.lock ();
+            deferred_sender->in_output_queue = false;
+            deferred_sender->mutex.unlock ();
+
+            Object * const coderef_container = deferred_sender->getCoderefContainer();
+            assert (coderef_container);
+            coderef_container->unref ();
+            coderef_container->unref ();
+        }
+    }
+}
+
+DeferredConnectionSenderQueue::DeferredConnectionSenderQueue (Object * const coderef_container)
+    : DependentCodeReferenced (coderef_container),
+      deferred_processor (NULL),
+      processing (false),
+      released (false)
+{
+}
+
 DeferredConnectionSenderQueue::~DeferredConnectionSenderQueue ()
 {
+//    logD_ (_func_);
+
+#if 0
+#error TODO Deinitialization is broken.
+#error MomentServer, ServerApp, DeferredConnectionSenderQueue, DeferredProcessor, and other objects
+#error hold references to real-world objects, and their deletion occurs after
+#error destruction of MomentServer''s subobjects begins.
+#endif
+
     if (deferred_processor) {
 	send_reg.revokeTask (&send_task);
 	send_reg.release ();
+    }
+
+    {
+        queue_mutex.lock ();
+
+        if (!released)
+            logF_ (_func, "release() has not been called");
+
+        if (!output_queue.isEmpty())
+            logF_ (_func, "output queue is not empty");
+
+        queue_mutex.unlock ();
     }
 }
 

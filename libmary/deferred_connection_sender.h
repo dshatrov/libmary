@@ -109,8 +109,10 @@ private:
     DeferredProcessor::Task send_task;
     DeferredProcessor::Registration send_reg;
 
-    mt_mutex (mutex) OutputQueue output_queue;
-    mt_mutex (mutex) bool processing;
+    mt_mutex (queue_mutex) OutputQueue output_queue;
+    mt_mutex (queue_mutex) bool processing;
+
+    mt_mutex (queue_mutex) bool released;
 
     Mutex queue_mutex;
 
@@ -123,12 +125,9 @@ private:
 public:
     void setDeferredProcessor (DeferredProcessor * const deferred_processor);
 
-    DeferredConnectionSenderQueue (Object * const coderef_container)
-	: DependentCodeReferenced (coderef_container),
-	  deferred_processor (NULL),
-	  processing (false)
-    {
-    }
+    void release ();
+
+    DeferredConnectionSenderQueue (Object *coderef_container);
 
     ~DeferredConnectionSenderQueue ();
 };
