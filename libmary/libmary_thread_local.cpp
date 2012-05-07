@@ -45,9 +45,10 @@ LibMary_ThreadLocal::LibMary_ThreadLocal ()
       unixtime (0),
 
       saved_unixtime (0),
-      saved_monotime (0),
+      saved_monotime (0)
 
 #ifdef PLATFORM_WIN32
+      ,
       prv_win_time_dw (0),
       win_time_offs (0)
 #endif
