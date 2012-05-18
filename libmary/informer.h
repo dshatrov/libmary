@@ -95,10 +95,10 @@ public:
 	friend class GenericInformer;
     private:
 	Subscription *sbn;
-	SubscriptionKey (Subscription * const sbn) : sbn (sbn) {}
     public:
 	operator bool () const { return sbn; }
 	SubscriptionKey () : sbn (NULL) {}
+	SubscriptionKey (Subscription * const sbn) : sbn (sbn) {}
 
  	// Methods for C API binding.
 	void *getAsVoidPtr () const { return static_cast <void*> (sbn); }
