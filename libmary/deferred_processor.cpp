@@ -148,6 +148,9 @@ DeferredProcessor::Registration::revokeTask (Task * const mt_nonnull task)
 void
 DeferredProcessor::Registration::release ()
 {
+    if (!deferred_processor)
+        return;
+
     deferred_processor->mutex.lock ();
 
     {
