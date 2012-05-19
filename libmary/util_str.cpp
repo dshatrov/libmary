@@ -17,11 +17,16 @@
 */
 
 
-#include <errno.h>
 #include <cctype>
 #include <cstring>
 #include <cstdlib>
 #include <cmath>
+
+#include <errno.h>
+
+#if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)
+#include <windows.h>
+#endif
 
 #include <libmary/libmary_thread_local.h>
 
@@ -83,6 +88,37 @@ char const * errnoString (int const errnum)
 
     return tlocal->strerr_buf;
 }
+
+#if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)
+// Very similar to MyCpp::win32ErrorToString().
+Ref<String>
+win32ErrorToString (DWORD const error)
+{
+    LPTSTR pBuffer = NULL;
+
+    DWORD const rv = FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM
+                                        | FORMAT_MESSAGE_ALLOCATE_BUFFER
+                                        | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                    NULL, 
+                                    error,
+                                    MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
+//                                    MAKELANGID (LANG_ENGLISH, SUBLANG_ENGLISH_US),
+                                    (LPTSTR) &pBuffer, 
+                                    0, 
+                                    NULL);
+    if (rv == 0) {
+	if (pBuffer != NULL)
+	    LocalFree (pBuffer);
+
+        return makeString ((unsigned long) error);
+    }
+
+    Ref<String> const str = makeString ("(", (unsigned long) error, ") ", (char const *) pBuffer);
+
+    LocalFree (pBuffer);
+    return str;
+}
+#endif
 
 Ref<String> catenateStrings (ConstMemory const &left,
 			     ConstMemory const &right)

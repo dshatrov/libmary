@@ -34,9 +34,6 @@
 
 namespace M {
 
-//File *outf;
-//File *errf;
-
 OutputStream *outs;
 OutputStream *errs;
 OutputStream *logs;

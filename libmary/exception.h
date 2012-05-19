@@ -407,19 +407,36 @@ public:
 class WSAException : public IoException // TODO There's no reason to inherit from IoException now.
 {
 public:
-  int wsa_error_code;
+    int wsa_error_code;
 
-  Ref<String> toString ()
-  {
-    // TODO Error code to string.
-    return grab (new String ("WSAException"));
-  }
+    Ref<String> toString ()
+    {
+        // TODO Error code to string.
+        return grab (new String ("WSAException"));
+    }
 
-  WSAException (int const wsa_error_code)
-    : wsa_error_code (wsa_error_code)
-  {
-  }
+    WSAException (int const wsa_error_code)
+        : wsa_error_code (wsa_error_code)
+    {
+    }
 };
+
+class Win32Exception : public IoException // TODO There's no reason to inherit from IoException now.
+{
+public:
+    int error_code;
+
+    Ref<String> toString ()
+    {
+        return win32ErrorToString (error_code);
+    }
+
+    Win32Exception (int const error_code)
+        : error_code (error_code)
+    {
+    }
+};
+
 #endif
 
 class NumericConversionException : public Exception

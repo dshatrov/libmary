@@ -130,7 +130,7 @@ public:
 
     // May be called only once. Must be called early (during initialzation)
     // to ensure proper synchronization of accesses to 'connected' data member.
-    mt_throws Result connect (IpAddress const &ip_addr);
+    mt_throws Result connect (IpAddress const &addr);
 
     // Should be called just once by TcpServer.
     void setFd (int const fd)

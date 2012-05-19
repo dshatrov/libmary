@@ -327,7 +327,7 @@ Object::addDeletionCallbackNonmutual (DeletionCallback   const cb,
     return sbn;
 }
 
-mt_locked Object::DeletionSubscriptionKey
+Object::DeletionSubscriptionKey
 Object::addDeletionCallbackNonmutual_unlocked (DeletionCallback   const cb,
 					       void             * const cb_data,
 					       Referenced       * const ref_data,

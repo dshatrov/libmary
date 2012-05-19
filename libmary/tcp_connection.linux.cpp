@@ -30,7 +30,6 @@
 #include <netinet/tcp.h>
 
 #include <libmary/log.h>
-#include <libmary/posix.h>
 #include <libmary/util_net.h>
 
 #include <libmary/tcp_connection.h>
@@ -89,6 +88,7 @@ TcpConnection::processEvents (Uint32   const event_flags,
 		logE_ (_func, "getsockopt() failed: ", errnoString (errno));
 
 		PosixException posix_exc (errnum);
+
 		InternalException internal_exc (InternalException::BackendError);
 		internal_exc.cause = &posix_exc;
 
@@ -225,8 +225,6 @@ TcpConnection::read (Memory const &mem,
     if (ret_nread)
 	*ret_nread = (Size) res;
 
-//#if 0
-// TEST (uncomment)
     if ((Size) res < len) {
 	if (hup_received) {
 	    return AsyncIoResult::Normal_Eof;
@@ -235,7 +233,6 @@ TcpConnection::read (Memory const &mem,
 	    return AsyncIoResult::Normal_Again;
 	}
     }
-//#endif
 
     return AsyncIoResult::Normal;
 }

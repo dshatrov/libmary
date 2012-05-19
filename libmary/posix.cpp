@@ -24,30 +24,17 @@
 #include <signal.h>
 
 #include <libmary/exception.h>
-#include <libmary/posix.h>
 #include <libmary/io.h>
 #include <libmary/native_file.h>
 #include <libmary/buffered_output_stream.h>
 #include <libmary/log.h>
 #include <libmary/util_str.h>
+#include <libmary/util_time.h>
+
+#include <libmary/posix.h>
 
 
 namespace M {
-
-#if 0
-void posix_throw_errno ()
-{
-//    switch (errno) {
-//    }
-    exc_throw (PosixException (errno));
-    exc_push ();
-
-#if 0
-    // TODO Convert posix errors to libmary.
-    exc_throw (InternalException (InternalException::UnknownError));
-#endif
-}
-#endif
 
 void libMary_posixInit ()
 {
@@ -60,13 +47,9 @@ void libMary_posixInit ()
     errs = new NativeFile (STDERR_FILENO);
     assert (errs);
 
-#if 0
-    static BufferedOutputStream logs_buffered (errs, 4096);
-    logs = &logs_buffered;
-#endif
     // Allocating on heap to avoid problems with deinitialization order
     // of static data.
-    logs = new BufferedOutputStream (errs, 4096);
+    logs = new BufferedOutputStream (errs, LIBMARY__LOGS_BUFFER_SIZE);
     assert (logs);
 
     if (!updateTime ())
@@ -86,6 +69,7 @@ void libMary_posixInit ()
 	if (sigaction (SIGPIPE, &act, NULL) == -1)
 	    logE_ (_func, "sigaction() failed: ", errnoString (errno));
     }
+
 #if 0
     {
 	struct sigaction sa;

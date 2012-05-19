@@ -64,6 +64,7 @@ public:
 	Value value;
     };
 
+    // TODO Unused?
     class FileType
     {
     public:

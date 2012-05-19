@@ -127,7 +127,7 @@ PollPollGroup::addPollable (CbDesc<Pollable> const &pollable,
     tmp_num_pollables = num_pollables;
 
     if (activate
-	&& (poll_tlocal && poll_tlocal != libMary_getThreadLocal()))
+	&& !(poll_tlocal && poll_tlocal == libMary_getThreadLocal()))
     {
 	if (!mt_unlocks (mutex) doTrigger ()) {
 	    logE_ (_func, "doTrigger() failed: ", exc->toString());
@@ -152,7 +152,7 @@ PollPollGroup::activatePollable (PollableKey const mt_nonnull key)
     inactive_pollable_list.remove (pollable_entry);
     pollable_list.append (pollable_entry);
 
-    if (poll_tlocal && poll_tlocal != libMary_getThreadLocal())
+    if (!(poll_tlocal && poll_tlocal == libMary_getThreadLocal()))
 	return mt_unlocks (mutex) doTrigger ();
 
     mutex.unlock ();
@@ -456,7 +456,7 @@ PollPollGroup::PollPollGroup (Object * const coderef_container)
     deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
 	    &deferred_processor_backend,
 	    static_cast <ActivePollGroup*> (this) /* cb_data */,
-	    NULL /* coderef_container */));
+	    coderef_container));
 }
 
 PollPollGroup::~PollPollGroup ()

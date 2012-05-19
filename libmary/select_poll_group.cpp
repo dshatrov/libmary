@@ -72,6 +72,7 @@ SelectPollGroup::requestInput (void * const _pollable_entry)
     } else {
 	self->mutex.lock ();
 	pollable_entry->need_input = true;
+        // TODO equivalent to doTrigger() ?
 	if (self->triggered) {
 	    self->mutex.unlock ();
 	} else {
@@ -97,6 +98,7 @@ SelectPollGroup::requestOutput (void * const _pollable_entry)
     } else {
 	self->mutex.lock ();
 	pollable_entry->need_output = true;
+        // TODO equivalent to doTrigger() ?
 	if (self->triggered) {
 	    self->mutex.unlock ();
 	} else {
@@ -152,7 +154,7 @@ SelectPollGroup::addPollable (CbDesc<Pollable> const &pollable,
     }
 
     if (activate
-	&& (poll_tlocal && poll_tlocal != libMary_getThreadLocal()))
+	&& !(poll_tlocal && poll_tlocal == libMary_getThreadLocal()))
     {
 	if (!mt_unlocks (mutex) doTrigger ()) {
 	    logE_ (_func, "doTrigger() failed: ", exc->toString());
@@ -176,7 +178,7 @@ SelectPollGroup::activatePollable (PollableKey const mt_nonnull key)
     inactive_pollable_list.remove (pollable_entry);
     pollable_list.append (pollable_entry);
 
-    if (poll_tlocal && poll_tlocal != libMary_getThreadLocal())
+    if (!(poll_tlocal && poll_tlocal == libMary_getThreadLocal()))
 	return mt_unlocks (mutex) doTrigger ();
 
     mutex.unlock ();
@@ -355,9 +357,9 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		ret_res = Result::Failure;
 		goto _select_interrupted;
 	    }
-
-	    got_deferred_tasks = false;
 	}
+
+        got_deferred_tasks = false;
 
 	if (frontend)
 	    frontend.call (frontend->pollIterationBegin);
@@ -405,10 +407,10 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		}
 
 		pollable_entry->unref ();
-	    }
+	    } /* while (!iter_done) */
 
 	    mutex.unlock ();
-	} // if (nfds > 0)
+	}
 
 	bool trigger_break = false;
 	{
@@ -500,17 +502,15 @@ SelectPollGroup::open ()
     return Result::Success;
 }
 
-namespace {
-void deferred_processor_trigger (void * const active_poll_group_)
+static void deferred_processor_trigger (void * const active_poll_group_)
 {
     ActivePollGroup * const active_poll_group = static_cast <ActivePollGroup*> (active_poll_group_);
     active_poll_group->trigger ();
 }
 
-DeferredProcessor::Backend deferred_processor_backend = {
+static DeferredProcessor::Backend const deferred_processor_backend = {
     deferred_processor_trigger
 };
-}
 
 SelectPollGroup::SelectPollGroup (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
@@ -526,7 +526,7 @@ SelectPollGroup::SelectPollGroup (Object * const coderef_container)
     deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
 	    &deferred_processor_backend,
 	    static_cast <ActivePollGroup*> (this) /* cb_data */,
-	    NULL /* coderef_container */));
+	    coderef_container));
 }
 
 SelectPollGroup::~SelectPollGroup ()

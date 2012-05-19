@@ -69,8 +69,8 @@ private:
 	bool need_output;
     };
 
-    typedef IntrusiveList <PollableEntry, PollableList_name> PollableList;
-    typedef IntrusiveList <PollableEntry, SelectedList_name> SelectedList;
+    typedef IntrusiveList< PollableEntry, PollableList_name > PollableList;
+    typedef IntrusiveList< PollableEntry, SelectedList_name > SelectedList;
 
     PollableList pollable_list;
     PollableList inactive_pollable_list;
@@ -89,11 +89,15 @@ private:
 
     mt_throws Result triggerPipeWrite ();
 
+  mt_iface (PollGroup::Feedback)
+
     static Feedback const pollable_feedback;
 
     static void requestInput (void *_pollable_entry);
 
     static void requestOutput (void *_pollable_entry);
+
+  mt_iface_end
 
     mt_mutex (mutex) mt_unlocks (mutex) mt_throws Result doTrigger ();
 
@@ -107,13 +111,13 @@ public:
       mt_throws Result activatePollable (PollableKey mt_nonnull key);
 
       void removePollable (PollableKey mt_nonnull key);
-    mt_end
+    mt_iface_end
 
     // Must be called from the same thread every time.
     mt_throws Result poll (Uint64 timeout_microsec = (Uint64) -1);
 
     mt_throws Result trigger ();
-  mt_end
+  mt_iface_end
 
     mt_throws Result open ();
 

@@ -25,7 +25,7 @@ namespace M {
 // Informer is a helper object for signaling asynchronous events in MT-safe
 // manner.
 
-void
+mt_mutex (mutex) void
 GenericInformer::releaseSubscription (Subscription * const mt_nonnull sbn)
 {
     if (sbn->weak_code_ref.isValid()) {
@@ -37,7 +37,7 @@ GenericInformer::releaseSubscription (Subscription * const mt_nonnull sbn)
     sbn->ref_data = NULL;
 }
 
-void
+mt_mutex (mutex) void
 GenericInformer::releaseSubscriptionFromDestructor (Subscription * const mt_nonnull sbn)
 {
     // If the informer has a coderef container, then deletion subscription has

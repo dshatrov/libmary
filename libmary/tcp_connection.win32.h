@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2012 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -19,6 +19,10 @@
 
 #ifndef __LIBMARY__TCP_CONNECTION__WIN32__H__
 #define __LIBMARY__TCP_CONNECTION__WIN32__H__
+
+
+#include <libmary/types.h>
+#include <winsock2.h>
 
 
 #include <libmary/libmary_config.h>
@@ -44,7 +48,7 @@ public:
 #endif
 
 private:
-    int fd;
+    SOCKET fd;
     // Must be accessed only from processEvents() or during initialization
     // (by connect()).
     bool connected;
@@ -76,7 +80,7 @@ private:
     static void processEvents (Uint32  event_flags,
 			       void   *_self);
 
-    static int getFd (void *_self);
+    static SOCKET getFd (void *_self);
 
     static void setFeedback (Cb<PollGroup::Feedback> const &feedback,
 			     void *_self);
@@ -98,9 +102,11 @@ public:
       mt_throws AsyncIoResult write (ConstMemory const &mem,
 				     Size *ret_nwritten);
 
+      /* TODO
       mt_throws AsyncIoResult writev (struct iovec *iovs,
 				      Count         num_iovs,
 				      Size         *ret_nwritten);
+      */
 
     mt_iface_end
 
@@ -123,10 +129,10 @@ public:
 
     // May be called only once. Must be called early (during initialzation)
     // to ensure proper synchronization of accesses to 'connected' data member.
-    mt_throws Result connect (IpAddress const &ip_addr);
+    mt_throws Result connect (IpAddress const &addr);
 
     // Should be called just once by TcpServer.
-    void setFd (int const fd)
+    void setFd (SOCKET const fd)
     {
 	this->fd = fd;
 	connected = true;

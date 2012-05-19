@@ -237,10 +237,10 @@ public:
 								    Referenced       *ref_data,
 								    Object           *guard_obj);
 
-    mt_locked DeletionSubscriptionKey addDeletionCallbackNonmutual_unlocked (DeletionCallback  cb,
-									     void             *cb_data,
-									     Referenced       *ref_data,
-									     Object           *guard_obj);
+    DeletionSubscriptionKey addDeletionCallbackNonmutual_unlocked (DeletionCallback  cb,
+                                                                   void             *cb_data,
+                                                                   Referenced       *ref_data,
+                                                                   Object           *guard_obj);
 
     void removeDeletionCallback (DeletionSubscriptionKey mt_nonnull sbn);
 

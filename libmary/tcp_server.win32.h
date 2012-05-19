@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011, 2012 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -21,6 +21,9 @@
 #define __LIBMARY__TCP_SERVER__WIN32__H__
 
 
+#include <libmary/types.h>
+#include <winsock2.h>
+
 #include <libmary/code_referenced.h>
 #include <libmary/poll_group.h>
 #include <libmary/exception.h>
@@ -38,7 +41,7 @@ public:
     };
 
 private:
-    int fd;
+    SOCKET fd;
 
     Cb<Frontend> frontend;
     Cb<PollGroup::Feedback> feedback;
@@ -62,7 +65,7 @@ private:
     static void processEvents (Uint32  event_flags,
 			       void   *_self);
 
-    static int getFd (void *_self);
+    static SOCKET getFd (void *_self);
 
     static void setFeedback (Cb<PollGroup::Feedback> const &feedback,
 			     void *_self);
@@ -110,7 +113,7 @@ public:
 
     TcpServer (Object * const coderef_container)
 	: DependentCodeReferenced (coderef_container),
-	  fd (-1)
+	  fd (INVALID_SOCKET)
     {
     }
 

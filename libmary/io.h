@@ -21,20 +21,16 @@
 #define __LIBMARY__IO__H__
 
 
-//#include <libmary/file.h>
 #include <libmary/output_stream.h>
+
+
+#define LIBMARY__LOGS_BUFFER_SIZE 4096
 
 
 namespace M {
 
-//extern File *outf;
-//extern File *errf;
-
 extern OutputStream *outs;
 extern OutputStream *errs;
-
-//#error Log streams
-//extern OutputStream 
 
 }
 

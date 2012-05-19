@@ -151,7 +151,8 @@ mary_win32_target_headers =	\
 	win32.h			\
 	native_file.win32.h	\
 	tcp_connection.win32.h	\
-	tcp_server.win32.h
+	tcp_server.win32.h      \
+        wsa_poll_group.h
 
 if LIBMARY_ENABLE_EPOLL
     mary_linux_target_headers += epoll_poll_group.h
@@ -293,7 +294,8 @@ mary_win32_sources =			\
         win32.cpp                       \
 	native_file.win32.cpp		\
 	tcp_connection.win32.cpp	\
-	tcp_server.win32.cpp
+	tcp_server.win32.cpp            \
+	wsa_poll_group.cpp
 
 if LIBMARY_ENABLE_EPOLL
     mary_linux_sources += epoll_poll_group.cpp

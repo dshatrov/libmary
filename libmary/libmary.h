@@ -96,8 +96,10 @@
 #include <libmary/deferred_processor.h>
 #include <libmary/poll_group.h>
 #include <libmary/active_poll_group.h>
+#ifdef PLATFORM_WIN32
+#include <libmary/wsa_poll_group.h>
+#else
 #include <libmary/select_poll_group.h>
-#ifndef PLATFORM_WIN32
 #include <libmary/poll_poll_group.h>
 #endif
 #if !defined (PLATFORM_WIN32) && defined LIBMARY_ENABLE_EPOLL

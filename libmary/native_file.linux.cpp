@@ -244,13 +244,11 @@ NativeFile::open (ConstMemory const filename,
     if (open_flags & OpenFlags::Truncate)
 	flags |= O_TRUNC;
 
+    // TODO Seek to the end of file instead. O_APPEND semantics is too complicated.
     if (open_flags & OpenFlags::Append)
 	flags |= O_APPEND;
 
-    // TODO Variable length arrays are no good for ISO C++.
-    char filename_str [filename.len() + 1];
-    memcpy (filename_str, filename.mem(), filename.len());
-    filename_str [filename.len()] = 0;
+    Ref<String> const filename_str = grab (new String (filename));
 
     for (;;) {
 	/* NOTE: man 2 open does not mention EINTR as a possible return

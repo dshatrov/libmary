@@ -30,11 +30,19 @@
 #include <libmary/ref.h>
 #include <libmary/string.h>
 
+#if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)
+#include <windows.h>
+#endif
+
 
 namespace M {
 
 Ref<String> errnoToString (int errnum);
 char const* errnoString (int errnum);
+
+#if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)
+Ref<String> win32ErrorToString (DWORD error);
+#endif
 
 Ref<String> catenateStrings (ConstMemory const &left,
 			     ConstMemory const &right);

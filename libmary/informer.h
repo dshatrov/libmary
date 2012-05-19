@@ -113,9 +113,8 @@ protected:
     mt_mutex (mtuex) SubscriptionInvalidationList sbn_invalidation_list;
     mt_mutex (mutex) Count traversing;
 
-    void releaseSubscription (Subscription *sbn);
-
-    void releaseSubscriptionFromDestructor (Subscription *sbn);
+    mt_mutex (mutex) void releaseSubscription (Subscription *sbn);
+    mt_mutex (mutex) void releaseSubscriptionFromDestructor (Subscription *sbn);
 
     static void subscriberDeletionCallback (void *_sbn);
 

@@ -21,6 +21,9 @@
 #define __LIBMARY__CODE_REFERENCED__H__
 
 
+#include <libmary/annotations.h>
+
+
 namespace M {
 
 class Object;
@@ -40,7 +43,7 @@ public:
 class DependentCodeReferenced : public CodeReferenced
 {
 private:
-    Object *coderef_container;
+    mt_const Object *coderef_container;
 
 public:
     Object* getCoderefContainer ()
@@ -49,7 +52,7 @@ public:
     }
 
     // One may call setCoderefContainer() only as part of early initialization.
-    void setCoderefContainer (Object * const coderef_container)
+    mt_const void setCoderefContainer (Object * const coderef_container)
     {
 	this->coderef_container = coderef_container;
     }

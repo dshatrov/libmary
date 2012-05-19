@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011, 2012 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -21,6 +21,9 @@
 #define __LIBMARY__NATIVE_FILE_WIN32__H__
 
 
+#include <libmary/types.h>
+#include <windows.h>
+
 #include <libmary/file.h>
 
 
@@ -29,6 +32,7 @@ namespace M {
 class NativeFile : public File
 {
 private:
+    HANDLE fd;
 
 public:
     mt_iface (File)
@@ -56,8 +60,9 @@ public:
 
     mt_iface_end
 
-//    mt_throws Result stat (FileStat * mt_nonnull ret_stat);
+    mt_throws Result stat (FileStat * mt_nonnull ret_stat);
 
+    // TODO Unused?
     // Resets fd so that it won't be closed in the destructor.
     void resetFd ();
 

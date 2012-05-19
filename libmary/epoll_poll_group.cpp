@@ -172,6 +172,7 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 
 //	logD_ (_func, "start: ", start_microsec, ", cur: ", cur_microsec, ", elapsed: ", elapsed_microsec);
 
+        // FIXME Uint64 timeout;
 	int timeout;
 	if (!got_deferred_tasks) {
 	    if (timeout_microsec != (Uint64) -1) {
@@ -215,56 +216,55 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	mutex.lock ();
 	block_trigger_pipe = true;
 
-	if (nfds > 0) {
-	    // We keep the mutex locked to ensure that we see valid contents
-	    // of PollableEntry objects.
-	    for (int i = 0; i < nfds; ++i) {
-		PollableEntry * const pollable_entry = static_cast <PollableEntry*> (events [i].data.ptr);
-		uint32_t const epoll_event_flags = events [i].events;
-		Uint32 event_flags = 0;
+        assert (nfds >= 0);
+        // We keep the mutex locked to ensure that we see valid contents
+        // of PollableEntry objects.
+        for (int i = 0; i < nfds; ++i) {
+            PollableEntry * const pollable_entry = static_cast <PollableEntry*> (events [i].data.ptr);
+            uint32_t const epoll_event_flags = events [i].events;
+            Uint32 event_flags = 0;
 
-		if (pollable_entry == NULL) {
-		  // Trigger pipe event.
-		    if (epoll_event_flags & EPOLLIN)
-			trigger_pipe_ready = true;
+            if (pollable_entry == NULL) {
+              // Trigger pipe event.
+                if (epoll_event_flags & EPOLLIN)
+                    trigger_pipe_ready = true;
 
-		    if (epoll_event_flags & EPOLLOUT)
-			logW_ (_func, "Unexpected EPOLLOUT event for trigger pipe");
+                if (epoll_event_flags & EPOLLOUT)
+                    logW_ (_func, "Unexpected EPOLLOUT event for trigger pipe");
 
-		    if (epoll_event_flags & EPOLLHUP   ||
-			epoll_event_flags & EPOLLRDHUP ||
-			epoll_event_flags & EPOLLERR)
-		    {
-			logE_ (_func, "Trigger pipe error: 0x", fmt_hex, epoll_event_flags);
-		    }
+                if (epoll_event_flags & EPOLLHUP   ||
+                    epoll_event_flags & EPOLLRDHUP ||
+                    epoll_event_flags & EPOLLERR)
+                {
+                    logE_ (_func, "Trigger pipe error: 0x", fmt_hex, epoll_event_flags);
+                }
 
-		    continue;
-		}
+                continue;
+            }
 
-		// This check is not really necessary, but we have 'mutex' locked anyway.
-		if (pollable_entry->valid) {
-		    if (epoll_event_flags & EPOLLIN)
-			event_flags |= PollGroup::Input;
+            // This check is not really necessary, but we have 'mutex' locked anyway.
+            if (pollable_entry->valid) {
+                if (epoll_event_flags & EPOLLIN)
+                    event_flags |= PollGroup::Input;
 
-		    if (epoll_event_flags & EPOLLOUT)
-			event_flags |= PollGroup::Output;
+                if (epoll_event_flags & EPOLLOUT)
+                    event_flags |= PollGroup::Output;
 
-		    if (epoll_event_flags & EPOLLHUP ||
-			epoll_event_flags & EPOLLRDHUP)
-		    {
-			event_flags |= PollGroup::Hup;
-		    }
+                if (epoll_event_flags & EPOLLHUP ||
+                    epoll_event_flags & EPOLLRDHUP)
+                {
+                    event_flags |= PollGroup::Hup;
+                }
 
-		    if (epoll_event_flags & EPOLLERR)
-			event_flags |= PollGroup::Error;
+                if (epoll_event_flags & EPOLLERR)
+                    event_flags |= PollGroup::Error;
 
-		    if (event_flags) {
-			pollable_entry->pollable.call_mutex (
-				pollable_entry->pollable->processEvents, mutex, /* ( */ event_flags /* ) */);
-		    }
-		}
-	    } // for (;;) - for all fds.
-	} // if (nfds > 0)
+                if (event_flags) {
+                    pollable_entry->pollable.call_mutex (
+                            pollable_entry->pollable->processEvents, mutex, /* ( */ event_flags /* ) */);
+                }
+            }
+        } // for (;;) - for all fds.
 
 	processPollableDeletionQueue ();
 	mutex.unlock ();
@@ -327,6 +327,11 @@ EpollPollGroup::trigger ()
     }
 
     mutex.lock ();
+    if (triggered) {
+        mutex.unlock ();
+        return Result::Success;
+    }
+
     triggered = true;
     if (block_trigger_pipe) {
 	mutex.unlock ();
@@ -400,7 +405,7 @@ EpollPollGroup::EpollPollGroup (Object * const coderef_container)
     deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
 	    &deferred_processor_backend,
 	    static_cast <ActivePollGroup*> (this) /* cb_data */,
-	    NULL /* coderef_container */));
+	    NULL /* TODO coderef_container? */));
 }
 
 EpollPollGroup::~EpollPollGroup ()
