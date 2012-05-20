@@ -17,16 +17,18 @@
 */
 
 
+#include <libmary/types.h>
+
 #include <errno.h>
 #include <time.h>
 
 #include <libmary/log.h>
 #include <libmary/util_str.h>
-#ifndef PLATFORM_WIN32
+#ifndef LIBMARY_PLATFORM_WIN32
 #include <libmary/posix.h>
 #endif
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
 #include <windows.h>
 #endif
 
@@ -35,7 +37,7 @@
 #include <glib.h>
 
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
 #ifdef LIBMARY_WIN32_SECURE_CRT
 extern "C" {
     typedef int errno_t;
@@ -60,7 +62,7 @@ mt_throws Result updateTime ()
 {
     LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
     DWORD const win_time_dw = timeGetTime();
     if (tlocal->prv_win_time_dw >= win_time_dw) {
         tlocal->win_time_offs += 0x100000000;
@@ -126,7 +128,7 @@ mt_throws Result updateTime ()
 	time_t const cur_unixtime = tlocal->saved_unixtime + (tlocal->time_seconds - tlocal->saved_monotime);
 	tlocal->unixtime = cur_unixtime;
 	// Note that we call tzset() in libMary_posixInit() for localtime_r() to work correctly.
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
   #ifdef LIBMARY_WIN32_SECURE_CRT
         if (localtime_s (&tlocal->localtime, &cur_unixtime) != 0)
             logF_ (_func, "localtime_s() failed");
@@ -161,7 +163,7 @@ void splitTime (Time        const unixtime,
 		struct tm * const mt_nonnull ret_tm)
 {
     time_t tmp_unixtime = (time_t) unixtime;
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
   #ifdef LIBMARY_WIN32_SECURE_CRT
     if (localtime_s (ret_tm, &tmp_unixtime) != 0)
       logF_ (_func, "localtime_s() failed");
@@ -198,7 +200,7 @@ Size timeToString (Memory const &mem,
     time_t t = time;
 
     struct tm tm;
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
   #ifdef LIBMARY_WIN32_SECURE_CRT
     if (gmtime_s (&tm, &t) != 0)
   #else

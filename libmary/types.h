@@ -142,7 +142,7 @@ private:
     Value value;
 };
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
 struct iovec {
     void   *iov_base;
     size_t  iov_len;

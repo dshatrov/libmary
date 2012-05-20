@@ -24,7 +24,7 @@
 
 #include <errno.h>
 
-#if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)
+#if defined(LIBMARY_PLATFORM_WIN32) || defined(LIBMARY_PLATFORM_CYGWIN)
 #include <windows.h>
 #endif
 
@@ -89,7 +89,7 @@ char const * errnoString (int const errnum)
     return tlocal->strerr_buf;
 }
 
-#if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)
+#if defined(LIBMARY_PLATFORM_WIN32) || defined(LIBMARY_PLATFORM_CYGWIN)
 // Very similar to MyCpp::win32ErrorToString().
 Ref<String>
 win32ErrorToString (DWORD const error)

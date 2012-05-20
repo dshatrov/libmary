@@ -4,17 +4,15 @@ COMMON_CFLAGS =				\
 	-include "local_config.h"	\
 	$(THIS_CFLAGS)
 
-COMMON_CFLAGS += -DLIBMARY_MTSAFE -DLIBMARY_TLOCAL=__thread
-
-if PLATFORM_WIN32
-    COMMON_CFLAGS += -DPLATFORM_WIN32
+if LIBMARY_PLATFORM_WIN32
+    COMMON_CFLAGS +=
 endif
-if PLATFORM_CYGWIN
-    COMMON_CFLAGS += -DPLATFORM_CYGWIN -pthread
+if LIBMARY_PLATFORM_CYGWIN
+    COMMON_CFLAGS += -pthread
 endif
 
-if PLATFORM_DEFAULT
-    COMMON_CFLAGS += -DPLATFORM_DEFAULT -pthread
+if LIBMARY_PLATFORM_DEFAULT
+    COMMON_CFLAGS += -pthread
     # For backtraces
     COMMON_CFLAGS += -rdynamic
 endif
@@ -166,7 +164,7 @@ else
     mary_private_headers += mwritev.h
 endif
 
-if PLATFORM_WIN32
+if LIBMARY_PLATFORM_WIN32
     mary_target_headers  += $(mary_win32_target_headers)
     mary_private_headers += $(mary_linux_target_headers)
 else
@@ -184,7 +182,11 @@ nodist_libmary_1_0_la_SOURCES = $(MARY_GENFILES)
 
 DISTCLEANFILES = libmary_config.h
 
-if PLATFORM_WIN32
+.PHONY: native_file.h           \
+        tcp_connection.h        \
+        tcp_server.h
+
+if LIBMARY_PLATFORM_WIN32
 native_file.h: native_file.win32.h
 	rm -f $@
 	ln -s native_file.win32.h native_file.h
@@ -309,7 +311,7 @@ else
     mary_extra_dist += mwritev.cpp
 endif
 
-if PLATFORM_WIN32
+if LIBMARY_PLATFORM_WIN32
     libmary_1_0_la_SOURCES += $(mary_win32_sources)
     mary_extra_dist += $(mary_linux_sources)
 else
@@ -319,7 +321,7 @@ endif
 
 libmary_1_0_la_LDFLAGS = -no-undefined -version-info "0:0:0"
 libmary_1_0_la_LIBADD = $(THIS_LIBS)
-if PLATFORM_WIN32
+if LIBMARY_PLATFORM_WIN32
 libmary_1_0_la_LIBADD += -lws2_32
 endif
 

@@ -28,7 +28,7 @@
 #include <sys/uio.h>
 #endif
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
 #include <windows.h>
 #endif
 
@@ -100,7 +100,7 @@ public:
 
     char timezone_str [5];
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
     DWORD prv_win_time_dw;
     Time win_time_offs;
 #endif

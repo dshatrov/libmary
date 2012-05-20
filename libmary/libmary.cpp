@@ -21,7 +21,7 @@
 
 #include <libmary/libmary_thread_local.h>
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
 #include <libmary/win32.h>
 #else
 #include <libmary/posix.h>
@@ -60,7 +60,7 @@ void libMaryInit ()
 
     libMary_threadLocalInit ();
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
     libMary_win32Init ();
 #else
     libMary_posixInit ();

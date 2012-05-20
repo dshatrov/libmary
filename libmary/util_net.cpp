@@ -20,7 +20,7 @@
 #include <libmary/types.h>
 
 #include <cstring>
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
 #include <winsock2.h>
 #else
 #include <netdb.h>
@@ -82,14 +82,14 @@ Result hostToIp (ConstMemory const &host,
     host_str [host.len()] = 0;
 
     struct sockaddr_in addr;
-#ifndef PLATFORM_WIN32
+#ifndef LIBMARY_PLATFORM_WIN32
     if (!inet_aton (host_str, &addr.sin_addr))
 #else
     int addr_len = sizeof (addr.sin_addr);
     if (WSAStringToAddress (host_str, AF_INET, NULL, (struct sockaddr*) &addr, &addr_len))
 #endif
     {
-#if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)
+#if defined(LIBMARY_PLATFORM_WIN32) || defined(LIBMARY_PLATFORM_CYGWIN)
 	libraryLock ();
 	struct hostent * const he_res = gethostbyname (host_str);
 	if (!he_res) {
@@ -177,7 +177,7 @@ Result serviceToPort (ConstMemory const &service,
     char *endptr;
     Uint16 port = (Uint16) strtoul (service_str, &endptr, 0);
     if (*endptr != 0) {
-#if defined(PLATFORM_WIN32) || defined (PLATFORM_CYGWIN)
+#if defined(LIBMARY_PLATFORM_WIN32) || defined (LIBMARY_PLATFORM_CYGWIN)
 	libraryLock ();
 
         struct servent * const se_res = getservbyname (service_str, "tcp");

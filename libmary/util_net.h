@@ -23,7 +23,7 @@
 
 #include <libmary/types.h>
 
-#ifndef PLATFORM_WIN32
+#ifndef LIBMARY_PLATFORM_WIN32
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

@@ -23,7 +23,7 @@
 
 #include <libmary/types.h>
 
-#ifndef PLATFORM_WIN32
+#ifndef LIBMARY_PLATFORM_WIN32
 #include <sys/uio.h>
 #endif
 

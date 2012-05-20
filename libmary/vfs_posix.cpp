@@ -73,7 +73,7 @@ VfsPosix::Directory::getNextEntry (Ref<String> &ret_str)
 {
     ret_str = NULL;
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
     errno = 0;
     libraryLock ();
     struct dirent * const dirent = readdir (dir);
@@ -199,7 +199,7 @@ VfsPosix::stat (ConstMemory const &_name)
     else
     if (S_ISREG (stat_buf.st_mode))
 	stat_data->file_type = FileType::RegularFile;
-#ifndef PLATFORM_WIN32
+#ifndef LIBMARY_PLATFORM_WIN32
     else
     if (S_ISLNK (stat_buf.st_mode))
 	stat_data->file_type = FileType::SymbolicLink;

@@ -42,6 +42,7 @@
 #include <cstddef>
 #include <cassert>
 
+#include <libmary/libmary_config.h>
 #include <libmary/annotations.h>
 
 

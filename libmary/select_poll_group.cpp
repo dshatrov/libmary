@@ -26,7 +26,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
 #include <winsock2.h>
 #else
 #include <sys/select.h>
@@ -319,13 +319,13 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	    }
 
 	    nfds = select (largest_fd + 1, &rfds, &wfds, &efds, null_timeout ? NULL : &timeout_val);
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
             if (nfds == SOCKET_ERROR)
 #else
 	    if (nfds == -1)
 #endif
             {
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
                 int const wsa_error_code = WSAGetLastError();
                 exc_throw <WSAException> (wsa_error_code);
                 // TODO Error code to string.

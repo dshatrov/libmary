@@ -57,14 +57,14 @@ public:
 }
 
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
 #include <libmary/wsa_poll_group.h>
 #else
 #include <libmary/select_poll_group.h>
 #include <libmary/poll_poll_group.h>
 #endif
 
-#if !defined (PLATFORM_WIN32) && defined (LIBMARY_ENABLE_EPOLL)
+#if !defined (LIBMARY_PLATFORM_WIN32) && defined (LIBMARY_ENABLE_EPOLL)
 #include <libmary/epoll_poll_group.h>
 #endif
 

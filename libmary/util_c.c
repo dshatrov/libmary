@@ -36,7 +36,7 @@
 
 
 #if 0
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
 /* errno_t */ int strerror_s (char   *buf,
                               size_t  buflen,
                               int     errnum);
@@ -53,7 +53,7 @@ int _libmary_strerror_r (int      const errnum,
 			 char   * const mt_nonnull buf,
 			 size_t   const buflen)
 {
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
 #if 0
     int const res = strerror_s (buf, buflen, errnum);
     if (res != 0)
@@ -75,6 +75,6 @@ int _libmary_strerror_r (int      const errnum,
     libmary_library_unlock ();
 #else
     return strerror_r (errnum, buf, buflen);
-#endif // PLATFORM_WIN32
+#endif // LIBMARY_PLATFORM_WIN32
 }
 

@@ -21,10 +21,9 @@
 #define __LIBMARY__POLL_GROUP__H__
 
 
-#include <libmary/libmary_config.h>
 #include <libmary/types.h>
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
 #include <winsock2.h>
 #endif
 
@@ -68,7 +67,7 @@ public:
 	void (*processEvents) (Uint32  event_flags,
 			       void   *cb_data);
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
 	SOCKET (*getFd) (void *cb_data);
 #else
 	int (*getFd) (void *cb_data);
@@ -110,16 +109,14 @@ namespace M {
     // TODO Rename DefaultPollGroup to DefaultActivePollGroup
     //      and move this into active_poll_group.h
 
-#ifdef PLATFORM_WIN32
+#ifdef LIBMARY_PLATFORM_WIN32
     class WsaPollGroup;
     typedef WsaPollGroup DefaultPollGroup;
 #else
   #if defined (LIBMARY_USE_POLL)
     class PollPollGroup;
     typedef PollPollGroup DefaultPollGroup;
-    // TODO FIXME LIBMARY_PLATFORM_DEFAULT should be defined in libmary_config.h
-    //            It makes no sense to use a Makefile.am-defined macros in a public header.
-  #elif defined (LIBMARY_USE_SELECT) || !defined (PLATFORM_DEFAULT)
+  #elif defined (LIBMARY_USE_SELECT) || !defined (LIBMARY_PLATFORM_DEFAULT)
     class SelectPollGroup;
     typedef SelectPollGroup DefaultPollGroup;
   #else

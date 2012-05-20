@@ -30,7 +30,7 @@
 #include <libmary/ref.h>
 #include <libmary/string.h>
 
-#if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)
+#if defined(LIBMARY_PLATFORM_WIN32) || defined(LIBMARY_PLATFORM_CYGWIN)
 #include <windows.h>
 #endif
 
@@ -40,7 +40,7 @@ namespace M {
 Ref<String> errnoToString (int errnum);
 char const* errnoString (int errnum);
 
-#if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)
+#if defined(LIBMARY_PLATFORM_WIN32) || defined(LIBMARY_PLATFORM_CYGWIN)
 Ref<String> win32ErrorToString (DWORD error);
 #endif
 

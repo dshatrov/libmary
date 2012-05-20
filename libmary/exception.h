@@ -403,7 +403,7 @@ public:
     }
 };
 
-#if defined(PLATFORM_WIN32) || defined(PLATFORM_CYGWIN)
+#if defined(LIBMARY_PLATFORM_WIN32) || defined(LIBMARY_PLATFORM_CYGWIN)
 class WSAException : public IoException // TODO There's no reason to inherit from IoException now.
 {
 public:
