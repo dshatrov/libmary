@@ -255,7 +255,7 @@ NativeFile::open (ConstMemory const filename,
 	 * value, while man 3 open _does_. This means that EINTR should
 	 * be handled for all invocations of open() in MyCpp (and all
 	 * over MyNC). */
-	fd = ::open (filename_str,
+	fd = ::open (filename_str->cstr(),
 		     // Note that O_DIRECT affects kernel-level caching/buffering
 		     // and should not be set here.
 		     flags,
