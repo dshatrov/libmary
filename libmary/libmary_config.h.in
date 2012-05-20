@@ -25,7 +25,7 @@
 
 #undef LIBMARY_WIN32_SECURE_CRT
 
-#define LIBMARY_TLOCAL __tlocal
+#define LIBMARY_TLOCAL __thread
 
 #endif /* __LIBMARY__LIBMARY_CONFIG__H__ */
 
