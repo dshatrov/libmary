@@ -206,6 +206,24 @@ TcpServer::accept (TcpConnection * const mt_nonnull tcp_connection,
 	}
     }
 
+#ifdef __linux__
+    {
+        int opt_val = 1;
+        int const res = setsockopt (conn_fd, IPPROTO_TCP, TCP_QUICKACK, &opt_val, sizeof (opt_val));
+        if (res == -1) {
+            exc_throw <PosixException> (errno);
+            exc_push <InternalException> (InternalException::BackendError);
+            logE_ (_func, "setsockopt() failed (TCP_QUICKACK): ", errnoString (errno));
+            goto _failure;
+        } else
+        if (res != 0) {
+            exc_throw <InternalException> (InternalException::BackendMalfunction);
+            logE_ (_func, "setsockopt() (TCP_QUICKACK): unexpected return value: ", res);
+            goto _failure;
+        }
+    }
+#endif /* __linux__ */
+
     tcp_connection->setFd (conn_fd);
 
     return AcceptResult::Accepted;

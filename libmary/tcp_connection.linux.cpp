@@ -432,6 +432,24 @@ TcpConnection::connect (IpAddress const &addr)
 	}
     }
 
+#ifdef __linux__
+    {
+        int opt_val = 1;
+        int const res = setsockopt (fd, IPPROTO_TCP, TCP_QUICKACK, &opt_val, sizeof (opt_val));
+        if (res == -1) {
+            exc_throw <PosixException> (errno);
+            exc_push <InternalException> (InternalException::BackendError);
+            logE_ (_func, "setsockopt() failed (TCP_QUICKACK): ", errnoString (errno));
+            return Result::Failure;
+        } else
+        if (res != 0) {
+            exc_throw <InternalException> (InternalException::BackendMalfunction);
+            logE_ (_func, "setsockopt() (TCP_QUICKACK): unexpected return value: ", res);
+            return Result::Failure;
+        }
+    }
+#endif /* __linux__ */
+
     for (;;) {
 	int const res = ::connect (fd, (struct sockaddr*) &saddr, sizeof (saddr));
 	if (res == 0) {
