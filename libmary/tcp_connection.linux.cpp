@@ -433,6 +433,8 @@ TcpConnection::connect (IpAddress const &addr)
     }
 
 #ifdef __linux__
+    // TODO Consider using TCP_THIN_LINEAR_TIMEOUTS and TCP_THIN_DUPACK.
+
     {
         int opt_val = 1;
         int const res = setsockopt (fd, IPPROTO_TCP, TCP_QUICKACK, &opt_val, sizeof (opt_val));
