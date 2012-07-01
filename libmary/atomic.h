@@ -143,7 +143,7 @@ class AtomicPointer
 private:
     // Mutable, because g_atomic_pointer_get() takes non-const
     // parameter in mingw.
-    mutable volatile gpointer value;
+    mutable gpointer volatile value;
 
 public:
     void set (void * const value)
