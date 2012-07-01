@@ -47,6 +47,7 @@
 
 #define mt_const
 #define mt_mutex(a)
+#define mt_locks(a)
 #define mt_unlocks(a)
 #define mt_unlocks_locks(a)
 #define mt_sync(a)
