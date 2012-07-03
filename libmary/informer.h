@@ -107,8 +107,7 @@ public:
    };
 
 protected:
-    // TODO Make it so that a basic Mutex would do.
-    StateMutex mutex;
+    StateMutex * const mutex;
 
     mt_mutex (mutex) SubscriptionList sbn_list;
     mt_mutex (mtuex) SubscriptionInvalidationList sbn_invalidation_list;
@@ -146,26 +145,17 @@ public:
 
     void unsubscribe (SubscriptionKey sbn_key);
 
-#if 0
     mt_mutex (mutex) void unsubscribe_unlocked (SubscriptionKey sbn_key);
-#endif
-
-    mt_locks (mutex) void lock ()
-    {
-        mutex.lock ();
-    }
-
-    mt_unlocks (mutex) void unlock ()
-    {
-        mutex.unlock ();
-    }
 
     // If @coderef_container is not null, then @mutex should be the state mutex
     // of @coderef_container.
-    GenericInformer (Object * const coderef_container)
+    GenericInformer (Object     * const coderef_container,
+		     StateMutex * const mutex)
 	: DependentCodeReferenced (coderef_container),
+	  mutex (mutex),
 	  traversing (0)
     {
+	assert (!coderef_container || &coderef_container->mutex == mutex);
     }
 
     ~GenericInformer ();
@@ -196,14 +186,12 @@ public:
 	GenericInformer::informAll (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
     }
 
-#if 0
     // May unlock and lock 'mutex' in the process.
     mt_unlocks_locks (mutex) void informAll_unlocked (InformCallback    const inform_cb,
                                                       void            * const inform_cb_data)
     {
 	mt_unlocks_locks (mutex) GenericInformer::informAll_unlocked (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
     }
-#endif
 
     SubscriptionKey subscribe (T const        * const ev_struct,
 			       void           * const cb_data,
@@ -231,8 +219,9 @@ public:
 	return subscribeVoid_unlocked ((void*) cb.cb, cb.cb_data, cb.ref_data, cb.coderef_container);
     }
 
-    Informer_ (Object * const coderef_container)
-	: GenericInformer (coderef_container)
+    Informer_ (Object     * const coderef_container,
+	       StateMutex * const mutex)
+	: GenericInformer (coderef_container, mutex)
     {
     }
 };
@@ -262,14 +251,12 @@ public:
 	GenericInformer::informAll (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
     }
 
-#if 0
     // May unlock and lock 'mutex' in the process.
     mt_unlocks_locks (mutex) void informAll_unlocked (InformCallback    const inform_cb,
 			                              void            * const inform_cb_data)
     {
 	mt_unlocks_locks (mutex) GenericInformer::informAll_unlocked (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
     }
-#endif
 
     SubscriptionKey subscribe (T                const cb,
 			       void           * const cb_data,
@@ -297,8 +284,9 @@ public:
 	return subscribeVoid_unlocked ((VoidFunction) cb.cb, cb.cb_data, cb.ref_data, cb.coderef_container);
     }
 
-    Informer (Object * const coderef_container)
-	: GenericInformer (coderef_container)
+    Informer (Object     * const coderef_container,
+	      StateMutex * const mutex)
+	: GenericInformer (coderef_container, mutex)
     {
     }
 };
