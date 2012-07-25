@@ -97,7 +97,7 @@ private:
 	template <class T> friend class WeakRef;
 
     private:
-	Mutex mutex;
+	Mutex shadow_mutex;
 	Object *weak_ptr;
 
 	// This counter ensures that the object will be deleted sanely when
@@ -109,12 +109,12 @@ private:
 
 	void lock ()
 	{
-	    mutex.lock ();
+	    shadow_mutex.lock ();
 	}
 
 	void unlock ()
 	{
-	    mutex.unlock ();
+	    shadow_mutex.unlock ();
 	}
 
 	DEBUG (
@@ -164,7 +164,7 @@ private:
     // of ref().
     static Object* _GetRef (_Shadow * const mt_nonnull shadow)
     {
-      MutexLock shadow_l (&shadow->mutex);
+      MutexLock shadow_l (&shadow->shadow_mutex);
 
 	Object * const obj = shadow->weak_ptr;
 
@@ -193,6 +193,8 @@ private:
 
     IntrusiveCircularList<DeletionSubscription> deletion_subscription_list;
 
+    Mutex deletion_mutex;
+
     static void mutualDeletionCallback (void * mt_nonnull _sbn);
 
     virtual void last_unref ();
@@ -219,16 +221,6 @@ public:
 							   Referenced       *ref_data,
 							   Object           *guard_obj);
 
-    DeletionSubscriptionKey addDeletionCallback_unlocked (DeletionCallback  cb,
-							  void             *cb_data,
-							  Referenced       *ref_data,
-							  Object           *guard_obj);
-
-    mt_locked DeletionSubscriptionKey addDeletionCallback_mutualUnlocked (DeletionCallback  cb,
-									  void             *cb_data,
-									  Referenced       *ref_data,
-									  Object           *guard_obj);
-
     // TODO Is it really necessary to create a new DeletionCallback object for
     // mutual deletion callbacks? Perhaps the existing DeletionCallback object
     // could be reused.
@@ -237,48 +229,13 @@ public:
 								    Referenced       *ref_data,
 								    Object           *guard_obj);
 
-    DeletionSubscriptionKey addDeletionCallbackNonmutual_unlocked (DeletionCallback  cb,
-                                                                   void             *cb_data,
-                                                                   Referenced       *ref_data,
-                                                                   Object           *guard_obj);
-
     void removeDeletionCallback (DeletionSubscriptionKey mt_nonnull sbn);
-
-    void removeDeletionCallback_unlocked (DeletionSubscriptionKey mt_nonnull sbn);
-
-    // Should be called when when state mutex of the subscriber is locked.
-    void removeDeletionCallback_mutualUnlocked (DeletionSubscriptionKey mt_nonnull sbn);
 
     Object ()
     {
     }
 
     virtual ~Object ();
-
-#if 0
-// MOVED TO CodeReferenced
-    // TODO Refine this (see docs/informer.txt).
-    template <class Cb, class ...Args>
-    void async_call (CB tocall, Args const &...args)
-    {
-	if (!tocall)
-	    return false;
-
-	LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-	if (this == tlocal->last_coderef_container) {
-	    tocall (args...);
-	    return;
-	}
-
-	CodeRef const code_ref = this;
-	Object * const prv_coderef_container = tlocal->last_coderef_container;
-	tlocal->last_coderef_container = this;
-
-	tocall (args...);
-
-	tlocal->last_coderef_container = prv_coderef_container;
-    }
-#endif
 };
 
 template <class T>

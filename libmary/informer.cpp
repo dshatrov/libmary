@@ -31,7 +31,7 @@ GenericInformer::releaseSubscription (Subscription * const mt_nonnull sbn)
     if (sbn->weak_code_ref.isValid()) {
 	CodeRef const code_ref = sbn->weak_code_ref;
 	if (code_ref)
-	    code_ref->removeDeletionCallback_mutualUnlocked (sbn->del_sbn);
+	    code_ref->removeDeletionCallback (sbn->del_sbn);
     }
 
     sbn->ref_data = NULL;
@@ -46,7 +46,7 @@ GenericInformer::releaseSubscriptionFromDestructor (Subscription * const mt_nonn
 	if (sbn->weak_code_ref.isValid()) {
 	    CodeRef const code_ref = sbn->weak_code_ref;
 	    if (code_ref)
-		code_ref->removeDeletionCallback_mutualUnlocked (sbn->del_sbn);
+		code_ref->removeDeletionCallback (sbn->del_sbn);
 	}
     }
 
@@ -128,21 +128,6 @@ GenericInformer::informAll_unlocked (ProxyInformCallback   const mt_nonnull prox
 
     --traversing;
     if (traversing == 0) {
-#if 0
-// Old variant.
-	sbn = sbn_list.getFirst();
-	while (sbn) {
-	    Subscription * const next_sbn = sbn_list.getNext (sbn);
-
-	    if (!sbn->valid) {
-		releaseSubscription (sbn);
-		sbn_list.remove (sbn);
-		delete sbn;
-	    }
-
-	    sbn = next_sbn;
-	}
-#endif
 	sbn = sbn_invalidation_list.getFirst();
 	while (sbn) {
 	    Subscription * const next_sbn = sbn_invalidation_list.getNext (sbn);
@@ -150,6 +135,8 @@ GenericInformer::informAll_unlocked (ProxyInformCallback   const mt_nonnull prox
 
 	    releaseSubscription (sbn);
 	    sbn_list.remove (sbn);
+            // This is why we need StateMutex and not a plain Mutex:
+            // 'sbn' carries a VirtRef to an arbitrary object.
 	    delete sbn;
 
 	    sbn = next_sbn;
@@ -170,8 +157,6 @@ GenericInformer::subscribeVoid (CallbackPtr      const cb_ptr,
     sbn->oneshot = false;
 
     if (coderef_container) {
-	// TODO It would be more effective lock 'mutex' earlier and call
-	// addDeletionCallback_mutualUnlocked() here.
 	sbn->del_sbn = coderef_container->addDeletionCallback (
 		subscriberDeletionCallback, sbn, NULL /* ref_data */, getCoderefContainer());
     } else {
@@ -197,9 +182,7 @@ GenericInformer::subscribeVoid_unlocked (CallbackPtr      const cb_ptr,
     sbn->oneshot = false;
 
     if (coderef_container) {
-	// 'mutex' always points to 'getCoderefContainer()->mutex'. This means
-	// that we must use addDeletionCallback_mutualUnlocked() here.
-	sbn->del_sbn = coderef_container->addDeletionCallback_mutualUnlocked (
+	sbn->del_sbn = coderef_container->addDeletionCallback (
 		subscriberDeletionCallback, sbn, NULL /* ref_data */, getCoderefContainer());
     } else {
 	sbn->del_sbn = NULL;

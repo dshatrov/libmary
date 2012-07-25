@@ -17,6 +17,10 @@
 */
 
 
+#include <libmary/types.h>
+#include <cstdio>
+
+
 #include <libmary/libmary.h>
 
 #include <libmary/libmary_thread_local.h>
