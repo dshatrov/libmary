@@ -117,6 +117,7 @@
 #include <libmary/util_time.h>
 #include <libmary/util_net.h>
 #include <libmary/util_dev.h>
+#include <libmary/libmary_md5.h>
 
 #include <libmary/server_context.h>
 #include <libmary/server_thread_pool.h>

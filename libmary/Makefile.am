@@ -36,6 +36,7 @@ mary_target_headers =			\
 	util_net.h			\
 	util_dev.h			\
 	util_common.h			\
+        libmary_md5.h                   \
 					\
 	annotations.h			\
 	types_base.h			\
@@ -268,7 +269,10 @@ libmary_1_0_la_SOURCES =		\
 	module.cpp			\
 					\
 	fixed_thread_pool.cpp		\
-	server_app.cpp
+	server_app.cpp                  \
+                                        \
+        md5/md5.c                       \
+        libmary_md5.cpp
 
 mary_extra_dist = libmary_config.h.in
 
