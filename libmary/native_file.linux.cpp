@@ -217,6 +217,7 @@ NativeFile::resetFd ()
     fd = -1;
 }
 
+// Note that there may be multiple open() attempts.
 mt_throws Result
 NativeFile::open (ConstMemory const filename,
 		  Uint32      const open_flags,
