@@ -44,6 +44,8 @@ public:
     // TODO rename to isEmpty(). isNull() is for "mem_ == 0" test.
     bool isNull () const { return len_ == 0; }
 
+    bool isEmpty () const { return len_ == 0; }
+
     Memory region (Size const region_start,
 		   Size const region_len) const
     {
@@ -126,6 +128,8 @@ public:
 
     // TODO rename to isEmpty(). isNull() is for "mem_ == 0" test.
     bool isNull () const { return len_ == 0; }
+
+    bool isEmpty () const { return len_ == 0; }
 
     ConstMemory region (Size const region_start,
 			Size const region_len) const
