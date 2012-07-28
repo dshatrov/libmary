@@ -84,6 +84,173 @@ HttpRequest::parseParameters (Memory const mem)
     }
 }
 
+namespace {
+
+        static bool isAlpha (unsigned char c)
+        {
+            if ((c >= 'a' && c <= 'z') ||
+                (c >= 'A' && c <= 'Z'))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        static bool isAlphaOrDash (unsigned char c)
+        {
+            if (isAlpha (c) || c == '-')
+                return true;
+
+            return false;
+        }
+
+        // Linear white space
+        //
+        // Note that "Implied *LWS" rule in HTTP spec is just crazy.
+        // No sane person could come up with such a thing.
+        //
+        void skipLWS (ConstMemory const mem,
+                      Size * const mt_nonnull ret_pos)
+        {
+            Size pos = *ret_pos;
+            for (;;) {
+                if (pos >= mem.len())
+                    return;
+
+                if (mem.mem() [pos] == 13 /* CR */) {
+                    ++pos;
+                    if (pos == mem.len())
+                        return;
+
+                    if (mem.mem() [pos] == 10 /* LF */) {
+                        ++pos;
+                        if (pos == mem.len())
+                            return;
+                    }
+                }
+
+                if (mem.mem() [pos] == ' ' ||
+                    mem.mem() [pos] == '\t')
+                {
+                    ++pos;
+                    *ret_pos = pos;
+                    continue;
+                }
+
+                break;
+            }
+        }
+}
+
+void
+HttpRequest::parseAcceptLanguage (ConstMemory              const mem,
+                                  List<AcceptedLanguage> * const res_list)
+{
+    Size pos = 0;
+    for (;;) {
+        skipLWS (mem, &pos);
+        if (pos >= mem.len())
+            return;
+
+        unsigned long const lang_begin = pos;
+        for (; pos < mem.len(); ++pos) {
+            if (!isAlphaOrDash (mem.mem() [pos]))
+                break;
+        }
+
+        ConstMemory const lang = mem.region (lang_begin, pos - lang_begin);
+
+        // TODO Doesn't whitespace + ';' turn the rest of the string into a comment?
+        skipLWS (mem, &pos);
+        if (pos >= mem.len())
+            return;
+
+        double weight = 1.0;
+        if (mem.mem() [pos] == ';') {
+            ++pos;
+            skipLWS (mem, &pos);
+            if (pos >= mem.len())
+                return;
+
+            if (mem.mem() [pos] == 'q') {
+                ++pos;
+                skipLWS (mem, &pos);
+                if (pos >= mem.len())
+                    return;
+
+                if (mem.mem() [pos] == '=') {
+                    ++pos;
+                    skipLWS (mem, &pos);
+                    if (pos >= mem.len())
+                        return;
+
+                    if (mem.mem() [pos] == '0') {
+                        weight = 0.0;
+
+                        do {
+                            ++pos;
+                            skipLWS (mem, &pos);
+                            if (pos >= mem.len())
+                                break;
+
+                            if (mem.mem() [pos] != '.')
+                                break;
+
+                            ++pos;
+                            skipLWS (mem, &pos);
+                            if (pos >= mem.len())
+                                break;
+
+                            double const mul_arr [3] = { 0.1, 0.01, 0.001 };
+                            unsigned mul_idx = 0;
+                            for (; mul_idx < 3; ++mul_idx) {
+                                if (mem.mem() [pos] >= '0' && mem.mem() [pos] <= '9') {
+                                    weight += mul_arr [mul_idx] * (mem.mem() [pos] - '0');
+
+                                    ++pos;
+                                    skipLWS (mem, &pos);
+                                    if (pos >= mem.len())
+                                        break;
+                                } else {
+                                  // garbage
+                                    break;
+                                }
+                            }
+                        } while (0);
+                    } else {
+                      // The 'qvalue' is either ("1" ["." 0*3 ("0")])
+                      // or some garbage.
+                        weight = 1.0;
+                    }
+                }
+            }
+        }
+
+        // Garbage skipping.
+        for (; pos < mem.len(); ++pos) {
+            if (mem.mem() [pos] == ',')
+                break;
+        }
+
+        if (pos >= mem.len() || mem.mem() [pos] == ',') {
+            if (lang.len() > 0) {
+                res_list->appendEmpty ();
+                AcceptedLanguage * const alang = &res_list->getLast();
+                alang->lang = grab (new String (lang));
+                alang->weight = weight;
+            }
+
+            if (pos < mem.len())
+                ++pos;
+        } else {
+          // Unreachable because of garbage skipping.
+            logW_ (_func, "parse error, Accept-Language: ", mem);
+            break;
+        }
+    }
+}
+
 HttpRequest::~HttpRequest ()
 {
     delete[] path;
@@ -270,6 +437,9 @@ HttpServer::processHeaderField (ConstMemory const &mem)
 		    "Connection: Keep-Alive\r\n"
 		    "\r\n");
 	}
+    } else
+    if (!compare (header_name, "accept-language")) {
+        cur_req->accept_language = grab (new String (header_value));
     }
 }
 
@@ -436,6 +606,7 @@ HttpServer::processInput (Memory const &_mem,
 		}
 
 		if (must_consume && accepted != toprocess) {
+                    // TODO Why care about RTMPT here?
 		    logE (http, _func, "RTMPT request contains an incomplete RTMP message");
 		    return Receiver::ProcessInputResult::Error;
 		}

@@ -22,6 +22,7 @@
 
 
 #include <libmary/types.h>
+#include <libmary/list.h>
 #include <libmary/hash.h>
 #include <libmary/exception.h>
 #include <libmary/basic_referenced.h>
@@ -74,6 +75,7 @@ private:
     Count num_path_elems;
 
     Uint64 content_length;
+    Ref<String> accept_language;
 
     ParameterHash parameter_hash;
 
@@ -117,6 +119,14 @@ public:
 	return content_length;
     }
 
+    ConstMemory getAcceptLanguage () const
+    {
+        if (!accept_language)
+            return ConstMemory ();
+
+        return accept_language->mem();
+    }
+
     // If ret.mem() == NULL, then the parameter is not set.
     // If ret.len() == 0, then the parameter has empty value.
     ConstMemory getParameter (ConstMemory const name)
@@ -144,6 +154,16 @@ public:
     }
 
     void parseParameters (Memory mem);
+
+    struct AcceptedLanguage
+    {
+        // Always non-null after parsing.
+        Ref<String> lang;
+        double weight;
+    };
+
+    static void parseAcceptLanguage (ConstMemory             mem,
+                                     List<AcceptedLanguage> *res_list);
 
     HttpRequest ()
 	: path (NULL),
