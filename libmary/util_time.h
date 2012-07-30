@@ -77,8 +77,14 @@ enum {
 Size timeToString (Memory const &buf,
 		   Time time);
 
+Result parseHttpTime (ConstMemory  mem,
+                      struct tm   * mt_nonnull ret_tm);
+
 Result parseDuration (ConstMemory  mem,
 		      Time        * mt_nonnull ret_duration);
+
+ComparisonResult compareTime (struct tm * mt_nonnull left,
+                              struct tm * mt_nonnull right);
 
 }
 

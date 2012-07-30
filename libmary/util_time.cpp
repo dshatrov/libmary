@@ -18,6 +18,7 @@
 
 
 #include <libmary/types.h>
+#include <cctype>
 
 #include <errno.h>
 #include <time.h>
@@ -187,15 +188,20 @@ void uSleep (unsigned long const microseconds)
     g_usleep ((gulong) microseconds);
 }
 
+// It is guaranteed that there's 12 months and every month is 3 chars long.
+static char const *months [] = {
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+
+// HTTP date formatting (RFC2616, RFC822, RFC1123).
+//
+// @time - unixtime.
+//
 Size timeToString (Memory const &mem,
-		   Time const time)
+		   Time   const time)
 {
     static char const *days [] = {
 	    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-
-    static char const *months [] = {
-	    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-	    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
     time_t t = time;
 
@@ -234,13 +240,204 @@ Size timeToString (Memory const &mem,
 	return 0;
     }
 
-    assert (tm.tm_wday < (int) (sizeof (days) / sizeof (*days)));
+    assert (tm.tm_wday < 7);
     memcpy (mem.mem(), days [tm.tm_wday], 3);
 
-    assert (tm.tm_mon < (int) (sizeof (months) / sizeof (*months)));
+    assert (tm.tm_mon < 12);
     memcpy (mem.mem() + 8, months [tm.tm_mon], 3);
 
     return (Size) res;
+}
+
+static Result parseMonth (ConstMemory   const mem,
+                          unsigned    * const mt_nonnull ret_month,
+                          Size        * const mt_nonnull ret_len)
+{
+    *ret_len = 3;
+
+    if (mem.len() < 3)
+        return Result::Failure;
+
+    unsigned i = 0;
+    for (; i < 12; ++i) {
+        if (equal (mem.region (0, 3), ConstMemory (months [i], 3)))
+            break;
+    }
+
+    if (i >= 12)
+        return Result::Failure;
+
+    *ret_month = i;
+    return Result::Success;
+}
+
+static Result parseUint32 (ConstMemory   const mem,
+                           Uint32      * const mt_nonnull ret_number,
+                           Size        * const mt_nonnull ret_pos,
+                           Size        * const ret_len = NULL)
+{
+    unsigned pos = *ret_pos;
+
+    for (; pos < mem.len(); ++pos) {
+        if (isdigit (mem.mem() [pos]))
+            break;
+    }
+
+    if (pos >= mem.len())
+        return Result::Failure;
+
+    Size len = 0;
+    for (Size const end = mem.len() - pos; len < end; ++len) {
+        if (!isdigit (mem.mem() [pos + len]))
+            break;
+    }
+
+    if (ret_len)
+        *ret_len = len;
+
+    Byte const *endptr;
+    if (!strToUint32 (mem.region (pos, len), ret_number, &endptr, 10 /* base */))
+        return Result::Failure;
+
+    pos = endptr - mem.mem();
+
+    *ret_pos = pos;
+    return Result::Success;
+}
+
+// tm_wday, tm_yday, tm_isdst fields of struct tm are ignored.
+//
+Result parseHttpTime (ConstMemory   const mem,
+                      struct tm   * const mt_nonnull ret_tm)
+{
+    unsigned long pos = 0;
+
+    memset (ret_tm, 0, sizeof (*ret_tm));
+
+    // Skipping to day of week.
+    for (; pos < mem.len(); ++pos) {
+        if (isalpha (mem.mem() [pos]))
+            break;
+    }
+
+    // Skipping day of week.
+    for (; pos < mem.len(); ++pos) {
+        if (!isalpha (mem.mem() [pos]))
+            break;
+    }
+
+    bool is_asctime = false;
+    for (; pos < mem.len(); ++pos) {
+        if (isalpha (mem.mem() [pos])) {
+            is_asctime = true;
+            break;
+        }
+
+        if (isdigit (mem.mem() [pos]))
+            break;
+    }
+
+    if (pos >= mem.len())
+        return Result::Failure;
+
+    if (is_asctime) {
+      // Month
+        unsigned month;
+        Size month_len;
+        if (!parseMonth (mem.region (pos, mem.len() - pos), &month, &month_len))
+            return Result::Failure;
+
+        pos += month_len;
+
+        ret_tm->tm_mon = (int) month;
+    }
+
+    {
+      // Day
+        Uint32 day;
+        if (!parseUint32 (mem, &day, &pos))
+            return Result::Failure;
+
+        ret_tm->tm_mday = (int) day;
+    }
+
+    if (!is_asctime) {
+        {
+          // Month
+            for (; pos < mem.len(); ++pos) {
+                if (isalpha (mem.mem() [pos]))
+                    break;
+            }
+
+            if (pos >= mem.len())
+                return Result::Failure;
+
+            unsigned month;
+            Size month_len;
+            if (!parseMonth (mem.region (pos, mem.len() - pos), &month, &month_len))
+                return Result::Failure;
+
+            pos += month_len;
+
+            ret_tm->tm_mon = (int) month;
+        }
+
+        {
+          // Year
+            Uint32 year;
+            Size len;
+            if (!parseUint32 (mem, &year, &pos, &len))
+                return Result::Failure;
+
+            if (len == 2) {
+              // I didn't find any reference on how to decode 2-digit years properly.
+              // The following heuristic was the first to come to mind.
+                if (year >= 70)
+                    year += 1900;
+                else
+                    year += 2000;
+            }
+
+            ret_tm->tm_year = year - 1900;
+        }
+    }
+
+    {
+      // Hours
+        Uint32 hour;
+        if (!parseUint32 (mem, &hour, &pos))
+            return Result::Failure;
+
+        ret_tm->tm_hour = hour;
+    }
+
+    {
+      // Minutes
+        Uint32 minute;
+        if (!parseUint32 (mem, &minute, &pos))
+            return Result::Failure;
+
+        ret_tm->tm_min = minute;
+    }
+
+    {
+      // Seconds
+        Uint32 second;
+        if (!parseUint32 (mem, &second, &pos))
+            return Result::Failure;
+
+        ret_tm->tm_sec = second;
+    }
+
+    if (is_asctime) {
+        Uint32 year;
+        if (!parseUint32 (mem, &year, &pos))
+            return Result::Failure;
+
+        ret_tm->tm_year = year - 1900;
+    }
+
+    return Result::Success;
 }
 
 Result parseDuration (ConstMemory   const mem,
@@ -296,6 +493,52 @@ Result parseDuration (ConstMemory   const mem,
     }
 
     return Result::Success;
+}
+
+// @left and @right must be for the same timezone.
+//
+// tm_wday, tm_yday, tm_isdst fields of struct tm are ignored.
+//
+ComparisonResult compareTime (struct tm * mt_nonnull left,
+                              struct tm * mt_nonnull right)
+{
+    if (right->tm_year > left->tm_year)
+        return ComparisonResult::Greater;
+
+    if (right->tm_year < left->tm_year)
+        return ComparisonResult::Less;
+
+    if (right->tm_mon > left->tm_mon)
+        return ComparisonResult::Greater;
+
+    if (right->tm_mon < left->tm_mon)
+        return ComparisonResult::Less;
+
+    if (right->tm_mday > left->tm_mday)
+        return ComparisonResult::Greater;
+
+    if (right->tm_mday < left->tm_mday)
+        return ComparisonResult::Less;
+
+    if (right->tm_hour > left->tm_hour)
+        return ComparisonResult::Greater;
+
+    if (right->tm_hour < left->tm_hour)
+        return ComparisonResult::Less;
+
+    if (right->tm_min > left->tm_min)
+        return ComparisonResult::Greater;
+
+    if (right->tm_min < left->tm_min)
+        return ComparisonResult::Less;
+
+    if (right->tm_sec > left->tm_sec)
+        return ComparisonResult::Greater;
+
+    if (right->tm_sec < left->tm_sec)
+        return ComparisonResult::Less;
+
+    return ComparisonResult::Equal;
 }
 
 }
