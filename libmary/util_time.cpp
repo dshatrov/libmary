@@ -197,12 +197,9 @@ static char const *months [] = {
 //
 // @time - unixtime.
 //
-Size timeToString (Memory const &mem,
+Size timeToString (Memory const mem,
 		   Time   const time)
 {
-    static char const *days [] = {
-	    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-
     time_t t = time;
 
     struct tm tm;
@@ -230,7 +227,16 @@ Size timeToString (Memory const &mem,
 	return 0;
     }
 
-    size_t const res = strftime ((char*) mem.mem(), mem.len(), "---, %d --- %Y %H:%M:%S GMT", &tm);
+    return timeToHttpString (mem, &tm);
+}
+
+Size timeToHttpString (Memory     mem,
+                       struct tm * mt_nonnull tm)
+{
+    static char const *days [] = {
+	    "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+
+    size_t const res = strftime ((char*) mem.mem(), mem.len(), "---, %d --- %Y %H:%M:%S GMT", tm);
     if (res == 0 || res >= mem.len()) {
 	logE_ (_func, "strftime() failed");
 
@@ -240,11 +246,11 @@ Size timeToString (Memory const &mem,
 	return 0;
     }
 
-    assert (tm.tm_wday < 7);
-    memcpy (mem.mem(), days [tm.tm_wday], 3);
+    assert (tm->tm_wday < 7);
+    memcpy (mem.mem(), days [tm->tm_wday], 3);
 
-    assert (tm.tm_mon < 12);
-    memcpy (mem.mem() + 8, months [tm.tm_mon], 3);
+    assert (tm->tm_mon < 12);
+    memcpy (mem.mem() + 8, months [tm->tm_mon], 3);
 
     return (Size) res;
 }
@@ -502,40 +508,40 @@ Result parseDuration (ConstMemory   const mem,
 ComparisonResult compareTime (struct tm * mt_nonnull left,
                               struct tm * mt_nonnull right)
 {
-    if (right->tm_year > left->tm_year)
+    if (left->tm_year > right->tm_year)
         return ComparisonResult::Greater;
 
-    if (right->tm_year < left->tm_year)
+    if (left->tm_year < right->tm_year)
         return ComparisonResult::Less;
 
-    if (right->tm_mon > left->tm_mon)
+    if (left->tm_mon > right->tm_mon)
         return ComparisonResult::Greater;
 
-    if (right->tm_mon < left->tm_mon)
+    if (left->tm_mon < right->tm_mon)
         return ComparisonResult::Less;
 
-    if (right->tm_mday > left->tm_mday)
+    if (left->tm_mday > right->tm_mday)
         return ComparisonResult::Greater;
 
-    if (right->tm_mday < left->tm_mday)
+    if (left->tm_mday < right->tm_mday)
         return ComparisonResult::Less;
 
-    if (right->tm_hour > left->tm_hour)
+    if (left->tm_hour > right->tm_hour)
         return ComparisonResult::Greater;
 
-    if (right->tm_hour < left->tm_hour)
+    if (left->tm_hour < right->tm_hour)
         return ComparisonResult::Less;
 
-    if (right->tm_min > left->tm_min)
+    if (left->tm_min > right->tm_min)
         return ComparisonResult::Greater;
 
-    if (right->tm_min < left->tm_min)
+    if (left->tm_min < right->tm_min)
         return ComparisonResult::Less;
 
-    if (right->tm_sec > left->tm_sec)
+    if (left->tm_sec > right->tm_sec)
         return ComparisonResult::Greater;
 
-    if (right->tm_sec < left->tm_sec)
+    if (left->tm_sec < right->tm_sec)
         return ComparisonResult::Less;
 
     return ComparisonResult::Equal;

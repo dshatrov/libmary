@@ -74,8 +74,12 @@ enum {
     timeToString_BufSize = 30
 };
 
-Size timeToString (Memory const &buf,
-		   Time time);
+// TODO Rename to "unixtimeToHttpString"
+Size timeToString (Memory mem,
+		   Time   time);
+
+Size timeToHttpString (Memory     mem,
+                       struct tm * mt_nonnull tm);
 
 Result parseHttpTime (ConstMemory  mem,
                       struct tm   * mt_nonnull ret_tm);
