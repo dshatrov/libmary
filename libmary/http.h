@@ -76,6 +76,8 @@ private:
 
     Uint64 content_length;
     Ref<String> accept_language;
+    Ref<String> if_modified_since;
+    Ref<String> if_none_match;
 
     ParameterHash parameter_hash;
 
@@ -127,6 +129,22 @@ public:
         return accept_language->mem();
     }
 
+    ConstMemory getIfModifiedSince () const
+    {
+        if (!if_modified_since)
+            return ConstMemory ();
+
+        return if_modified_since->mem();
+    }
+
+    ConstMemory getIfNoneMatch () const
+    {
+        if (!if_none_match)
+            return ConstMemory ();
+
+        return if_none_match->mem();
+    }
+
     // If ret.mem() == NULL, then the parameter is not set.
     // If ret.len() == 0, then the parameter has empty value.
     ConstMemory getParameter (ConstMemory const name)
@@ -163,7 +181,17 @@ public:
     };
 
     static void parseAcceptLanguage (ConstMemory             mem,
-                                     List<AcceptedLanguage> *res_list);
+                                     List<AcceptedLanguage> * mt_nonnull res_list);
+
+    struct EntityTag
+    {
+        Ref<String> etag;
+        bool weak;
+    };
+
+    static void parseEntityTagList (ConstMemory      mem,
+                                    bool            *ret_any,
+                                    List<EntityTag> * mt_nonnull ret_etags);
 
     HttpRequest ()
 	: path (NULL),

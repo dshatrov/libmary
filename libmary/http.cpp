@@ -84,68 +84,65 @@ HttpRequest::parseParameters (Memory const mem)
     }
 }
 
-namespace {
+static bool isAlpha (unsigned char c)
+{
+    if ((c >= 'a' && c <= 'z') ||
+        (c >= 'A' && c <= 'Z'))
+    {
+        return true;
+    }
 
-        static bool isAlpha (unsigned char c)
-        {
-            if ((c >= 'a' && c <= 'z') ||
-                (c >= 'A' && c <= 'Z'))
-            {
-                return true;
-            }
+    return false;
+}
 
-            return false;
-        }
+static bool isAlphaOrDash (unsigned char c)
+{
+    if (isAlpha (c) || c == '-')
+        return true;
 
-        static bool isAlphaOrDash (unsigned char c)
-        {
-            if (isAlpha (c) || c == '-')
-                return true;
+    return false;
+}
 
-            return false;
-        }
+// Linear white space
+//
+// Note that "Implied *LWS" rule in HTTP spec is just crazy.
+// No sane person could come up with such a thing.
+//
+static void skipLWS (ConstMemory const mem,
+                     Size * const mt_nonnull ret_pos)
+{
+    Size pos = *ret_pos;
+    for (;;) {
+        if (pos >= mem.len())
+            return;
 
-        // Linear white space
-        //
-        // Note that "Implied *LWS" rule in HTTP spec is just crazy.
-        // No sane person could come up with such a thing.
-        //
-        void skipLWS (ConstMemory const mem,
-                      Size * const mt_nonnull ret_pos)
-        {
-            Size pos = *ret_pos;
-            for (;;) {
-                if (pos >= mem.len())
+        if (mem.mem() [pos] == 13 /* CR */) {
+            ++pos;
+            if (pos == mem.len())
+                return;
+
+            if (mem.mem() [pos] == 10 /* LF */) {
+                ++pos;
+                if (pos == mem.len())
                     return;
-
-                if (mem.mem() [pos] == 13 /* CR */) {
-                    ++pos;
-                    if (pos == mem.len())
-                        return;
-
-                    if (mem.mem() [pos] == 10 /* LF */) {
-                        ++pos;
-                        if (pos == mem.len())
-                            return;
-                    }
-                }
-
-                if (mem.mem() [pos] == ' ' ||
-                    mem.mem() [pos] == '\t')
-                {
-                    ++pos;
-                    *ret_pos = pos;
-                    continue;
-                }
-
-                break;
             }
         }
+
+        if (mem.mem() [pos] == ' ' ||
+            mem.mem() [pos] == '\t')
+        {
+            ++pos;
+            *ret_pos = pos;
+            continue;
+        }
+
+        break;
+    }
 }
 
 void
 HttpRequest::parseAcceptLanguage (ConstMemory              const mem,
-                                  List<AcceptedLanguage> * const res_list)
+                                  List<AcceptedLanguage> * const mt_nonnull res_list)
 {
     Size pos = 0;
     for (;;) {
@@ -248,6 +245,129 @@ HttpRequest::parseAcceptLanguage (ConstMemory              const mem,
             logW_ (_func, "parse error, Accept-Language: ", mem);
             break;
         }
+    }
+}
+
+static Ref<String> parseQuotedString (ConstMemory   const mem,
+                                      Size        * const mt_nonnull ret_pos)
+{
+    Size pos = *ret_pos;
+    Ref<String> unescaped_str;
+
+    skipLWS (mem, &pos);
+    if (pos >= mem.len())
+        goto _return;
+
+    if (mem.mem() [pos] != '"')
+        goto _return;
+
+    ++pos;
+    if (pos >= mem.len())
+        goto _return;
+
+    {
+        Size const tag_begin = pos;
+        for (unsigned i = 0; i < 2; ++i) {
+            Size unescaped_len = 0;
+            bool escaped = false;
+            for (; pos < mem.len(); ++pos) {
+                if (!escaped) {
+                    if (mem.mem() [pos] == '"')
+                        break;
+
+                    if (mem.mem() [pos] == '\\') {
+                        escaped = true;
+                    } else {
+                        if (i == 1)
+                            unescaped_str->mem().mem() [unescaped_len] = mem.mem() [pos];
+
+                        ++unescaped_len;
+                    }
+                } else {
+                    escaped = false;
+                    ++unescaped_len;
+                }
+            }
+
+            if (i == 0) {
+                unescaped_str = grab (new String (unescaped_len));
+                pos = tag_begin;
+            }
+        }
+    }
+
+_return:
+    *ret_pos = pos;
+    return unescaped_str;
+}
+
+static Ref<String> parseEntityTag (ConstMemory   const mem,
+                                   bool        * const ret_weak,
+                                   Size        * const mt_nonnull ret_pos)
+{
+    Size pos = *ret_pos;
+    Ref<String> etag_str;
+
+    if (*ret_weak)
+        *ret_weak = false;
+
+    skipLWS (mem, &pos);
+    if (pos >= mem.len())
+        goto _return;
+
+    if (mem.mem() [pos] == 'W') {
+        if (*ret_weak)
+            *ret_weak = true;
+
+        for (; pos < mem.len(); ++pos) {
+            if (mem.mem() [pos] == '"')
+                break;
+        }
+
+        if (pos >= mem.len())
+            goto _return;
+    }
+
+    etag_str = parseQuotedString (mem, &pos);
+
+_return:
+    *ret_pos = pos;
+    return etag_str;
+}
+
+void HttpRequest::parseEntityTagList (ConstMemory       const mem,
+                                      bool            * const ret_any,
+                                      List<EntityTag> * const mt_nonnull ret_etags)
+{
+    if (ret_any)
+        *ret_any = false;
+
+    Size pos = 0;
+
+    skipLWS (mem, &pos);
+
+    if (pos >= mem.len())
+        return;
+
+    if (mem.mem() [pos] == '*') {
+        if (ret_any)
+            *ret_any = true;
+
+        return;
+    }
+
+    for (;;) {
+        bool weak;
+        Ref<String> etag_str = parseEntityTag (mem, &weak, &pos);
+        if (!etag_str)
+            break;
+
+        ret_etags->appendEmpty ();
+        EntityTag * const etag = &ret_etags->getLast();
+        etag->etag = etag_str;
+        etag->weak = weak;
+
+        skipLWS (mem, &pos);
     }
 }
 
@@ -440,6 +560,12 @@ HttpServer::processHeaderField (ConstMemory const &mem)
     } else
     if (!compare (header_name, "accept-language")) {
         cur_req->accept_language = grab (new String (header_value));
+    } else
+    if (!compare (header_name, "if-modified-since")) {
+        cur_req->if_modified_since = grab (new String (header_value));
+    } else
+    if (!compare (header_name, "if-none-match")) {
+        cur_req->if_none_match = grab (new String (header_value));
     }
 }
 
