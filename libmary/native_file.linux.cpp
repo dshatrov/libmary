@@ -205,6 +205,26 @@ NativeFile::stat (FileStat * const mt_nonnull ret_stat)
 }
 
 mt_throws Result
+NativeFile::getModificationTime (struct tm * const mt_nonnull ret_tm)
+{
+    struct stat stat_buf;
+
+    int const res = ::fstat (fd, &stat_buf);
+    if (res == -1) {
+	exc_throw <PosixException> (errno);
+	return Result::Failure;
+    } else
+    if (res != 0) {
+	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	return Result::Failure;
+    }
+
+    splitTime (stat_buf.st_mtime, ret_tm);
+
+    return Result::Success;
+}
+
+mt_throws Result
 NativeFile::close (bool const flush_data)
 {
   // TODO

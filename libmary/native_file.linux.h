@@ -61,6 +61,8 @@ public:
 
     mt_throws Result stat (FileStat * mt_nonnull ret_stat);
 
+    mt_throws Result getModificationTime (struct tm * mt_nonnull ret_tm);
+
     // Resets fd so that it won't be closed in the destructor.
     void resetFd ();
 
