@@ -37,15 +37,15 @@
 
 namespace M {
 
-Result splitHostPort (ConstMemory const &hostname,
+Result splitHostPort (ConstMemory  hostname,
 		      ConstMemory *ret_host,
 		      ConstMemory *ret_port);
 
-Result hostToIp (ConstMemory const &host,
-		 Uint32 *ret_addr);
+Result hostToIp (ConstMemory  host,
+		 Uint32      *ret_addr);
 
-Result serviceToPort (ConstMemory const &service,
-		      Uint16 *ret_port);
+Result serviceToPort (ConstMemory  service,
+		      Uint16      *ret_port);
 
 
 // _______________________ Arch-independent setIpAddress _______________________

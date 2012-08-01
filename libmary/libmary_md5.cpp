@@ -37,7 +37,7 @@ void getMd5HexAscii (ConstMemory const src,
     md5_finish (&state, digest);
 
     for (int i = 0; i < 16; ++i) {
-        unsigned char const low   = digest [i] & 0x0f;
+        unsigned char const low  =  digest [i] & 0x0f;
         unsigned char const high = (digest [i] & 0xf0) >> 4;
 
         unsigned long const pos = i << 1;

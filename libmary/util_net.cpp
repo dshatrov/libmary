@@ -38,7 +38,36 @@
 
 namespace M {
 
-Result splitHostPort (ConstMemory const &hostname,
+static void stripHostPortWhitespace (ConstMemory * const mt_nonnull ret_mem)
+{
+    {
+        unsigned long n = 0;
+        while (n < ret_mem->len()
+               && (ret_mem->mem() [0] == ' ' ||
+                   ret_mem->mem() [0] == '\t'))
+        {
+            ++n;
+        }
+
+        if (n > 0)
+            *ret_mem = ret_mem->region (n);
+    }
+
+    {
+        unsigned long n = 0;
+        while (n < ret_mem->len()
+               && (ret_mem->mem() [ret_mem->len() - 1] == ' ' ||
+                   ret_mem->mem() [ret_mem->len() - 1] == '\t'))
+        {
+            ++n;
+        }
+
+        if (n > 0)
+            *ret_mem = ret_mem->region (0, ret_mem->len() - n);
+    }
+}
+
+Result splitHostPort (ConstMemory   const hostname,
 		      ConstMemory * const ret_host,
 		      ConstMemory * const ret_port)
 {
@@ -51,17 +80,21 @@ Result splitHostPort (ConstMemory const &hostname,
     if (colon == NULL)
 	return Result::Failure;
 
-    if (ret_host)
+    if (ret_host) {
 	*ret_host = hostname.region (0, (Byte const*) colon - hostname.mem());
+        stripHostPortWhitespace (ret_host);
+    }
 
-    if (ret_port)
+    if (ret_port) {
 	*ret_port = hostname.region (((Byte const *) colon - hostname.mem()) + 1);
+        stripHostPortWhitespace (ret_port);
+    }
 
     return Result::Success;
 }
 
-Result hostToIp (ConstMemory const &host,
-		 Uint32 * const ret_addr)
+Result hostToIp (ConstMemory   const host,
+		 Uint32      * const ret_addr)
 {
     if (host.len() == 0) {
 	if (ret_addr)
@@ -163,8 +196,8 @@ Result hostToIp (ConstMemory const &host,
     return Result::Success;
 }
 
-Result serviceToPort (ConstMemory const &service,
-		      Uint16 * const ret_port)
+Result serviceToPort (ConstMemory   const service,
+		      Uint16      * const ret_port)
 {
     char service_str [1025];
     if (service.len() >= sizeof (service_str)) {
