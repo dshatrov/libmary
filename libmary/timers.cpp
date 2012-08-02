@@ -34,7 +34,7 @@ Timers::addTimer_microseconds (CbDesc<TimerCallback> const &cb,
 			       Time const time_microseconds,
 			       bool const periodical)
 {
-//    logD_ (_func, "time_microseconds: ", time_microseconds);
+    logD (timers, _func, "time_microseconds: ", time_microseconds);
 
     Timer * const timer = new Timer (cb);
     timer->periodical = periodical;
@@ -57,7 +57,7 @@ Timers::addTimer_microseconds (CbDesc<TimerCallback> const &cb,
 	chain->nearest_time = timer->due_time;
 
 	if (expiration_tree.isEmpty()
-	    || expiration_tree_leftmost->nearest_time < chain->nearest_time)
+	    || expiration_tree_leftmost->nearest_time > chain->nearest_time)
 	{
 	    first_timer = true;
 	}
@@ -81,7 +81,7 @@ Timers::addTimer_microseconds (CbDesc<TimerCallback> const &cb,
 }
 
 void
-Timers::restartTimer (TimerKey const timer_key)
+Timers::restartTimer (TimerKey const mt_nonnull timer_key)
 {
     Timer * const timer = timer_key;
     TimerChain * const chain = timer->chain;
@@ -109,7 +109,7 @@ Timers::restartTimer (TimerKey const timer_key)
 }
 
 void
-Timers::deleteTimer (TimerKey const timer_key)
+Timers::deleteTimer (TimerKey const mt_nonnull timer_key)
 {
     Timer * const timer = timer_key;
     TimerChain * const chain = timer->chain;

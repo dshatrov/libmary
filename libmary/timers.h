@@ -156,9 +156,9 @@ public:
 				    bool periodical);
 
     // A non-periodical timer can be restarted only if it has not yet expired.
-    void restartTimer (TimerKey timer_key);
+    void restartTimer (TimerKey mt_nonnull timer_key);
 
-    void deleteTimer (TimerKey timer_key);
+    void deleteTimer (TimerKey mt_nonnull timer_key);
 
     Time getSleepTime_microseconds ();
 
