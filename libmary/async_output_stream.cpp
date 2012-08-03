@@ -32,36 +32,43 @@ AsyncOutputStream::writev (struct iovec * const iovs,
 
     Size total_written = 0;
     for (Count i = 0; i < num_iovs; ++i) {
-	Size nwritten = 0;
-	AsyncIoResult const res = write (ConstMemory ((Byte const *) iovs [i].iov_base, iovs [i].iov_len), &nwritten);
-	total_written += nwritten;
-	if (res != AsyncIoResult::Normal) {
-	    if (ret_nwritten)
-		*ret_nwritten = total_written;
+        Size vec_written = 0;
+        while (vec_written < iovs [i].iov_len) {
+            Size nwritten = 0;
+            AsyncIoResult const res = write (ConstMemory ((Byte const *) iovs [i].iov_base + vec_written,
+                                                          iovs [i].iov_len - vec_written),
+                                             &nwritten);
+            total_written += nwritten;
+            if (res != AsyncIoResult::Normal) {
+                if (ret_nwritten)
+                    *ret_nwritten = total_written;
 
-            if (res == AsyncIoResult::Normal_Again)
-                return AsyncIoResult::Normal_Again;
-
-            if (res == AsyncIoResult::Again) {
-                if (total_written > 0)
+                if (res == AsyncIoResult::Normal_Again)
                     return AsyncIoResult::Normal_Again;
 
-                return AsyncIoResult::Again;
-            }
+                if (res == AsyncIoResult::Again) {
+                    if (total_written > 0)
+                        return AsyncIoResult::Normal_Again;
 
-            if (res == AsyncIoResult::Normal_Eof)
-                return AsyncIoResult::Normal_Eof;
+                    return AsyncIoResult::Again;
+                }
 
-            if (res == AsyncIoResult::Eof) {
-                if (total_written > 0)
+                if (res == AsyncIoResult::Normal_Eof)
                     return AsyncIoResult::Normal_Eof;
 
-                return AsyncIoResult::Eof;
+                if (res == AsyncIoResult::Eof) {
+                    if (total_written > 0)
+                        return AsyncIoResult::Normal_Eof;
+
+                    return AsyncIoResult::Eof;
+                }
+
+                assert (res == AsyncIoResult::Error);
+                return AsyncIoResult::Error;
             }
 
-            assert (res == AsyncIoResult::Error);
-	    return AsyncIoResult::Error;
-	}
+            vec_written += nwritten;
+        }
     }
 
     if (ret_nwritten)
