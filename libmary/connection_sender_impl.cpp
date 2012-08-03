@@ -265,18 +265,16 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 //	if (num_iovs < IOV_MAX)
 //	    logD_ (_func, "< IOV_MAX");
 
-#if 0
 	// Dump of all iovs.
-	if (defaultLogLevelOn (LogLevel::Debug)) {
+        if (logLevelOn (hexdump, LogLevel::Debug)) {
             logLock ();
-	    log_unlocked (libMary_logGroup_writev.getLogLevel(), _func, "iovs:");
+	    log_unlocked_ (libMary_logGroup_writev.getLogLevel(), _func, "iovs:");
 	    for (Count i = 0; i < num_iovs; ++i) {
-		logD (writev, "    #", i, ": 0x", (UintPtr) iovs [i].iov_base, ": ", iovs [i].iov_len);
+		logD_unlocked (writev, "    #", i, ": 0x", (UintPtr) iovs [i].iov_base, ": ", iovs [i].iov_len);
 		hexdump (logs, ConstMemory ((Byte const *) iovs [i].iov_base, iovs [i].iov_len));
 	    }
             logUnlock ();
 	}
-#endif
 
 	Size num_written = 0;
 	{
@@ -944,71 +942,72 @@ ConnectionSenderImpl::sendPendingMessages_vector_react (Size num_written)
 }
 
 void
+ConnectionSenderImpl::dumpMessage (Sender::MessageEntry * const mt_nonnull msg_entry)
+{
+    switch (msg_entry->type) {
+        case Sender::MessageEntry::Pages: {
+            Sender::MessageEntry_Pages * const msg_pages = static_cast <Sender::MessageEntry_Pages*> (msg_entry);
+
+            // Counting message length.
+            Size msg_len = 0;
+            {
+                msg_len += msg_pages->header_len;
+
+                PagePool::Page *cur_page = msg_pages->first_page;
+                while (cur_page != NULL) {
+                    if (cur_page == msg_pages->first_page) {
+                        assert (cur_page->data_len >= msg_pages->msg_offset);
+                        msg_len += cur_page->data_len - msg_pages->msg_offset;
+                    } else {
+                        msg_len += cur_page->data_len;
+                    }
+
+                    cur_page = cur_page->getNextMsgPage ();
+                }
+            }
+
+            // Collecting message data into a single adrray.
+            Byte * const tmp_data = new Byte [msg_len];
+            {
+                Size pos = 0;
+
+                memcpy (tmp_data + pos, msg_pages->getHeaderData(), msg_pages->header_len);
+                pos += msg_pages->header_len;
+
+                PagePool::Page *cur_page = msg_pages->first_page;
+                while (cur_page != NULL) {
+                    if (cur_page == msg_pages->first_page) {
+                        assert (cur_page->data_len >= msg_pages->msg_offset);
+                        memcpy (tmp_data + pos,
+                                cur_page->getData() + msg_pages->msg_offset,
+                                cur_page->data_len - msg_pages->msg_offset);
+                        pos += cur_page->data_len - msg_pages->msg_offset;
+                    } else {
+                        memcpy (tmp_data + pos, cur_page->getData(), cur_page->data_len);
+                        pos += cur_page->data_len;
+                    }
+
+                    cur_page = cur_page->getNextMsgPage ();
+                }
+            }
+
+            logLock ();
+            log_unlocked_ (libMary_logGroup_hexdump.getLogLevel(), _func, "Message data:");
+            hexdump (logs, ConstMemory (tmp_data, msg_len));
+            logUnlock ();
+
+            delete tmp_data;
+        } break;
+        default:
+            unreachable ();
+    }
+}
+
+void
 ConnectionSenderImpl::queueMessage (Sender::MessageEntry * const mt_nonnull msg_entry)
 {
-#if 0
-    if (logLevelOn (hexdump, LogLevel::Debug)) {
-      // Dumping message data.
-
-	switch (msg_entry->type) {
-	    case Sender::MessageEntry::Pages: {
-		Sender::MessageEntry_Pages * const msg_pages = static_cast <Sender::MessageEntry_Pages*> (msg_entry);
-
-		// Counting message length.
-		Size msg_len = 0;
-		{
-		    msg_len += msg_pages->header_len;
-
-		    PagePool::Page *cur_page = msg_pages->first_page;
-		    while (cur_page != NULL) {
-			if (cur_page == msg_pages->first_page) {
-			    assert (cur_page->data_len >= msg_pages->msg_offset);
-			    msg_len += cur_page->data_len - msg_pages->msg_offset;
-			} else {
-			    msg_len += cur_page->data_len;
-			}
-
-			cur_page = cur_page->getNextMsgPage ();
-		    }
-		}
-
-		// Collecting message data into a single adrray.
-		Byte * const tmp_data = new Byte [msg_len];
-		{
-		    Size pos = 0;
-
-		    memcpy (tmp_data + pos, msg_pages->getHeaderData(), msg_pages->header_len);
-		    pos += msg_pages->header_len;
-
-		    PagePool::Page *cur_page = msg_pages->first_page;
-		    while (cur_page != NULL) {
-			if (cur_page == msg_pages->first_page) {
-			    assert (cur_page->data_len >= msg_pages->msg_offset);
-			    memcpy (tmp_data + pos,
-				    cur_page->getData() + msg_pages->msg_offset,
-				    cur_page->data_len - msg_pages->msg_offset);
-			    pos += cur_page->data_len - msg_pages->msg_offset;
-			} else {
-			    memcpy (tmp_data + pos, cur_page->getData(), cur_page->data_len);
-			    pos += cur_page->data_len;
-			}
-
-			cur_page = cur_page->getNextMsgPage ();
-		    }
-		}
-
-		logLock ();
-		log_unlocked_ (libMary_logGroup_hexdump.getLogLevel(), _func, "Message data:");
-		hexdump (logs, ConstMemory (tmp_data, msg_len));
-		logUnlock ();
-
-		delete tmp_data;
-	    } break;
-	    default:
-		unreachable ();
-	}
-    }
-#endif
+    if (logLevelOn (hexdump, LogLevel::Debug))
+        dumpMessage (msg_entry);
 
     ++num_msg_entries;
     if (num_msg_entries >= hard_msg_limit)

@@ -78,6 +78,8 @@ private:
 
     void sendPendingMessages_vector_react (Count num_iovs);
 
+    void dumpMessage (Sender::MessageEntry * const mt_nonnull msg_entry);
+
 public:
     // Takes ownership of msg_entry.
     void queueMessage (Sender::MessageEntry * const mt_nonnull msg_entry);
