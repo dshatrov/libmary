@@ -57,8 +57,8 @@ public:
 	F = Failure,
 	N = None
     };
-    operator Value () const { return value; }
-    LogLevel (Value const value) : value (value) {}
+    operator unsigned () const { return value; }
+    LogLevel (unsigned const value) : value (value) {}
     LogLevel () {}
 
     char const * toCompactCstr ();
@@ -67,7 +67,7 @@ public:
 			      LogLevel    * mt_nonnull ret_loglevel);
 
 private:
-    Value value;
+    unsigned value;
 };
 
 class LogGroup
@@ -77,7 +77,7 @@ private:
 
 public:
     void setLogLevel (unsigned const loglevel) { this->loglevel = loglevel; }
-    unsigned getLogLevel () { return loglevel; }
+    LogLevel getLogLevel () { return loglevel; }
 
     LogGroup (ConstMemory const &group_name, unsigned loglevel);
 };
