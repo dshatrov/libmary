@@ -316,7 +316,7 @@ static Result parseUint32 (ConstMemory   const mem,
 Result parseHttpTime (ConstMemory   const mem,
                       struct tm   * const mt_nonnull ret_tm)
 {
-    unsigned long pos = 0;
+    Size pos = 0;
 
     memset (ret_tm, 0, sizeof (*ret_tm));
 
