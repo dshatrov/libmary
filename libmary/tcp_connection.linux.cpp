@@ -47,9 +47,7 @@
 
 namespace M {
 
-namespace {
-LogGroup libMary_logGroup_tcp_conn ("tcp_conn", LogLevel::I);
-}
+static LogGroup libMary_logGroup_tcp_conn ("tcp_conn", LogLevel::I);
 
 #ifdef LIBMARY_TCP_CONNECTION_NUM_INSTANCES
 AtomicInt TcpConnection::num_instances;
