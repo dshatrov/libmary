@@ -65,6 +65,7 @@
 #include <libmary/ref.h>
 #include <libmary/weak_ref.h>
 #include <libmary/code_ref.h>
+#include <libmary/dep_ref.h>
 
 #include <libmary/timers.h>
 

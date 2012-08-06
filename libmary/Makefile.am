@@ -80,6 +80,7 @@ mary_target_headers =			\
 	ref.h				\
 	weak_ref.h			\
 	code_ref.h			\
+        dep_ref.h                       \
 					\
 	libmary_thread_local.h		\
 	deletion_queue.h		\

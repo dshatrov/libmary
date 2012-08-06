@@ -83,6 +83,11 @@ public:
 
 // protected:
 public:
+    // TODO This mutex is here because it was supposed to be used as 'deletion_mutex'
+    //      as well, which turned out to be a bad idea. There's no reason to force another 'mutex'
+    //      for every Object. State mutexes should be defined separately by every object which
+    //      actually needs it.
+    //
     // Beware that size of pthread_mutex_t is 24 bytes on 32-bit platforms and
     // 40 bytes on 64-bit ones. We definitely do not want more than one mutex
     // per object, which is already too much overhead.
@@ -247,6 +252,7 @@ class ObjectWrap : public Object, public T
 
 
 #include <libmary/weak_ref.h>
+#include <libmary/dep_ref.h>
 
 
 namespace M {
