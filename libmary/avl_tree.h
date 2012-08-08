@@ -339,7 +339,7 @@ public:
     typedef SameKeyIterator_<> SameKeyIterator;
 
     #ifdef MyCpp_AvlTree_SameKeyDataIterator_base
-    #error
+    #error redefinition
     #endif
     #define MyCpp_AvlTree_SameKeyDataIterator_base						\
 	    StatefulExtractorIterator < T&,							\

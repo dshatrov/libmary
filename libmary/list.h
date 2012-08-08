@@ -141,7 +141,7 @@ public:
     typedef InverseIterator_<> InverseIterator;
 
     #ifdef MyCpp_List_DataIterator_base
-    #error
+    #error redefinition
     #endif
     #define MyCpp_List_DataIterator_base					\
 	    StatefulExtractorIterator < T&,					\
@@ -171,7 +171,7 @@ public:
     #undef MyCpp_List_DataIterator_base
 
     #ifdef MyCpp_List_InverseDataIterator_base
-    #error
+    #error redefinition
     #endif
     #define MyCpp_List_InverseDataIterator_base					\
 	    StatefulExtractorIterator < T&,					\
