@@ -46,7 +46,7 @@ class DeferredConnectionSender : public Sender,
     friend class DeferredConnectionSenderQueue;
 
 private:
-    mt_const DeferredConnectionSenderQueue *dcs_queue;
+    mt_const DataDepRef<DeferredConnectionSenderQueue> dcs_queue;
 
   mt_mutex (mutex)
   mt_begin
@@ -63,7 +63,7 @@ private:
 
     mt_unlocks (mutex) void toGlobOutputQueue (bool add_ref);
 
-    mt_unlocks (mutex) void closeIfNeeded ();
+    mt_unlocks (mutex) void closeIfNeeded (bool deferred_event);
 
     static Connection::OutputFrontend const conn_output_frontend;
 
@@ -86,9 +86,9 @@ public:
 		&conn_output_frontend, this, getCoderefContainer()));
     }
 
-    mt_const void setQueue (DeferredConnectionSenderQueue * const dcs_queue)
+    mt_const void setQueue (DeferredConnectionSenderQueue * const mt_nonnull dcs_queue)
     {
-	this->dcs_queue = dcs_queue;
+        this->dcs_queue = dcs_queue;
     }
 
     DeferredConnectionSender (Object *coderef_container);
@@ -104,7 +104,7 @@ private:
     typedef IntrusiveList<DeferredConnectionSender, DeferredConnectionSender_OutputQueue_name> OutputQueue;
     typedef IntrusiveList<DeferredConnectionSender, DeferredConnectionSender_ProcessingQueue_name> ProcessingQueue;
 
-    mt_const DeferredProcessor *deferred_processor;
+    mt_const DataDepRef<DeferredProcessor> deferred_processor;
 
     DeferredProcessor::Task send_task;
     DeferredProcessor::Registration send_reg;

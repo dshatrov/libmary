@@ -33,6 +33,8 @@ class ImmediateConnectionSender : public Sender,
 				  public DependentCodeReferenced
 {
 private:
+    DeferredProcessor::Registration deferred_reg;
+
   // mt_mutex (mutex) {
     ConnectionSenderImpl conn_sender_impl;
 
@@ -43,13 +45,14 @@ private:
 
     StateMutex mutex;
 
-    mt_mutex (mutex) mt_unlocks (mutex) void closeIfNeeded ();
+    mt_mutex (mutex) mt_unlocks (mutex) void closeIfNeeded (bool deferred_event);
 
     static Connection::OutputFrontend const conn_output_frontend;
 
     static void processOutput (void *_self);
 
     mt_mutex (mutex) mt_unlocks (mutex) void doFlush ();
+
 public:
     void sendMessage (MessageEntry * mt_nonnull msg_entry,
 		      bool do_flush = false);
@@ -62,6 +65,11 @@ public:
     {
 	conn_sender_impl.setConnection (conn);
 	conn->setOutputFrontend (Cb<Connection::OutputFrontend> (&conn_output_frontend, this, getCoderefContainer()));
+    }
+
+    void init (DeferredProcessor * const mt_nonnull deferred_processor)
+    {
+        deferred_reg.setDeferredProcessor (deferred_processor);
     }
 
     ImmediateConnectionSender (Object * const coderef_container)

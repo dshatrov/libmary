@@ -109,7 +109,7 @@ DeferredConnectionSender::toGlobOutputQueue (bool const add_ref)
 }
 
 mt_unlocks (mutex) void
-DeferredConnectionSender::closeIfNeeded ()
+DeferredConnectionSender::closeIfNeeded (bool const deferred_event)
 {
     logD (close, fmt_hex, (UintPtr) this, fmt_def, " ", _func,
 	  "close_after_flush: ", close_after_flush, ", "
@@ -121,8 +121,14 @@ DeferredConnectionSender::closeIfNeeded ()
 	mutex.unlock ();
 
 	logD (close, _func, "calling frontend->closed");
-	if (frontend && frontend->closed)
-	    frontend.call (frontend->closed, /*(*/ (Exception*) NULL /* exc_ */);
+        if (frontend) {
+            if (deferred_event) {
+                // It is safe to use dcs_queue's deferred processor registration.
+                frontend.call_deferred (&dcs_queue->send_reg, frontend->closed, static_cast <Exception*> (NULL /* exc_ */));
+            } else {
+                frontend.call (frontend->closed, /*(*/ (Exception*) NULL /* exc_ */ /*)*/);
+            }
+        }
     } else {
 	mutex.unlock ();
     }
@@ -182,12 +188,12 @@ DeferredConnectionSender::closeAfterFlush ()
     mutex.lock ();
     logD (close, _func, "in_output_queue: ", in_output_queue);
     close_after_flush = true;
-    mt_unlocks (mutex) closeIfNeeded ();
+    mt_unlocks (mutex) closeIfNeeded (true /* deferred_event */);
 }
 
 DeferredConnectionSender::DeferredConnectionSender (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
-      dcs_queue (NULL),
+      dcs_queue (coderef_container),
       conn_sender_impl (true /* enable_processing_barrier */),
       close_after_flush (false),
       ready_for_output (true),
@@ -302,7 +308,7 @@ DeferredConnectionSenderQueue::process (void *_self)
 	  // gotten EAGAIN from writev. In either case, we should have removed
 	  // deferred_sender from output_queue.
 
-	    mt_unlocks (deferred_sender->mutex) deferred_sender->closeIfNeeded ();
+	    mt_unlocks (deferred_sender->mutex) deferred_sender->closeIfNeeded (false /* deferred_event */);
 
 	    Object * const coderef_container = deferred_sender->getCoderefContainer();
 	    if (coderef_container)
@@ -513,13 +519,13 @@ DeferredConnectionSenderQueue::process_mwritev (void *_self)
 		}
 
 		if (!tmp_extra_iteration_needed) {
-		    mt_unlocks (deferred_sender->mutex) deferred_sender->closeIfNeeded ();
+		    mt_unlocks (deferred_sender->mutex) deferred_sender->closeIfNeeded (false /* deferred_event */);
 
 		    Object * const coderef_container = deferred_sender->getCoderefContainer ();
 		    if (coderef_container)
 			coderef_container->unref ();
 		} else {
-		    mt_unlocks (deferred_sender->mtuex) deferred_sender->closeIfNeeded ();
+		    mt_unlocks (deferred_sender->mtuex) deferred_sender->closeIfNeeded (false /* deferred_event */);
 		    extra_iteration_needed = true;
 		}
 
@@ -605,7 +611,7 @@ DeferredConnectionSenderQueue::release ()
 
 DeferredConnectionSenderQueue::DeferredConnectionSenderQueue (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
-      deferred_processor (NULL),
+      deferred_processor (coderef_container),
       processing (false),
       released (false)
 {

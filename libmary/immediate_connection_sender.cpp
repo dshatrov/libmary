@@ -30,7 +30,7 @@ Connection::OutputFrontend const ImmediateConnectionSender::conn_output_frontend
 
 // Must be called with 'mutex' held. Releases 'mutex' before returning.
 mt_mutex (mutex) mt_unlocks (mutex) void
-ImmediateConnectionSender::closeIfNeeded ()
+ImmediateConnectionSender::closeIfNeeded (bool const deferred_event)
 {
 //    logD_ (_func, "close_after_flush: ", close_after_flush, ", "
 //	   "gotDataToSend(): ", conn_sender_impl.gotDataToSend());
@@ -39,8 +39,13 @@ ImmediateConnectionSender::closeIfNeeded ()
 	!conn_sender_impl.gotDataToSend ())
     {
 	mutex.unlock ();
-	if (frontend && frontend->closed)
-	    frontend.call (frontend->closed, /*(*/ (Exception*) NULL /* exc_ */ /*)*/);
+
+        if (frontend) {
+            if (deferred_event)
+                frontend.call_deferred (&deferred_reg, frontend->closed, static_cast <Exception*> (NULL /* exc_ */));
+            else
+                frontend.call (frontend->closed, /*(*/ (Exception*) NULL /* exc_ */ /*)*/);
+        }
     } else {
 	mutex.unlock ();
     }
@@ -76,7 +81,7 @@ ImmediateConnectionSender::processOutput (void * const _self)
 	self->ready_for_output = true;
 
 //    logD_ (_func, "calling closeIfNeeded()");
-    self->closeIfNeeded ();
+    self->closeIfNeeded (false /* deferred_event */);
     // 'mutex' has been unlocked by closeIfNeeded().
 }
 
@@ -115,8 +120,12 @@ ImmediateConnectionSender::doFlush ()
 	if (res == AsyncIoResult::Error)
 	    logE_ (_func, exc->toString());
 
-	if (frontend && frontend->closed)
-	    frontend.call (frontend->closed, /*(*/ exc /*)*/);
+        if (frontend) {
+            // TODO Clone 'exc' and pass it to frontend->closed callback.
+            static InternalException dummy_exc (InternalException::UnknownError);
+
+            frontend.call_deferred (&deferred_reg, frontend->closed, static_cast <Exception*> (&dummy_exc));
+        }
 
 	return;
     }
@@ -125,7 +134,7 @@ ImmediateConnectionSender::doFlush ()
 	ready_for_output = false;
 
 //    logD_ (_func, "calling closeIfNeeded()");
-    mt_unlocks (mutex) closeIfNeeded ();
+    mt_unlocks (mutex) closeIfNeeded (true /* deferred_event */);
 }
 
 void
@@ -142,7 +151,7 @@ ImmediateConnectionSender::closeAfterFlush ()
     close_after_flush = true;
     // TODO It might be better to return boolean from closeAfterFlush():
     //      if (!conn_sender_impl.gotDataToSend ()) return true;
-    closeIfNeeded ();
+    closeIfNeeded (true /* deferred_event */);
     // 'mutex' has been unlocked by closeIfNeeded().
 }
 
