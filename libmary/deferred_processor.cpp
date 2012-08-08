@@ -28,8 +28,8 @@ namespace {
 LogGroup libMary_logGroup_dp ("deferred_processor", LogLevel::N);
 }
 
-mt_mutex (deferred_processor->mutex) void
-DeferredProcessor::Registration::rescheduleTask (Task * const mt_nonnull task)
+mt_mutex (unsafe_deferred_processor->mutex) void
+DeferredProcessor_Registration::rescheduleTask (DeferredProcessor_Task * const mt_nonnull task)
 {
     logD (dp, _func, "0x", fmt_hex, (UintPtr) this);
 
@@ -45,15 +45,21 @@ DeferredProcessor::Registration::rescheduleTask (Task * const mt_nonnull task)
     if (scheduled)
 	return;
 
-    deferred_processor->registration_list.append (this);
+    // It is safe to use 'weak_deferred_processor->getUnsafePtr()' at this point,
+    // because this method is called by DeferredProcessor itself.
+    weak_deferred_processor.getUnsafePtr()->registration_list.append (this);
     scheduled = true;
 }
 
 void
-DeferredProcessor::Registration::scheduleTask (Task * const mt_nonnull task,
-					       bool   const permanent)
+DeferredProcessor_Registration::scheduleTask (DeferredProcessor_Task * const mt_nonnull task,
+                                              bool                     const permanent)
 {
     logD (dp, _func, "0x", fmt_hex, (UintPtr) this);
+
+    CodeDepRef<DeferredProcessor> const deferred_processor = weak_deferred_processor;
+    if (!deferred_processor)
+        return;
 
     deferred_processor->mutex.lock ();
 
@@ -102,8 +108,12 @@ DeferredProcessor::Registration::scheduleTask (Task * const mt_nonnull task,
 }
 
 void
-DeferredProcessor::Registration::revokeTask (Task * const mt_nonnull task)
+DeferredProcessor_Registration::revokeTask (DeferredProcessor_Task * const mt_nonnull task)
 {
+    CodeDepRef<DeferredProcessor> const deferred_processor = weak_deferred_processor;
+    if (!deferred_processor)
+        return;
+
     deferred_processor->mutex.lock ();
 
     if (task->permanent &&
@@ -146,17 +156,18 @@ DeferredProcessor::Registration::revokeTask (Task * const mt_nonnull task)
 }
 
 void
-DeferredProcessor::Registration::release ()
+DeferredProcessor_Registration::release ()
 {
+    CodeDepRef<DeferredProcessor> const deferred_processor = weak_deferred_processor;
     if (!deferred_processor)
         return;
 
     deferred_processor->mutex.lock ();
 
     {
-	TaskList::iter iter (task_list);
+	DeferredProcessor_TaskList::iter iter (task_list);
 	while (!task_list.iter_done (iter)) {
-	    Task * const task = task_list.iter_next (iter);
+	    DeferredProcessor_Task * const task = task_list.iter_next (iter);
 	    if (task->processing) {
 		assert (!task->scheduled || task->permanent);
 		deferred_processor->processing_task_list.remove (task);
@@ -164,14 +175,16 @@ DeferredProcessor::Registration::release ()
 		task->processing = false;
 		task->registration = NULL;
 	    }
+            // This clears task->cb.ref_data, which allows for self-referencing tasks.
+            task->cb.reset ();
 	}
     }
     task_list.clear ();
 
     {
-	PermanentTaskList::iter iter (permanent_task_list);
+	DeferredProcessor_PermanentTaskList::iter iter (permanent_task_list);
 	while (!permanent_task_list.iter_done (iter)) {
-	    Task * const task = permanent_task_list.iter_next (iter);
+	    DeferredProcessor_Task * const task = permanent_task_list.iter_next (iter);
 	    if (task->processing) {
 		assert (!task->scheduled || task->permanent);
 		deferred_processor->processing_task_list.remove (task);
@@ -179,6 +192,8 @@ DeferredProcessor::Registration::release ()
 		task->processing = false;
 		task->registration = NULL;
 	    }
+            // This clears task->cb.ref_data, which allows for self-referencing tasks.
+            task->cb.reset ();
 	}
     }
     permanent_task_list.clear ();
@@ -246,9 +261,8 @@ DeferredProcessor::process ()
 
     bool force_extra_iteration = false;
     {
-	TaskList::iter iter (processing_task_list);
-	while (!processing_task_list.iter_done (iter)) {
-	    Task * const task = processing_task_list.iter_next (iter);
+        while (!processing_task_list.isEmpty()) {
+	    Task * const task = processing_task_list.getFirst();
 
 	    processing_task_list.remove (task);
 	    task->processing = false;
@@ -291,6 +305,12 @@ DeferredProcessor::trigger ()
 {
     if (backend)
 	backend.call (backend->trigger);
+}
+
+DeferredProcessor::DeferredProcessor (Object * const coderef_container)
+    : DependentCodeReferenced (coderef_container),
+      processing (false)
+{
 }
 
 }
