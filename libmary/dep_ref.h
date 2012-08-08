@@ -27,12 +27,11 @@
 
 namespace M {
 
-template <class T> class DepRef;
-
 template <class T>
 class WeakDepRef
 {
-    template <class C> friend class DepRef;
+    template <class C> friend class DataDepRef;
+    template <class C> friend class CodeDepRef;
 
 private:
     T *unsafe_obj;
@@ -64,7 +63,7 @@ public:
         return *this;
     }
 
-    WeakDepRef (CodeReferenced * const obj)
+    WeakDepRef (T * const obj)
         : unsafe_obj (obj),
           weak_obj (obj ? obj->getCoderefContainer() : NULL),
           weak_ref (weak_obj)
@@ -79,11 +78,13 @@ public:
 };
 
 template <class T>
-class DepRef
+class DataDepRef
 {
 private:
+    Object * const coderef_container;
+
     T *obj_ptr;
-    Ref<Object> ref;
+    Ref<Object> container_ref;
 
 public:
     operator T* () const
@@ -96,26 +97,117 @@ public:
         return obj_ptr;
     }
 
-    DepRef& operator = (DepRef * const obj)
+    T* ptr () const
     {
-        this->obj_ptr = obj->obj_ptr;
-        this->ref = obj ? obj->getCoderefContainer() : NULL;
+        return obj_ptr;
+    }
+
+    DataDepRef& operator = (T * const ptr)
+    {
+        obj_ptr = ptr;
+        if (ptr) {
+            Object * const ptr_container = ptr->getCoderefContainer();
+            if (ptr_container == coderef_container)
+                container_ref = NULL;
+            else
+                container_ref = ptr_container;
+        } else {
+            container_ref = NULL;
+        }
+
         return *this;
     }
 
-    DepRef (WeakDepRef<T> const &weak_ref)
-        : obj_ptr (weak_ref.unsafe_obj),
-          ref (weak_ref.weak_ref.getRef())
+    DataDepRef (WeakDepRef<T> const &weak_ref)
     {
+        if (weak_ref.weak_obj == coderef_container) {
+            obj_ptr = weak_ref.unsafe_obj;
+            return;
+        }
+
+        if (weak_ref.weak_ref.isValid()) {
+            container_ref = weak_ref.weak_ref.getRef();
+            if (container_ref)
+                obj_ptr = weak_ref.unsafe_obj;
+            else
+                obj_ptr = NULL;
+        } else {
+            obj_ptr = weak_ref.unsafe_obj;
+        }
     }
 
-    DepRef (T * const obj)
-        : obj_ptr (obj),
-          ref (obj ? obj->getCoderefContainer() : NULL)
+    DataDepRef (Object * const coderef_container,
+                T      * const ptr)
+        : coderef_container (coderef_container),
+          obj_ptr (ptr)
     {
+        obj_ptr = ptr;
+        if (ptr) {
+            Object * const ptr_container = ptr->getCoderefContainer();
+            if (ptr_container == coderef_container)
+                container_ref = NULL;
+            else
+                container_ref = ptr_container;
+        } else {
+            container_ref = NULL;
+        }
     }
 
-    DepRef ()
+    DataDepRef (Object * const coderef_container)
+        : coderef_container (coderef_container),
+          obj_ptr (NULL)
+    {
+    }
+};
+
+template <class T>
+class CodeDepRef
+{
+private:
+    T *obj_ptr;
+    Ref<Object> container_ref;
+
+public:
+    operator T* () const
+    {
+        return obj_ptr;
+    }
+
+    T* operator -> () const
+    {
+        return obj_ptr;
+    }
+
+    CodeDepRef& operator = (T * const ptr)
+    {
+        obj_ptr = ptr;
+        if (ptr)
+            container_ref = ptr->getCoderefContainer();
+
+        return *this;
+    }
+
+    CodeDepRef (WeakDepRef<T> const &weak_ref)
+    {
+        if (weak_ref.weak_ref.isValid()) {
+            container_ref = weak_ref.weak_ref.getRef();
+            if (container_ref)
+                obj_ptr = weak_ref.unsafe_obj;
+            else
+                obj_ptr = NULL;
+        } else {
+            obj_ptr = weak_ref.unsafe_obj;
+        }
+    }
+
+    CodeDepRef (T * const ptr)
+    {
+        obj_ptr = ptr;
+        if (ptr)
+            container_ref = ptr->getCoderefContainer();
+    }
+
+    CodeDepRef ()
         : obj_ptr (NULL)
     {
     }

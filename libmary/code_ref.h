@@ -50,22 +50,18 @@ private:
     // We store container pointer to optimize away consequent reference grabs
     // for the same container in runtime. That decreases number of atomic ops
     // performed when processing async events with chains of handler objects.
-    //               ^^^
-    // TODO 11.11.09 This is unnecessary, the pointer can be taken from CodeRef
-    // in all use cases.
+    //
+    // TODO 11.11.09 WeakRef::typed_weak_ptr could be used instead, but it is
+    //               valid only when shadow->weak_ptr is non-null.
     Object *weak_obj;
+
     // This is Ref<Object::_Shadow>, actually.
-    // TODO Зачем здесь вообще weak_ref? Поскольку корректность работы теперь
-    //      зависит от простого указателя weak_obj, никакого смысла в weak_ref
-    //      нет. Можно просто делать weak_obj->ref()/unref().
-    //      ^^^ 11.05.31 Не согласен с замечанием, без weak_ref не будет
-    //          безопасного захвата CodeRef.
     WeakRef<Object> weak_ref;
 
 public:
     bool isValid () const
     {
-	return weak_ref.isValid ();
+	return weak_ref.isValid();
     }
 
     Object* getWeakObject () const

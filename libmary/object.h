@@ -51,7 +51,7 @@ template <class T> class Callback;
 // inheritance is here for the same reason. It shouldn't be too much of
 // overhead, though.
 class Object : public virtual Referenced,
-	       public CodeReferenced
+	       public virtual CodeReferenced
 {
     template <class T> friend class WeakRef;
 

@@ -40,7 +40,7 @@ public:
     virtual ~CodeReferenced () {}
 };
 
-class DependentCodeReferenced : public CodeReferenced
+class DependentCodeReferenced : public virtual CodeReferenced
 {
 private:
     mt_const Object *coderef_container;
