@@ -448,6 +448,7 @@ PollPollGroup::PollPollGroup (Object * const coderef_container)
       // Initializing to 'true' to process deferred tasks scheduled before we
       // enter poll() the first time.
       got_deferred_tasks (true),
+      deferred_processor (coderef_container),
       poll_tlocal (NULL)
 {
     trigger_pipe [0] = -1;
@@ -456,7 +457,7 @@ PollPollGroup::PollPollGroup (Object * const coderef_container)
     deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
 	    &deferred_processor_backend,
 	    static_cast <ActivePollGroup*> (this) /* cb_data */,
-	    coderef_container));
+	    NULL /* coderef_container */));
 }
 
 PollPollGroup::~PollPollGroup ()

@@ -37,7 +37,7 @@ namespace M {
 // in an acceptable way.
 
 class SelectPollGroup : public ActivePollGroup,
-			public DependentCodeReferenced
+                        public DependentCodeReferenced
 {
 private:
     class PollableList_name;

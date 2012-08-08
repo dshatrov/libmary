@@ -32,7 +32,7 @@
 namespace M {
 
 class PollPollGroup : public ActivePollGroup,
-		      public DependentCodeReferenced
+                      public DependentCodeReferenced
 {
 private:
     class PollableList_name;
