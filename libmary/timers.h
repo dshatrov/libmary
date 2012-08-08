@@ -24,6 +24,7 @@
 #include <libmary/types.h>
 #include <libmary/intrusive_list.h>
 #include <libmary/intrusive_avl_tree.h>
+#include <libmary/code_referenced.h>
 #include <libmary/cb.h>
 #include <libmary/mutex.h>
 #include <libmary/util_time.h>
@@ -39,7 +40,7 @@ namespace M {
 //
 // Таймеры должны быть MT-safe.
 
-class Timers
+class Timers : public DependentCodeReferenced
 {
 private:
     class Timer;
@@ -171,13 +172,12 @@ public:
 	first_added_cb = cb;
     }
 
-    Timers ();
+    Timers (Object *coderef_container);
 
     // @cb is called whenever a new timer appears at the head of timer chain,
     // i.e. when the nearest expiration time changes.
-    Timers (FirstTimerAddedCallback *cb,
-	    void                    *cb_data,
-	    Object                  *coderef_container);
+    Timers (Object *coderef_container,
+            CbDesc<FirstTimerAddedCallback> const &first_added_cb);
 
     ~Timers ();
 };

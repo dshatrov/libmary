@@ -43,7 +43,7 @@
 
 namespace M {
 
-class Sender
+class Sender : public virtual CodeReferenced
 {
 public:
     enum SendState {
@@ -130,7 +130,9 @@ public:
     public:
 	Size header_len;
 
-	PagePool *page_pool;
+        // TODO There's really no point to ref/unref 'page_pool' in runtime.
+        //      It only slightly matters at program exit.
+	CodeDepRef<PagePool> page_pool;
 	PagePool::Page *first_page;
 	Size msg_offset;
 

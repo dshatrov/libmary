@@ -29,13 +29,13 @@
 
 namespace M {
 
-class ServerThreadContext
+class ServerThreadContext : public DependentCodeReferenced
 {
 private:
-    mt_const Timers *timers;
-    mt_const PollGroup *poll_group;
-    mt_const DeferredProcessor *deferred_processor;
-    mt_const DeferredConnectionSenderQueue *dcs_queue;
+    mt_const DataDepRef<Timers>                        timers;
+    mt_const DataDepRef<PollGroup>                     poll_group;
+    mt_const DataDepRef<DeferredProcessor>             deferred_processor;
+    mt_const DataDepRef<DeferredConnectionSenderQueue> dcs_queue;
 
 public:
     Timers* getTimers () const
@@ -58,41 +58,42 @@ public:
 	return dcs_queue;
     }
 
-    mt_const void init (Timers * const timers,
-			PollGroup * const poll_group,
-			DeferredProcessor * const deferred_processor,
+    mt_const void init (Timers                        * const timers,
+			PollGroup                     * const poll_group,
+			DeferredProcessor             * const deferred_processor,
 			DeferredConnectionSenderQueue * const dcs_queue)
     {
-	this->timers = timers;
-	this->poll_group = poll_group;
+	this->timers             = timers;
+	this->poll_group         = poll_group;
 	this->deferred_processor = deferred_processor;
-	this->dcs_queue = dcs_queue;
+	this->dcs_queue          = dcs_queue;
     }
 
-    ServerThreadContext ()
-	: timers (NULL),
-	  poll_group (NULL),
-	  deferred_processor (NULL),
-	  dcs_queue (NULL)
+    ServerThreadContext (Object * const coderef_container)
+	: DependentCodeReferenced (coderef_container),
+          timers                  (coderef_container),
+	  poll_group              (coderef_container),
+	  deferred_processor      (coderef_container),
+	  dcs_queue               (coderef_container)
     {
     }
 };
 
-class ServerContext
+class ServerContext : public DependentCodeReferenced
 {
 private:
-    mt_const Timers *timers;
-    mt_const PollGroup *poll_group;
+    mt_const DataDepRef<Timers>    timers;
+    mt_const DataDepRef<PollGroup> poll_group;
 
 public:
-    virtual ServerThreadContext* selectThreadContext () = 0;
+    virtual CodeDepRef<ServerThreadContext> selectThreadContext () = 0;
 
     Timers* getTimers () const
     {
 	return timers;
     }
 
-    PollGroup* getMainPollGroup ()
+    PollGroup* getMainPollGroup () const
     {
 	return poll_group;
     }
@@ -104,12 +105,12 @@ public:
 	this->poll_group = main_poll_group;
     }
 
-    ServerContext ()
-	: timers (NULL)
+    ServerContext (Object * const coderef_container)
+	: DependentCodeReferenced (coderef_container),
+          timers                  (coderef_container),
+          poll_group              (coderef_container)
     {
     }
-
-    virtual ~ServerContext () {}
 };
 
 }

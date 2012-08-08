@@ -36,7 +36,7 @@ ActivePollGroup::Frontend ServerApp::poll_frontend = {
     pollIterationEnd
 };
 
-ServerThreadContext*
+CodeDepRef<ServerThreadContext>
 ServerApp::SA_ServerContext::selectThreadContext ()
 {
 #ifdef LIBMARY_MT_SAFE
@@ -256,11 +256,22 @@ ServerApp::release ()
 ServerApp::ServerApp (Object * const coderef_container,
 		      Count    const num_threads)
     : DependentCodeReferenced (coderef_container),
-      server_ctx (this),
+      server_ctx (coderef_container,
+                  this /* server_app */),
+      main_thread_ctx (coderef_container),
 
-      timers (firstTimerAdded, &poll_group/* cb_data */, NULL /* coderef_container */),
-      poll_group (coderef_container),
-      dcs_queue (coderef_container)
+      timers (coderef_container
+#if 0
+// This callback is set in ServerApp::init()
+              ,
+              CbDesc<Timers::FirstTimerAddedCallback> (firstTimerAdded,
+                                                       &poll_group /* cb_data */,
+                                                       NULL        /* coderef_container */)
+#endif
+              ),
+      poll_group         (coderef_container),
+      deferred_processor (coderef_container),
+      dcs_queue          (coderef_container)
 #ifdef LIBMARY_MT_SAFE
       , thread_selector (NULL)
 #endif

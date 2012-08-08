@@ -181,7 +181,7 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 
 	Byte date_buf [timeToString_BufSize];
 	Size const date_len = timeToString (Memory::forObject (date_buf), getUnixtime());
-	logD (http_service, _func, "page_pool: 0x", fmt_hex, (UintPtr) self->page_pool);
+	logD (http_service, _func, "page_pool: 0x", fmt_hex, (UintPtr) self->page_pool.ptr());
 	http_conn->conn_sender.send (
 		self->page_pool,
 		true /* do_flush */,
@@ -409,6 +409,7 @@ HttpService::acceptOneConnection ()
     http_conn->preassembly_buf_size = 0;
     http_conn->preassembled_len = 0;
 
+    http_conn->conn_sender.init (deferred_processor);
     http_conn->conn_sender.setConnection (&http_conn->tcp_conn);
     http_conn->conn_sender.setFrontend (CbDesc<Sender::Frontend> (&sender_frontend, http_conn, http_conn));
     http_conn->conn_receiver.setConnection (&http_conn->tcp_conn);
@@ -544,15 +545,18 @@ HttpService::start ()
 }
 
 mt_throws Result
-HttpService::init (PollGroup * const mt_nonnull poll_group,
-		   Timers    * const mt_nonnull timers,
-		   PagePool  * const mt_nonnull page_pool,
-		   Time        const keepalive_timeout_microsec,
-		   bool        const no_keepalive_conns)
+HttpService::init (PollGroup         * const mt_nonnull poll_group,
+		   Timers            * const mt_nonnull timers,
+                   DeferredProcessor * const mt_nonnull deferred_processor,
+		   PagePool          * const mt_nonnull page_pool,
+		   Time                const keepalive_timeout_microsec,
+		   bool                const no_keepalive_conns)
 {
-    this->poll_group = poll_group;
-    this->timers = timers;
-    this->page_pool = page_pool;
+    this->poll_group         = poll_group;
+    this->timers             = timers;
+    this->deferred_processor = deferred_processor;
+    this->page_pool          = page_pool;
+
     this->keepalive_timeout_microsec = keepalive_timeout_microsec;
     this->no_keepalive_conns = no_keepalive_conns;
 
@@ -566,9 +570,10 @@ HttpService::init (PollGroup * const mt_nonnull poll_group,
 
 HttpService::HttpService (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
-      poll_group (NULL),
-      timers (NULL),
-      page_pool (NULL),
+      poll_group         (coderef_container),
+      timers             (coderef_container),
+      deferred_processor (coderef_container),
+      page_pool          (coderef_container),
       keepalive_timeout_microsec (0),
       no_keepalive_conns (false),
       tcp_server (coderef_container)

@@ -408,9 +408,11 @@ PagePool::setMinPages (Count const min_pages)
     mutex.unlock ();
 }
 
-PagePool::PagePool (Size  const page_size,
-		    Count const min_pages)
-    : page_size (page_size),
+PagePool::PagePool (Object * const coderef_container,
+                    Size     const page_size,
+		    Count    const min_pages)
+    : DependentCodeReferenced (coderef_container),
+      page_size (page_size),
       min_pages (min_pages),
       num_pages (min_pages),
       first_spare_page (NULL)

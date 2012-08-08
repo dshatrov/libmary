@@ -35,6 +35,7 @@
 
 namespace M {
 
+// TODO Implement cloning of exceptions.
 class Exception
 {
 #if 0

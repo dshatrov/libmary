@@ -34,7 +34,7 @@
 
 namespace M {
 
-class PollGroup
+class PollGroup : public virtual CodeReferenced
 {
 public:
     enum EventFlags {

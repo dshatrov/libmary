@@ -30,7 +30,7 @@
 
 namespace M {
 
-class PagePool
+class PagePool : public DependentCodeReferenced
 {
 public:
     class Page
@@ -270,8 +270,9 @@ public:
 
     void setMinPages (Count min_pages);
 
-    PagePool (Size  page_size,
-	      Count min_pages);
+    PagePool (Object *coderef_container,
+              Size    page_size,
+	      Count   min_pages);
 
     ~PagePool ();
 

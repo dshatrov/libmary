@@ -54,14 +54,17 @@ private:
 	DeferredConnectionSenderQueue dcs_queue;
 
 	ThreadData ()
-	    : poll_group (this /* coderef_container */),
-	      dcs_queue (this /* coderef_container */)
+	    : thread_ctx         (this /* coderef_container */),
+              timers             (this /* coderef_container */),
+              poll_group         (this /* coderef_container */),
+              deferred_processor (this /* coderef_container */),
+	      dcs_queue          (this /* coderef_container */)
 	{
 	}
     };
 #endif
 
-    mt_const ServerThreadContext *main_thread_ctx;
+    mt_const DataDepRef<ServerThreadContext> main_thread_ctx;
 
 #ifdef LIBMARY_MT_SAFE
     mt_const Ref<MultiThread> multi_thread;
@@ -93,7 +96,7 @@ private:
 public:
   mt_iface (ServerThreadPool)
 
-    mt_throws ServerThreadContext* grabThreadContext (ConstMemory const &filename);
+    mt_throws CodeDepRef<ServerThreadContext> grabThreadContext (ConstMemory const &filename);
 
     void releaseThreadContext (ServerThreadContext *thread_ctx);
 

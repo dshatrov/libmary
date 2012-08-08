@@ -47,10 +47,12 @@ private:
     public:
 	ServerApp * const server_app;
 
-	ServerThreadContext* selectThreadContext ();
+	CodeDepRef<ServerThreadContext> selectThreadContext ();
 
-	SA_ServerContext (ServerApp * const server_app)
-	    : server_app (server_app)
+	SA_ServerContext (Object    * const coderef_container,
+                          ServerApp * const server_app)
+	    : ServerContext (coderef_container),
+              server_app (server_app)
 	{
 	}
     };
@@ -67,8 +69,11 @@ private:
 	DeferredConnectionSenderQueue dcs_queue;
 
 	ThreadData ()
-	    : poll_group (this /* coderef_container */),
-	      dcs_queue  (this /* coderef_container */)
+	    : thread_ctx         (this /* coderef_container */),
+              timers             (this /* coderef_container */),
+              poll_group         (this /* coderef_container */),
+              deferred_processor (this /* coderef_container */),
+	      dcs_queue          (this /* coderef_container */)
 	{
 	}
     };
@@ -111,12 +116,12 @@ private:
 #endif
 
 public:
-    ServerContext* getServerContext ()
+    CodeDepRef<ServerContext> getServerContext ()
     {
 	return &server_ctx;
     }
 
-    ServerThreadContext* getMainThreadContext ()
+    CodeDepRef<ServerThreadContext> getMainThreadContext ()
     {
 	return &main_thread_ctx;
     }

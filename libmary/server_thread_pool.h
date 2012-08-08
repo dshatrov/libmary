@@ -30,7 +30,7 @@ namespace M {
 class ServerThreadPool
 {
 public:
-    virtual mt_throws ServerThreadContext* grabThreadContext (ConstMemory const &filename) = 0;
+    virtual mt_throws CodeDepRef<ServerThreadContext> grabThreadContext (ConstMemory const &filename) = 0;
 
     virtual void releaseThreadContext (ServerThreadContext *thread_ctx) = 0;
 

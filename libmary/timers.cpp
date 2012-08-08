@@ -239,16 +239,17 @@ Timers::processTimers ()
     mutex.unlock ();
 }
 
-Timers::Timers ()
-    : expiration_tree_leftmost (NULL)
+Timers::Timers (Object * const coderef_container)
+    : DependentCodeReferenced (coderef_container),
+      expiration_tree_leftmost (NULL)
 {
 }
 
-Timers::Timers (FirstTimerAddedCallback * const cb,
-		void                    * const cb_data,
-		Object                  * const coderef_container)
-    : expiration_tree_leftmost (NULL),
-      first_added_cb (cb, cb_data, coderef_container)
+Timers::Timers (Object * const coderef_container,
+                CbDesc<FirstTimerAddedCallback> const &first_added_cb)
+    : DependentCodeReferenced (coderef_container),
+      expiration_tree_leftmost (NULL),
+      first_added_cb (first_added_cb)
 {
 }
 

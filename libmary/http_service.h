@@ -130,9 +130,10 @@ private:
 	~HttpConnection ();
     };
 
-    PollGroup *poll_group;
-    Timers    *timers;
-    PagePool  *page_pool;
+    mt_const DataDepRef<PollGroup>         poll_group;
+    mt_const DataDepRef<Timers>            timers;
+    mt_const DataDepRef<DeferredProcessor> deferred_processor;
+    mt_const DataDepRef<PagePool>          page_pool;
 
     Time keepalive_timeout_microsec;
 
@@ -207,11 +208,12 @@ public:
 
     mt_throws Result start ();
 
-    mt_throws Result init (PollGroup * mt_nonnull poll_group,
-			   Timers    * mt_nonnull timers,
-			   PagePool  * mt_nonnull page_pool,
-			   Time       keeaplive_timeout_microsec,
-                           bool       no_keeaplive_conns);
+    mt_throws Result init (PollGroup         * mt_nonnull poll_group,
+			   Timers            * mt_nonnull timers,
+                           DeferredProcessor * mt_nonnull deferred_processor,
+			   PagePool          * mt_nonnull page_pool,
+			   Time               keeaplive_timeout_microsec,
+                           bool               no_keeaplive_conns);
 
     HttpService (Object *coderef_container);
 

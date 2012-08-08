@@ -240,8 +240,8 @@ private:
 
     Cb<Frontend> frontend;
 
-    Sender *sender;
-    PagePool *page_pool;
+    DataDepRef<Sender> sender;
+    DataDepRef<PagePool> page_pool;
 
     IpAddress client_addr;
 
@@ -303,7 +303,8 @@ public:
 
     HttpServer (Object * const coderef_container)
 	: DependentCodeReferenced (coderef_container),
-	  sender (NULL),
+	  sender    (coderef_container),
+          page_pool (coderef_container),
 	  req_state (RequestState::RequestLine),
 	  recv_pos (0),
 	  recv_content_length (0)

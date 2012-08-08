@@ -33,6 +33,7 @@
 namespace M {
 
 /*c */
+// TODO Rename to RawMutex to prevent accidential use of Mutex instead of StateMutex.
 class Mutex
 {
 private:

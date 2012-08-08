@@ -119,7 +119,7 @@ FixedThreadPool::pollIterationEnd (void * const _thread_ctx)
     return thread_ctx->getDeferredProcessor()->process ();
 }
 
-mt_throws ServerThreadContext*
+mt_throws CodeDepRef<ServerThreadContext>
 FixedThreadPool::grabThreadContext (ConstMemory const & /* filename */)
 {
 #ifdef LIBMARY_MT_SAFE
@@ -197,7 +197,7 @@ FixedThreadPool::stop ()
 FixedThreadPool::FixedThreadPool (Object * const coderef_container,
 				  Count    const num_threads)
     : DependentCodeReferenced (coderef_container),
-      main_thread_ctx (NULL)
+      main_thread_ctx (coderef_container)
 #ifdef LIBMARY_MT_SAFE
       , thread_selector (NULL)
 #endif
