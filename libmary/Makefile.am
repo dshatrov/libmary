@@ -46,6 +46,7 @@ mary_target_headers =			\
 	exception_buffer.h		\
 	exception.h			\
 	cb.h				\
+        cb_deferred.h                   \
 	informer.h			\
 					\
 	pointer.h			\

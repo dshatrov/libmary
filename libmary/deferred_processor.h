@@ -57,7 +57,6 @@ private:
 
 public:
     mt_const Cb<DeferredProcessor_TaskCallback> cb;
-    // TODO Add cancellation callback.
 
     DeferredProcessor_Task ()
         : scheduled (false),
@@ -109,8 +108,6 @@ public:
     {
     }
 
-    // TODO Why don't we call release() in ~Registration()?
-    //      ^^ 12.08.07 Added a release() call.
     ~DeferredProcessor_Registration ()
     {
         release ();
@@ -169,7 +166,7 @@ public:
 }
 
 
-//#include <libmary/cb_deferred.h>
+#include <libmary/cb_deferred.h>
 
 
 #endif /* __LIBMARY__DEFERRED_PROCESSOR__H__ */

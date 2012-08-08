@@ -37,6 +37,8 @@
 
 namespace M {
 
+class DeferredProcessor_Registration;
+
 template <class T>
 class CbDesc
 {
@@ -196,11 +198,15 @@ public:
 	    Object * const prv_coderef_container = tlocal->last_coderef_container;
 	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
 
+            // With 'tmp_cb_data', we avoid accessing 'cb_data', since it is a member of Cb,
+            // which is not guaranteed to stay available after we unlock the mutex.
+            void * const tmp_cb_data = cb_data;
 	    mutex.unlock ();
-	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 
+	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
+            //
 	    // This probably won't be optimized by the compiler, which is a bit sad.
-	    *ret = tocall (args..., cb_data);
+	    *ret = tocall (args..., tmp_cb_data);
 
 	    tlocal->last_coderef_container = prv_coderef_container;
 	    mutex.lock ();
@@ -215,15 +221,25 @@ public:
 	DEBUG (
 	  fprintf (stderr, "Cb::call_ret_mutex: simple path, obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
 	)
+        // With 'tmp_cb_data', we avoid accessing 'cb_data', since it is a member of Cb,
+        // which is not guaranteed to stay available after we unlock the mutex.
+        void * const tmp_cb_data = cb_data;
 	mutex.unlock ();
+
 	// Be careful not to use any data members of class Cb after the mutex is unlocked.
-	*ret = tocall (args..., cb_data);
+	*ret = tocall (args..., tmp_cb_data);
+
 	mutex.lock ();
 	DEBUG (
 	  fprintf (stderr, "Cb::call_ret_mutex: done, obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
 	)
 	return true;
     }
+
+    template <class CB, class ...Args>
+    void call_deferred (DeferredProcessor_Registration * const mt_nonnull def_reg,
+                        CB const tocall,
+                        Args ...args) const;
 
     // Convenient method of invoking callbacks which return void.
     //
@@ -299,8 +315,6 @@ public:
 	    return false;
 	}
 
-	void * const tmp_cb_data = cb_data;
-
 	if (weak_code_ref.isValid ()) {
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
 	    if (weak_code_ref.getWeakObject() == tlocal->last_coderef_container)
@@ -320,9 +334,12 @@ public:
 	    Object * const prv_coderef_container = tlocal->last_coderef_container;
 	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
 
+            // With 'tmp_cb_data', we avoid accessing 'cb_data', since it is a member of Cb,
+            // which is not guaranteed to stay available after we unlock the mutex.
+            void * const tmp_cb_data = cb_data;
 	    mutex.unlock ();
-	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 
+	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 	    tocall (args..., tmp_cb_data);
 
 	    tlocal->last_coderef_container = prv_coderef_container;
@@ -338,9 +355,14 @@ public:
 	DEBUG (
 	  fprintf (stderr, "Cb::call_mutex: simple path, obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
 	)
+        // With 'tmp_cb_data', we avoid accessing 'cb_data', since it is a member of Cb,
+        // which is not guaranteed to stay available after we unlock the mutex.
+        void * const tmp_cb_data = cb_data;
 	mutex.unlock ();
+
 	// Be careful not to use any data members of class Cb after the mutex is unlocked.
 	tocall (args..., tmp_cb_data);
+
 	mutex.lock ();
 	DEBUG (
 	  fprintf (stderr, "Cb::call_mutex: done\n");
@@ -358,8 +380,6 @@ public:
 	    mutex.unlock ();
 	    return false;
 	}
-
-	void * const tmp_cb_data = cb_data;
 
 	if (weak_code_ref.isValid ()) {
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
@@ -381,6 +401,9 @@ public:
 	    Object * const prv_coderef_container = tlocal->last_coderef_container;
 	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
 
+            // With 'tmp_cb_data', we avoid accessing 'cb_data', since it is a member of Cb,
+            // which is not guaranteed to stay available after we unlock the mutex.
+            void * const tmp_cb_data = cb_data;
 	    mutex.unlock ();
 
 	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
@@ -398,6 +421,9 @@ public:
 	DEBUG (
 	  fprintf (stderr, "Cb::call_unlocks_mutex: simple path, obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
 	)
+        // With 'tmp_cb_data', we avoid accessing 'cb_data', since it is a member of Cb,
+        // which is not guaranteed to stay available after we unlock the mutex.
+        void * const tmp_cb_data = cb_data;
 	mutex.unlock ();
 
 	// Be careful not to use any data members of class Cb after the mutex is unlocked.
@@ -416,8 +442,6 @@ public:
 	if (!tocall)
 	    return false;
 
-	void * const tmp_cb_data = cb_data;
-
 	if (weak_code_ref.isValid ()) {
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
 	    if (weak_code_ref.getWeakObject() == tlocal->last_coderef_container)
@@ -430,9 +454,12 @@ public:
 	    Object * const prv_coderef_container = tlocal->last_coderef_container;
 	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
 
+            // With 'tmp_cb_data', we avoid accessing 'cb_data', since it is a member of Cb,
+            // which is not guaranteed to stay available after we unlock the mutex.
+            void * const tmp_cb_data = cb_data;
 	    mutex.unlock ();
-	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 
+	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 	    tocall (args..., tmp_cb_data);
 
 	    tlocal->last_coderef_container = prv_coderef_container;
@@ -440,6 +467,9 @@ public:
 	}
 
       _simple_path:
+        // With 'tmp_cb_data', we avoid accessing 'cb_data', since it is a member of Cb,
+        // which is not guaranteed to stay available after we unlock the mutex.
+        void * const tmp_cb_data = cb_data;
 	mutex.unlock ();
 
 	// Be careful not to use any data members of class Cb after the mutex is unlocked.
@@ -551,6 +581,17 @@ public:
     {
     }
 
+    Cb (T const           * const cb,
+        void              * const cb_data,
+        WeakCodeRef const * const weak_code_ref,
+        VirtReferenced    * const ref_data)
+        : cb            (cb),
+          cb_data       (cb_data),
+          weak_code_ref (*weak_code_ref),
+          ref_data      (ref_data)
+    {
+    }
+
     Cb (CbDesc<T> const &cb_desc)
 	: cb            (cb_desc.cb),
 	  cb_data       (cb_desc.cb_data),
@@ -572,6 +613,9 @@ public:
 #ifdef DEBUG
 #undef DEBUG
 #endif
+
+
+#include <libmary/deferred_processor.h> // for cb_deferred.h
 
 
 #endif /* __LIBMARY__CB__H__ */
