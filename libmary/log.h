@@ -203,7 +203,7 @@ extern char const _libMary_loglevel_str_N [4];
 	    if (mt_unlikely ((loglevel) >= libMary_logGroup_ ## group .getLogLevel() &&	\
 			     (loglevel) >= libMary_globalLogLevel))			\
 	    {										\
-		(log_func) ((loglevel).toCompactCstr(), __VA_ARGS__);			\
+		(log_func) (" ", (loglevel).toCompactCstr(), " ", __VA_ARGS__);		\
 	    }										\
 	} while (0)
 
