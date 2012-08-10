@@ -45,7 +45,6 @@ PagePool::PageListArray::doGetSet (Size        offset,
 
     assert (offset + first_offset >= offset);
     offset += first_offset;
-
     assert (offset + data_len >= offset);
 
     Page *cur_page;
@@ -238,7 +237,7 @@ PagePool::getFillPagesFromPages (PageListHead * const mt_nonnull page_list,
             if (tocopy > from_len)
                 tocopy = from_len;
 
-            PageListArray arr (from_page, from_offset, from_len);
+            PageListArray arr (from_page, 0 /* offset */, from_len);
             arr.get (from_offset, Memory (page->getData() + page->data_len, tocopy));
 
             page->data_len += tocopy;
@@ -248,7 +247,7 @@ PagePool::getFillPagesFromPages (PageListHead * const mt_nonnull page_list,
             from_offset = arr.getLastAccessedInPageOffset();
             if (from_offset == from_page->data_len) {
                 from_page = from_page->getNextMsgPage();
-                assert (from_page);
+                assert (from_page || from_len == 0);
                 from_offset = 0;
             }
         }
@@ -272,17 +271,17 @@ PagePool::getFillPagesFromPages (PageListHead * const mt_nonnull page_list,
         if (tocopy > from_len)
             tocopy = from_len;
 
-        PageListArray arr (from_page, from_offset, from_len);
+        PageListArray arr (from_page, 0 /* offset */, from_len);
         arr.get (from_offset, Memory (page->getData(), tocopy));
 
-        page->data_len += tocopy;
+        page->data_len = tocopy;
         from_len -= tocopy;
 
         from_page = arr.getLastAccessedPage();
         from_offset = arr.getLastAccessedInPageOffset();
         if (from_offset == from_page->data_len) {
             from_page = from_page->getNextMsgPage();
-            assert (from_page);
+            assert (from_page || from_len == 0);
             from_offset = 0;
         }
     }

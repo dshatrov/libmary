@@ -46,7 +46,7 @@ public:
 	Page& operator = (Page const &);
 	Page (Page const &);
 
-	Page (int refcount = 1)
+	Page (int const refcount = 1)
 	    : refcount (refcount)
 	{
 	}
