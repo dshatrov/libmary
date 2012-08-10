@@ -172,7 +172,7 @@ public:
 	static MessageEntry_Pages* createNew (Size const max_header_len)
 	{
 #ifdef LIBMARY_SENDER_VSLAB
-	    unsigned const vslab_header_len = 28;
+	    unsigned const vslab_header_len = 33 /* RtmpConnection::MaxHeaderLen */;
 	    if (max_header_len <= vslab_header_len /* TODO Artificial limit (matches Moment::RtmpConnection's needs) */) {
 		VSlab<MessageEntry_Pages>::AllocKey vslab_key;
 		MessageEntry_Pages *msg_pages;
