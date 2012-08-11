@@ -222,6 +222,9 @@ PagePool::getFillPagesFromPages (PageListHead * const mt_nonnull page_list,
                                  Size           from_offset,
                                  Size           from_len)
 {
+    if (from_len == 0)
+        return;
+
     while (from_page && from_offset >= from_page->data_len) {
         from_offset -= from_page->data_len;
         from_page = from_page->getNextMsgPage();
