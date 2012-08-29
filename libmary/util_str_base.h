@@ -112,7 +112,9 @@ Ref<String> toString (T obj, Format const &fmt = libMary_default_format)
 {
     Size const len = toString (Memory(), obj, fmt);
     Ref<String> const str = grab (new String (len));
-    toString (str->mem(), obj, fmt);
+    Memory const mem = str->mem();
+    // +1 byte for terminating null byte written by snprintf()
+    toString (Memory (mem.mem(), mem.len() + 1), obj, fmt);
     return str;
 }
 
@@ -326,7 +328,8 @@ inline Size toString (Memory const &mem, unsigned long value, Format const &fmt)
     if (fmt.num_base == 16)
 	return _libMary_snprintf (mem, "lx", (unsigned long) value, fmt, FormatFlags::WithMinDigits);
 
-    return _libMary_snprintf (mem, "lu", (unsigned long) value, fmt, FormatFlags::WithMinDigits);
+    Size res = _libMary_snprintf (mem, "lu", (unsigned long) value, fmt, FormatFlags::WithMinDigits);
+    return res;
 }
 
 template <>
@@ -422,7 +425,9 @@ template <class ...Args>
 Ref<String> makeString (Args const &...args)
 {
     Ref<String> const str = grab (new String (measureString (args...)));
-    _do_makeString (str->mem(), fmt_def, args...);
+    Memory const mem = str->mem();
+    // +1 byte for terminating null byte written by snprintf()
+    _do_makeString (Memory (mem.mem(), mem.len() + 1), fmt_def, args...);
     return str;
 }
 
