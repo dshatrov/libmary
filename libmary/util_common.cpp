@@ -1,3 +1,5 @@
+
+    
 /*  LibMary - C++ library for high-performance network servers
     Copyright (C) 2011, 2012 Dmitry Shatrov
 
@@ -17,44 +19,32 @@
 */
 
 
-#ifndef __LIBMARY__UTIL_COMMON__H__
-#define __LIBMARY__UTIL_COMMON__H__
-
-
 #include <libmary/types.h>
-#include <libmary/exception.h>
+#include <glib.h>
+
+#include <libmary/util_base.h>
+
+#include <libmary/util_common.h>
 
 
 namespace M {
 
-void randomSetSeed (Uint32 seed);
-
-Uint32 randomUint32 ();
-
-template <class T>
-mt_throws Result writeFull_common (T * const  dest,
-				   ConstMemory const &mem,
-				   Size * const ret_nwritten)
+void
+randomSetSeed (Uint32 const seed)
 {
-    Size total_written = 0;
-    Result res = Result::Success;
+    g_random_set_seed (seed);
+}
 
-    while (total_written < mem.len()) {
-	Size last_written;
-	res = dest->write (mem.region (total_written, mem.len() - total_written), &last_written);
-	total_written += last_written;
-	if (!res)
-	    break;
-    }
-
-    if (ret_nwritten)
-	*ret_nwritten = total_written;
-
+// TODO Switch to using cryptographically secure random number generator
+//      where necessary (seed PRNG from /dev/random?).
+Uint32
+randomUint32 ()
+{
+    /* From Glib docs on g_random_int():
+     * "Return a random guint32 equally distributed over the range [0..2^32-1]." */
+    Uint32 const res = (Uint32) g_random_int ();
     return res;
 }
 
 }
-
-
-#endif /* __LIBMARY__UTIL_COMMON__H__ */
 

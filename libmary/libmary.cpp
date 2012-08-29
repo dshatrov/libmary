@@ -58,8 +58,8 @@ void libMaryInit ()
 	g_thread_init (NULL);
 #endif
 
-#if !defined LIBMARY_MT_SAFE && !defined LIBMARY_TLOCAL
-    _libMary_exc_buf = new ExceptionBuffer (1024 /* alloc_len */);
+#if !defined LIBMARY_MT_SAFE || defined LIBMARY_TLOCAL
+    _libMary_exc_buf = new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE);
 #endif
 
     libMary_threadLocalInit ();
@@ -73,6 +73,8 @@ void libMaryInit ()
 #ifdef LIBMARY_ENABLE_MWRITEV
     libMary_mwritevInit ();
 #endif
+
+    randomSetSeed ((Uint32) getTime());
 }
 
 }

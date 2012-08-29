@@ -223,6 +223,7 @@ libmary_1_0_la_SOURCES =		\
 	libmary.cpp			\
 	util_c.c			\
 	util_base.cpp			\
+        util_common.cpp                 \
 	util_str.cpp			\
 	util_time.cpp			\
 	util_net.cpp			\
@@ -230,6 +231,7 @@ libmary_1_0_la_SOURCES =		\
 					\
 	types.cpp			\
 	string.cpp			\
+        exception_buffer.cpp            \
 	exception.cpp			\
 	informer.cpp			\
 					\
