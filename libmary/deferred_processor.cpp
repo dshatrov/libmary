@@ -175,8 +175,8 @@ DeferredProcessor_Registration::release ()
 		task->processing = false;
 		task->registration = NULL;
 	    }
-            // This clears task->cb.ref_data, which allows for self-referencing tasks.
-            task->cb.reset ();
+            // This allows for self-referencing tasks.
+            task->self_ref.selfUnref ();
 	}
     }
     task_list.clear ();
@@ -192,8 +192,8 @@ DeferredProcessor_Registration::release ()
 		task->processing = false;
 		task->registration = NULL;
 	    }
-            // This clears task->cb.ref_data, which allows for self-referencing tasks.
-            task->cb.reset ();
+            // This allows for self-referencing tasks.
+            task->self_ref.selfUnref ();
 	}
     }
     permanent_task_list.clear ();
@@ -281,8 +281,14 @@ DeferredProcessor::process ()
 			if (task->registration)
 			    task->registration->rescheduleTask (task);
 		    }
-		}
-	    }
+#if 0
+// 'self_ref' is supposed to be nullified in task callback.
+                } else {
+                    if (!task->permanent)
+                        task->self_ref.selfUnref ();
+#endif
+                }
+            }
 	}
     }
 

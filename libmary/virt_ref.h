@@ -48,6 +48,17 @@ public:
     }
 #endif
 
+    // TODO Unrefing late in all *Ref<> classes is probably a good idea.
+    //      ^^^ For sure!
+    void selfUnref ()
+    {
+        if (this->ref) {
+            VirtReferenced * const tmp_ref = this->ref;
+            this->ref = NULL;
+            tmp_ref->virt_unref ();
+        }
+    }
+
     VirtRef& operator = (VirtReferenced * const ref)
     {
         if (this->ref == ref)

@@ -57,6 +57,7 @@ private:
 
 public:
     mt_const Cb<DeferredProcessor_TaskCallback> cb;
+    mt_const VirtRef self_ref;
 
     DeferredProcessor_Task ()
         : scheduled (false),
