@@ -52,10 +52,9 @@ private:
   mt_begin
     ConnectionSenderImpl conn_sender_impl;
 
+    bool closed;
     bool close_after_flush;
-
     bool ready_for_output;
-
     bool in_output_queue;
   mt_end
 
@@ -72,12 +71,24 @@ private:
     mt_unlocks (mutex) void doFlush ();
 
 public:
+  mt_iface (Sender)
+
     void sendMessage (MessageEntry * mt_nonnull msg_entry,
 		      bool do_flush = false);
 
     void flush ();
 
     void closeAfterFlush ();
+
+    void close ();
+
+    mt_mutex (mutex) bool isClosed_unlocked ();
+
+    void lock ();
+
+    void unlock ();
+
+  mt_iface_end
 
     mt_const void setConnection (Connection * const mt_nonnull conn)
     {
@@ -86,10 +97,7 @@ public:
 		&conn_output_frontend, this, getCoderefContainer()));
     }
 
-    mt_const void setQueue (DeferredConnectionSenderQueue * const mt_nonnull dcs_queue)
-    {
-        this->dcs_queue = dcs_queue;
-    }
+    mt_const void setQueue (DeferredConnectionSenderQueue * mt_nonnull dcs_queue);
 
     DeferredConnectionSender (Object *coderef_container);
 

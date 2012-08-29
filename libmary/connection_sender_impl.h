@@ -32,6 +32,8 @@ mt_unsafe class ConnectionSenderImpl
 {
 private:
     mt_const Cb<Sender::Frontend> *frontend;
+    mt_const Sender *sender;
+    mt_const DeferredProcessor::Registration *deferred_reg;
 
     mt_const Connection *conn;
 
@@ -123,9 +125,13 @@ public:
     }
 #endif
 
-    mt_const void setFrontend (Cb<Sender::Frontend> * const frontend)
+    mt_const void init (Cb<Sender::Frontend>            * const frontend,
+                        Sender                          * const sender,
+                        DeferredProcessor::Registration * const deferred_reg)
     {
-	this->frontend = frontend;
+        this->frontend = frontend;
+        this->sender = sender;
+        this->deferred_reg = deferred_reg;
     }
 
     mt_const void setLimits (Count const soft_msg_limit,
@@ -137,7 +143,7 @@ public:
 
     ConnectionSenderImpl (bool enable_processing_barrier);
 
-    ~ConnectionSenderImpl ();
+    void release ();
 };
 
 }

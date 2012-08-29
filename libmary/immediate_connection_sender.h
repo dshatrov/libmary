@@ -35,17 +35,18 @@ class ImmediateConnectionSender : public Sender,
 private:
     DeferredProcessor::Registration deferred_reg;
 
-  // mt_mutex (mutex) {
+  mt_mutex (mutex)
+  mt_begin
     ConnectionSenderImpl conn_sender_impl;
 
+    bool closed;
     bool close_after_flush;
-
     bool ready_for_output;
-  // }
+  mt_end
 
     StateMutex mutex;
 
-    mt_mutex (mutex) mt_unlocks (mutex) void closeIfNeeded (bool deferred_event);
+    mt_unlocks (mutex) void closeIfNeeded (bool deferred_event);
 
     static Connection::OutputFrontend const conn_output_frontend;
 
@@ -54,12 +55,24 @@ private:
     mt_mutex (mutex) mt_unlocks (mutex) void doFlush ();
 
 public:
+  mt_iface (Sender)
+
     void sendMessage (MessageEntry * mt_nonnull msg_entry,
 		      bool do_flush = false);
 
     void flush ();
 
     void closeAfterFlush ();
+
+    void close ();
+
+    mt_mutex (mutex) bool isClosed_unlocked ();
+
+    void lock ();
+
+    void unlock ();
+
+  mt_iface_end
 
     void setConnection (Connection * const mt_nonnull conn)
     {
@@ -72,14 +85,7 @@ public:
         deferred_reg.setDeferredProcessor (deferred_processor);
     }
 
-    ImmediateConnectionSender (Object * const coderef_container)
-	: DependentCodeReferenced (coderef_container),
-	  conn_sender_impl (false /* enable_processing_barrier */),
-	  close_after_flush (false),
-	  ready_for_output (true)
-    {
-	conn_sender_impl.setFrontend (&frontend);
-    }
+    ImmediateConnectionSender (Object *coderef_container);
 
     ~ImmediateConnectionSender ();
 };

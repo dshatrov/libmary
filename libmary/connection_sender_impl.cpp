@@ -43,11 +43,15 @@ ConnectionSenderImpl::setSendState (Sender::SendState const new_state)
     logD (send, _func, "Send state: ", (unsigned) new_state);
 
     send_state = new_state;
-    if (frontend
-	&& (*frontend)
-	&& (*frontend)->sendStateChanged)
-    {
-	frontend->call ((*frontend)->sendStateChanged, /* ( */ new_state /* ) */);
+
+    if (sender)
+        sender->fireSendStateChanged_deferred (deferred_reg, new_state);
+
+    if (frontend && (*frontend)) {
+        frontend->call_deferred (deferred_reg,
+                                 (*frontend)->sendStateChanged,
+                                 NULL /* extra_ref_data */,
+                                 new_state);
     }
 }
 
@@ -91,7 +95,8 @@ void
 ConnectionSenderImpl::popPage (Sender::MessageEntry_Pages * const mt_nonnull msg_pages)
 {
     PagePool::Page * const next_page = msg_pages->first_page->getNextMsgPage ();
-    logD (send, _func, "unrefing page 0x", fmt_hex, (UintPtr) msg_pages->first_page);
+//    logD_ (_func, "unrefing page 0x", fmt_hex, (UintPtr) msg_pages->first_page, ", "
+//           "refcount: ", msg_pages->first_page->getRefcount());
     msg_pages->page_pool->pageUnref (msg_pages->first_page);
     msg_pages->first_page = next_page;
     msg_pages->msg_offset = 0;
@@ -1035,7 +1040,8 @@ ConnectionSenderImpl::ConnectionSenderImpl (bool const enable_processing_barrier
 {
 }
 
-ConnectionSenderImpl::~ConnectionSenderImpl ()
+void
+ConnectionSenderImpl::release ()
 {
     Sender::MessageList::iter iter (msg_list);
     while (!msg_list.iter_done (iter)) {

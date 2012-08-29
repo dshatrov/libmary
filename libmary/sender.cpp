@@ -49,5 +49,106 @@ Sender::deleteMessageEntry (MessageEntry * const mt_nonnull msg_entry)
 }
 #endif
 
+namespace {
+    struct InformClosed_Data
+    {
+        Exception *exc_;
+    };
+}
+
+void
+Sender::informClosed (Frontend * const events,
+                      void     * const cb_data,
+                      void     * const _inform_data)
+{
+    if (events->closed) {
+        InformClosed_Data * const inform_data =
+                static_cast <InformClosed_Data*> (_inform_data);
+        events->closed (inform_data->exc_, cb_data);
+    }
+}
+
+namespace {
+    struct InformSendStateChanged_Data
+    {
+        Sender::SendState send_state;
+    };
+}
+
+void
+Sender::informSendStateChanged (Frontend * const events,
+                                void     * const cb_data,
+                                void     * const _inform_data)
+{
+    if (events->sendStateChanged) {
+        InformSendStateChanged_Data * const inform_data =
+                static_cast <InformSendStateChanged_Data*> (_inform_data);
+        events->sendStateChanged (inform_data->send_state, cb_data);
+    }
+}
+
+void
+Sender::fireClosed (Exception * const exc_)
+{
+    InformClosed_Data inform_data = { exc_ };
+    event_informer.informAll (informClosed, &inform_data);
+}
+
+mt_mutex (mutex) void
+Sender::fireClosed_unlocked (Exception * const exc_)
+{
+    InformClosed_Data inform_data = { exc_ };
+    mt_unlocks_locks (mutex) event_informer.informAll_unlocked (informClosed, &inform_data);
+}
+
+void
+Sender::fireClosed_static (Exception * const exc_,
+                           void      * const _self)
+{
+    Sender * const self = static_cast <Sender*> (_self);
+    self->fireClosed (exc_);
+}
+
+void
+Sender::fireClosed_deferred (DeferredProcessor::Registration * const def_reg,
+                             ExceptionBuffer                 * const exc_buf)
+{
+    Cb <void (Exception*, void*)> cb (fireClosed_static,
+                                      this,
+                                      getCoderefContainer());
+    cb.call_deferred (def_reg,
+                      fireClosed_static,
+                      exc_buf /* extra_ref_data */,
+                      exc_buf ? exc_buf->getException() : NULL);
+}
+
+void
+Sender::fireSendStateChanged (SendState const send_state)
+{
+    InformSendStateChanged_Data inform_data = { send_state };
+    event_informer.informAll (informSendStateChanged, &inform_data);
+}
+
+void
+Sender::fireSendStateChanged_static (SendState   const send_state,
+                                     void      * const _self)
+{
+    Sender * const self = static_cast <Sender*> (_self);
+    self->fireSendStateChanged (send_state);
+}
+
+void
+Sender::fireSendStateChanged_deferred (DeferredProcessor::Registration * const def_reg,
+                                       SendState const send_state)
+{
+    Cb <void (SendState, void*)> cb (fireSendStateChanged_static,
+                                     this,
+                                     getCoderefContainer());
+    cb.call_deferred (def_reg,
+                      fireSendStateChanged_static,
+                      NULL /* extra_ref_data */,
+                      send_state);
+}
+
 }
 

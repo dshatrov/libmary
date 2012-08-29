@@ -26,9 +26,10 @@
 #include <new>
 
 #include <libmary/libmary_config.h>
-#include <libmary/cb.h>
-#include <libmary/exception.h>
 #include <libmary/intrusive_list.h>
+#include <libmary/cb.h>
+#include <libmary/informer.h>
+#include <libmary/exception.h>
 #include <libmary/page_pool.h>
 
 
@@ -152,21 +153,7 @@ public:
 
 	Size getPagesDataLen () const
 	{
-	    Size pages_data_len = 0;
-	    {
-		PagePool::Page *cur_page = first_page;
-		if (cur_page) {
-		    assert (msg_offset <= cur_page->data_len);
-		    pages_data_len += cur_page->data_len - msg_offset;
-		    cur_page = cur_page->getNextMsgPage ();
-		    while (cur_page) {
-			pages_data_len += cur_page->data_len;
-			cur_page = cur_page->getNextMsgPage ();
-		    }
-		}
-	    }
-
-	    return pages_data_len;
+            return PagePool::countPageListDataLen (first_page, msg_offset);
 	}
 
 	static MessageEntry_Pages* createNew (Size const max_header_len)
@@ -206,7 +193,41 @@ public:
 protected:
     mt_const Cb<Frontend> frontend;
 
+    Informer_<Frontend> event_informer;
+
+    static void informClosed (Frontend *events,
+                              void     *cb_data,
+                              void     *inform_data);
+
+    static void informSendStateChanged (Frontend *events,
+                                        void     *cb_data,
+                                        void     *inform_data);
+
+    void fireClosed (Exception *exc_);
+
+    mt_mutex (mutex) void fireClosed_unlocked (Exception *exc_);
+
+    static void fireClosed_static (Exception *exc_,
+                                   void      *_self);
+
+    void fireClosed_deferred (DeferredProcessor::Registration *def_reg,
+                              ExceptionBuffer                 *exc_buf);
+
+    void fireSendStateChanged (SendState send_state);
+
+    static void fireSendStateChanged_static (SendState  send_state,
+                                             void      *_self);
+
 public:
+    Informer_<Frontend>* getEventInformer ()
+    {
+        return &event_informer;
+    }
+
+    // public for ConnectionSenderImpl.
+    void fireSendStateChanged_deferred (DeferredProcessor::Registration *def_reg,
+                                        SendState send_state);
+
     // Takes ownership of msg_entry.
     virtual void sendMessage (MessageEntry * mt_nonnull msg_entry,
 			      bool do_flush = false) = 0;
@@ -216,15 +237,43 @@ public:
     // Frontend::closed() will be called after message queue becomes empty.
     virtual void closeAfterFlush () = 0;
 
+    // Frontend::closed() will be called (deferred callback invocation).
+    virtual void close () = 0;
+
+    virtual bool isClosed_unlocked () = 0;
+
+    virtual void lock () = 0;
+
+    virtual void unlock () = 0;
+
+    // Deprecated form
     void sendPages (PagePool               * const mt_nonnull page_pool,
 		    PagePool::PageListHead * const mt_nonnull page_list,
 		    bool                     const do_flush = false)
     {
+        sendPages (page_pool, page_list->first, 0 /* msg_offset */, do_flush);
+    }
+
+    void sendPages (PagePool       * const mt_nonnull page_pool,
+                    PagePool::Page * const mt_nonnull first_page,
+                    Size             const msg_offset,
+                    bool             const do_flush)
+    {
 	MessageEntry_Pages * const msg_pages = MessageEntry_Pages::createNew (0 /* max_header_len */);
 	msg_pages->header_len = 0;
 	msg_pages->page_pool = page_pool;
-	msg_pages->first_page = page_list->first;
-	msg_pages->msg_offset = 0;
+	msg_pages->first_page = first_page;
+	msg_pages->msg_offset = msg_offset;
+
+        // TODO Workaround for broken msg_offset handling. Fix ConnectionSenderImpl instead.
+        if (msg_offset > 0) {
+            Size const len = PagePool::countPageListDataLen (first_page, msg_offset);
+            PagePool::PageListHead page_list;
+            page_pool->getFillPagesFromPages (&page_list, first_page, msg_offset, len);
+            msg_pages->first_page = page_list.first;
+            msg_pages->msg_offset = 0;
+            page_pool->msgUnref (first_page);
+        }
 
 	sendMessage (msg_pages, do_flush);
     }
@@ -251,7 +300,11 @@ public:
 	this->frontend = frontend;
     }
 
-    virtual ~Sender () {}
+    Sender (Object     * const coderef_container,
+            StateMutex * const mutex)
+        : event_informer (coderef_container, mutex)
+    {
+    }
 };
 
 }

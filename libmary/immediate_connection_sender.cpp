@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011, 2012 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -29,21 +29,27 @@ Connection::OutputFrontend const ImmediateConnectionSender::conn_output_frontend
 };
 
 // Must be called with 'mutex' held. Releases 'mutex' before returning.
-mt_mutex (mutex) mt_unlocks (mutex) void
+mt_unlocks (mutex) void
 ImmediateConnectionSender::closeIfNeeded (bool const deferred_event)
 {
-//    logD_ (_func, "close_after_flush: ", close_after_flush, ", "
-//	   "gotDataToSend(): ", conn_sender_impl.gotDataToSend());
-
-    if (close_after_flush &&
-	!conn_sender_impl.gotDataToSend ())
+    if (!closed
+        && close_after_flush
+	&& !conn_sender_impl.gotDataToSend ())
     {
+        closed = true;
 	mutex.unlock ();
 
-        if (frontend) {
-            if (deferred_event)
-                frontend.call_deferred (&deferred_reg, frontend->closed, static_cast <Exception*> (NULL /* exc_ */));
-            else
+        if (deferred_event) {
+            fireClosed_deferred (&deferred_reg, NULL /* exc_buf */);
+            if (frontend) {
+                frontend.call_deferred (&deferred_reg,
+                                        frontend->closed,
+                                        NULL /* extra_ref_data */,
+                                        static_cast <Exception*> (NULL) /* exc_ */);
+            }
+        } else {
+            fireClosed (NULL /* exc_ */);
+            if (frontend)
                 frontend.call (frontend->closed, /*(*/ (Exception*) NULL /* exc_ */ /*)*/);
         }
     } else {
@@ -54,8 +60,6 @@ ImmediateConnectionSender::closeIfNeeded (bool const deferred_event)
 void
 ImmediateConnectionSender::processOutput (void * const _self)
 {
-//    logD_ (_func_);
-
     ImmediateConnectionSender * const self = static_cast <ImmediateConnectionSender*> (_self);
 
     self->mutex.lock ();
@@ -64,14 +68,29 @@ ImmediateConnectionSender::processOutput (void * const _self)
 	res == AsyncIoResult::Eof)
     {
 	self->ready_for_output = false;
+
+        bool inform_closed = false;
+        if (!self->closed) {
+            self->closed = true;
+            inform_closed = true;
+        }
+
 	self->mutex.unlock ();
 
 	// exc is NULL for Eof.
 	if (res == AsyncIoResult::Error)
 	    logE_ (_func, exc->toString());
 
-	if (self->frontend && self->frontend->closed)
-	    self->frontend.call (self->frontend->closed, /*(*/ exc /*)*/);
+        if (inform_closed) {
+            ExceptionBuffer * const exc_buf = exc_swap_noref ();
+
+            self->fireClosed (exc_buf->getException());
+            if (self->frontend)
+                self->frontend.call (self->frontend->closed, /*(*/ exc_buf->getException() /*)*/);
+
+            exc_delete (exc_buf);
+        }
+
 	return;
     }
 
@@ -80,9 +99,7 @@ ImmediateConnectionSender::processOutput (void * const _self)
     else
 	self->ready_for_output = true;
 
-//    logD_ (_func, "calling closeIfNeeded()");
-    self->closeIfNeeded (false /* deferred_event */);
-    // 'mutex' has been unlocked by closeIfNeeded().
+    mt_unlocks (mutex) self->closeIfNeeded (false /* deferred_event */);
 }
 
 void
@@ -101,8 +118,6 @@ ImmediateConnectionSender::sendMessage (MessageEntry  * const mt_nonnull msg_ent
 mt_mutex (mutex) mt_unlocks (mutex) void
 ImmediateConnectionSender::doFlush ()
 {
-//    logD_ (_func_);
-
     if (!ready_for_output) {
 	mutex.unlock ();
 	return;
@@ -113,18 +128,42 @@ ImmediateConnectionSender::doFlush ()
 	res == AsyncIoResult::Eof)
     {
 	ready_for_output = false;
+
+        bool inform_closed = false;
+        if (!closed) {
+            closed = true;
+            inform_closed = true;
+        }
+
 	mutex.unlock ();
 
 	// TODO It might be better to return Result from flush().
+        //
 	// exc is NULL for Eof.
-	if (res == AsyncIoResult::Error)
+	if (res == AsyncIoResult::Error) {
 	    logE_ (_func, exc->toString());
 
-        if (frontend) {
-            // TODO Clone 'exc' and pass it to frontend->closed callback.
-            static InternalException dummy_exc (InternalException::UnknownError);
+            if (inform_closed) {
+                Ref<ExceptionBuffer> const exc_buf = exc_swap ();
 
-            frontend.call_deferred (&deferred_reg, frontend->closed, static_cast <Exception*> (&dummy_exc));
+                fireClosed_deferred (&deferred_reg, exc_buf);
+                if (frontend) {
+                    frontend.call_deferred (&deferred_reg,
+                                            frontend->closed,
+                                            exc_buf /* extra_ref_data */,
+                                            exc_buf->getException());
+                }
+            }
+        } else {
+            if (inform_closed) {
+                fireClosed_deferred (&deferred_reg, NULL /* exc_buf */);
+                if (frontend) {
+                    frontend.call_deferred (&deferred_reg,
+                                            frontend->closed,
+                                            NULL /* extra_ref_data */,
+                                            static_cast <Exception*> (NULL) /* exc_ */);
+                }
+            }
         }
 
 	return;
@@ -133,7 +172,6 @@ ImmediateConnectionSender::doFlush ()
     if (res == AsyncIoResult::Again)
 	ready_for_output = false;
 
-//    logD_ (_func, "calling closeIfNeeded()");
     mt_unlocks (mutex) closeIfNeeded (true /* deferred_event */);
 }
 
@@ -149,17 +187,62 @@ ImmediateConnectionSender::closeAfterFlush ()
 {
     mutex.lock ();
     close_after_flush = true;
-    // TODO It might be better to return boolean from closeAfterFlush():
-    //      if (!conn_sender_impl.gotDataToSend ()) return true;
-    closeIfNeeded (true /* deferred_event */);
-    // 'mutex' has been unlocked by closeIfNeeded().
+    mt_unlocks (mutex) closeIfNeeded (true /* deferred_event */);
+}
+
+void
+ImmediateConnectionSender::close ()
+{
+    mutex.lock ();
+    if (closed) {
+        mutex.unlock ();
+        return;
+    }
+    closed = true;
+    mutex.unlock ();
+
+    fireClosed_deferred (&deferred_reg, NULL /* exc_buf */);
+    if (frontend) {
+        frontend.call_deferred (&deferred_reg,
+                                frontend->closed,
+                                NULL /* extra_ref_data */,
+                                static_cast <Exception*> (NULL) /* exc_ */);
+    }
+}
+
+mt_mutex (mutex) bool
+ImmediateConnectionSender::isClosed_unlocked ()
+{
+    return closed;
+}
+
+void
+ImmediateConnectionSender::lock ()
+{
+    mutex.lock ();
+}
+
+void
+ImmediateConnectionSender::unlock ()
+{
+    mutex.unlock ();
+}
+
+ImmediateConnectionSender::ImmediateConnectionSender (Object * const coderef_container)
+    : Sender (coderef_container, &mutex),
+      DependentCodeReferenced (coderef_container),
+      conn_sender_impl (false /* enable_processing_barrier */),
+      closed (false),
+      close_after_flush (false),
+      ready_for_output (true)
+{
+    conn_sender_impl.init (&frontend, this /* sender */, &deferred_reg);
 }
 
 ImmediateConnectionSender::~ImmediateConnectionSender ()
 {
-    // Doing lock/unlock to ensure that ~ConnectionSenderImpl() will see correct
-    // data.
     mutex.lock();
+    conn_sender_impl.release ();
     mutex.unlock();
 }
 

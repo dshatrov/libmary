@@ -34,6 +34,8 @@
 
 namespace M {
 
+// TODO Consider calling informAll_unlocked() in ImmediateConnectionSender and DeferredConnectionSender
+
 namespace {
 LogGroup libMary_logGroup_mwritev ("deferred_sender_mwritev", LogLevel::I);
 LogGroup libMary_logGroup_sender ("deferred_sender", LogLevel::I);
@@ -115,19 +117,26 @@ DeferredConnectionSender::closeIfNeeded (bool const deferred_event)
 	  "close_after_flush: ", close_after_flush, ", "
 	  "gotDataToSend: ", conn_sender_impl.gotDataToSend());
 
-    if (close_after_flush &&
-	!conn_sender_impl.gotDataToSend())
+    if (!closed
+        && close_after_flush
+	&& !conn_sender_impl.gotDataToSend())
     {
+        closed = true;
 	mutex.unlock ();
 
-	logD (close, _func, "calling frontend->closed");
-        if (frontend) {
-            if (deferred_event) {
-                // It is safe to use dcs_queue's deferred processor registration.
-                frontend.call_deferred (&dcs_queue->send_reg, frontend->closed, static_cast <Exception*> (NULL /* exc_ */));
-            } else {
-                frontend.call (frontend->closed, /*(*/ (Exception*) NULL /* exc_ */ /*)*/);
+        if (deferred_event) {
+            // It is safe to use dcs_queue's deferred processor registration.
+            fireClosed_deferred (&dcs_queue->send_reg, NULL /* exc_buf */);
+            if (frontend) {
+                frontend.call_deferred (&dcs_queue->send_reg,
+                                        frontend->closed,
+                                        NULL /* extra_ref_data */,
+                                        static_cast <Exception*> (NULL) /* exc_ */);
             }
+        } else {
+            fireClosed (NULL /* exc_ */);
+            if (frontend)
+                frontend.call (frontend->closed, /*(*/ (Exception*) NULL /* exc_ */ /*)*/);
         }
     } else {
 	mutex.unlock ();
@@ -191,29 +200,77 @@ DeferredConnectionSender::closeAfterFlush ()
     mt_unlocks (mutex) closeIfNeeded (true /* deferred_event */);
 }
 
-DeferredConnectionSender::DeferredConnectionSender (Object * const coderef_container)
-    : DependentCodeReferenced (coderef_container),
-      dcs_queue (coderef_container),
-      conn_sender_impl (true /* enable_processing_barrier */),
-      close_after_flush (false),
-      ready_for_output (true),
-      in_output_queue (false)
+void
+DeferredConnectionSender::close ()
 {
-    conn_sender_impl.setFrontend (&frontend);
+    mutex.lock ();
+    if (closed) {
+        mutex.unlock ();
+        return;
+    }
+    closed = true;
+    mutex.unlock ();
+
+    // It is safe to use dcs_queue's deferred processor registration.
+    fireClosed_deferred (&dcs_queue->send_reg, NULL /* exc_buf */);
+    if (frontend) {
+        frontend.call_deferred (&dcs_queue->send_reg,
+                                frontend->closed,
+                                NULL /* extra_ref_data */,
+                                static_cast <Exception*> (NULL) /* exc_ */);
+    }
+}
+
+mt_mutex (mutex) bool
+DeferredConnectionSender::isClosed_unlocked ()
+{
+    return closed;
+}
+
+void
+DeferredConnectionSender::lock ()
+{
+    mutex.lock ();
+}
+
+void
+DeferredConnectionSender::unlock ()
+{
+    mutex.unlock ();
+}
+
+mt_const void
+DeferredConnectionSender::setQueue (DeferredConnectionSenderQueue * const mt_nonnull dcs_queue)
+{
+    this->dcs_queue = dcs_queue;
+
+    // It is safe to use dcs_queue's deferred processor registration.
+    conn_sender_impl.init (&frontend, this /* sender */, &dcs_queue->send_reg);
+}
+
+DeferredConnectionSender::DeferredConnectionSender (Object * const coderef_container)
+    : Sender                  (coderef_container, &mutex),
+      DependentCodeReferenced (coderef_container),
+      dcs_queue               (coderef_container),
+      conn_sender_impl        (true /* enable_processing_barrier */),
+      closed                  (false),
+      close_after_flush       (false),
+      ready_for_output        (true),
+      in_output_queue         (false)
+{
 }
 
 DeferredConnectionSender::~DeferredConnectionSender ()
 {
 //    logD_ (_func, "0x", fmt_hex, (UintPtr) this);
 
-    // Doing lock/unlock to ensure that ~ConnectionSenderImpl() will see correct
-    // data.
     mutex.lock();
 
     // Currently, DeferredConnectionSender cannot be destroyed while it is
     // in output_queue, because it is referenced while it is in the queue.
     assert (!in_output_queue);
 
+    conn_sender_impl.release ();
     mutex.unlock();
 }
 
@@ -277,15 +334,43 @@ DeferredConnectionSenderQueue::process (void *_self)
 	    deferred_sender->ready_for_output = false;
 
 	    // exc is NULL for Eof.
-	    if (res == AsyncIoResult::Error)
+	    if (res == AsyncIoResult::Error) {
 		logE_ (_func, exc->toString());
 
-	    if (deferred_sender->frontend && deferred_sender->frontend->closed) {
-		deferred_sender->mutex.unlock ();
-		deferred_sender->frontend.call (deferred_sender->frontend->closed, /*(*/ exc /*)*/);
-	    } else {
-		deferred_sender->mutex.unlock ();
-	    }
+                if (!deferred_sender->closed) {
+                    deferred_sender->closed = true;
+
+                    ExceptionBuffer * const exc_buf = exc_swap_noref ();
+
+                    deferred_sender->fireClosed_unlocked (exc_buf->getException());
+                    if (deferred_sender->frontend && deferred_sender->frontend->closed) {
+                        deferred_sender->mutex.unlock ();
+                        deferred_sender->frontend.call (deferred_sender->frontend->closed,
+                                                        /*(*/ exc_buf->getException() /*)*/);
+                    } else {
+                        deferred_sender->mutex.unlock ();
+                    }
+
+                    exc_delete (exc_buf);
+                } else {
+                    deferred_sender->mutex.unlock ();
+                }
+            } else {
+                if (!deferred_sender->closed) {
+                    deferred_sender->closed = true;
+
+                    deferred_sender->fireClosed_unlocked (NULL /* exc_buf */);
+                    if (deferred_sender->frontend && deferred_sender->frontend->closed) {
+                        deferred_sender->mutex.unlock ();
+                        deferred_sender->frontend.call (deferred_sender->frontend->closed,
+                                                        /*(*/ static_cast <Exception*> (NULL) /* exc_ */ /*)*/);
+                    } else {
+                        deferred_sender->mutex.unlock ();
+                    }
+                } else {
+                    deferred_sender->mutex.unlock ();
+                }
+            }
 
 	    {
 		Object * const coderef_container = deferred_sender->getCoderefContainer();
@@ -404,7 +489,8 @@ DeferredConnectionSenderQueue::process_mwritev (void *_self)
 		Count num_iovs = 0;
 		deferred_sender->conn_sender_impl.sendPendingMessages_fillIovs (&num_iovs,
 										mwritev->iovs_heap + total_iovs,
-										Mwritev_MaxIovsPerFd);
+										Mwritev_MaxIovsPerFd,
+                                                                                false /* deferred_events */);
 
 		// TODO Try leaving the lock here and unlocking after mwritev() call.
 		// TEST (uncomment)
@@ -484,14 +570,41 @@ DeferredConnectionSenderQueue::process_mwritev (void *_self)
 		    if (async_res == AsyncIoResult::Error) {
 			exc_throw <PosixException> (-posix_res);
 			logE_ (_func, exc->toString());
-		    }
 
-		    if (deferred_sender->frontend && deferred_sender->frontend->closed) {
-			deferred_sender->mutex.unlock ();
-			deferred_sender->frontend.call (deferred_sender->frontend->closed, /*(*/ exc /*)*/);
+                        if (!closed) {
+                            closed = true;
+
+                            ExceptionBuffer * const exc_buf = exc_swap_noref ();
+
+                            deferred_sender->fireClosed_unlocked (exc_buf->getException());
+                            if (deferred_sender->frontend && deferred_sender->frontend->closed) {
+                                deferred_sender->mutex.unlock ();
+                                deferred_sender->frontend.call (deferred_sender->frontend->closed,
+                                                                /*(*/ exc_buf->getException() /*)*/);
+                            } else {
+                                deferred_sender->mutex.unlock ();
+                            }
+
+                            exc_delete (exc_buf);
+                        } else {
+                            deferred_sender->mutex.unlock ();
+                        }
 		    } else {
-			deferred_sender->mutex.unlock ();
-		    }
+                        if (!closed) {
+                            closed = true;
+
+                            deferred_sender->fireClosed_unlocked (NULL /* exc_buf */);
+                            if (deferred_sender->frontend && deferred_sender->frontend->closed) {
+                                deferred_sender->mutex.unlock ();
+                                deferred_sender->frontend.call (deferred_sender->frontend->closed,
+                                                                /*(*/ NULL /* exc_ */ /*)*/);
+                            } else {
+                                deferred_sender->mutex.unlock ();
+                            }
+                        } else {
+                            deferred_sender->mutex.unlock ();
+                        }
+                    }
 
 		    {
 			Object * const coderef_container = deferred_sender->getCoderefContainer();
@@ -512,7 +625,9 @@ DeferredConnectionSenderQueue::process_mwritev (void *_self)
 		if (!eintr) {
 		    // TEST (uncomment)
 //		    deferred_sender->mutex.lock ();
-		    deferred_sender->conn_sender_impl.sendPendingMessages_react (async_res, num_written);
+		    deferred_sender->conn_sender_impl.sendPendingMessages_react (async_res,
+                                                                                 num_written,
+                                                                                 false /* deferred_events */);
 		    tmp_extra_iteration_needed = deferred_sender->conn_sender_impl.processingBarrierHit();
 		} else {
 		    tmp_extra_iteration_needed = true;
