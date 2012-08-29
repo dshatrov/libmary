@@ -35,7 +35,6 @@ LibMary_ThreadLocal::LibMary_ThreadLocal ()
     : deletion_queue (NULL),
       deletion_queue_processing (false),
       state_mutex_counter (0),
-      exc_buffer (1024 /* alloc_len */),
       exc (NULL),
       exc_block (0),
       last_coderef_container (NULL),
@@ -53,6 +52,8 @@ LibMary_ThreadLocal::LibMary_ThreadLocal ()
       win_time_offs (0)
 #endif
 {
+    exc_buffer = grab (new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE));
+
     memset (&localtime, 0, sizeof (localtime));
     memset (timezone_str, ' ', sizeof (timezone_str));
 

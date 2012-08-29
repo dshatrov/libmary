@@ -76,7 +76,7 @@ public:
 
     Count state_mutex_counter;
 
-    ExceptionBuffer exc_buffer;
+    Ref<ExceptionBuffer> exc_buffer;
     Exception *exc;
     Uint32 exc_block;
 
