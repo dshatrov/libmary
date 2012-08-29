@@ -237,9 +237,10 @@ public:
     }
 
     template <class CB, class ...Args>
-    void call_deferred (DeferredProcessor_Registration * const mt_nonnull def_reg,
-                        CB const tocall,
-                        Args ...args) const;
+    void call_deferred (DeferredProcessor_Registration * mt_nonnull def_reg,
+                        CB                             *tocall,
+                        VirtReferenced                 *extra_ref_data,
+                        Args                            ...args) const;
 
     // Convenient method of invoking callbacks which return void.
     //

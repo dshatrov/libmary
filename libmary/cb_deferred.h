@@ -39,20 +39,20 @@ class DeferredProcessor;
 // Cb_CallData expands Args into an equivalent of struct { Arg1 a1; Arg2 a2; ... };
 // One can then call a function using a function pointer to which (a2, a2, ...) args
 // will be passed.
-template <class ...Args> class Cb_CallData;
+template <class CB, class ...Args> class Cb_CallData;
 
 // Using partial specialization to extract the 1st arg, because g++ 4.6
 // doesn't support doing this the easy way.
-template <class T, class ...Args>
-class Cb_CallData <T, Args...>
+template <class CB, class T, class ...Args>
+class Cb_CallData <CB, T, Args...>
 {
 private:
     T param;
-    Cb_CallData <Args...> data;
+    Cb_CallData <CB, Args...> data;
 
 public:
     template <class ...CallArgs>
-    void call (Cb <void (CallArgs..., T, Args..., void*)> * const cb, CallArgs... args)
+    void call (Cb<CB> * const cb, CallArgs... args)
     {
         data.call <CallArgs..., T> (cb, args..., param);
     }
@@ -65,71 +65,78 @@ public:
     }
 };
 
-template <>
-class Cb_CallData <>
+template <class CB>
+class Cb_CallData <CB>
 {
 public:
     template <class ...CallArgs>
-    static void call (Cb <void (CallArgs..., void*)> * const cb, CallArgs... args)
+    static void call (Cb<CB> * const cb, CallArgs... args)
     {
         cb->call_ (args...);
     }
 };
 
-template <class ...Args>
+template <class CB, class ...Args>
 class Cb_SpecificDeferredCall : public Referenced
 {
 private:
-    Cb< void (Args..., void*) > cb;
-    Cb_CallData <Args...> data;
+    Cb<CB> cb;
+    VirtRef extra_ref_data;
+    Cb_CallData <CB, Args...> data;
 
     static bool taskCallback (void * const _self)
     {
         Cb_SpecificDeferredCall * const self = static_cast <Cb_SpecificDeferredCall*> (_self);
         self->data.call (&self->cb);
-        // It is safe to delete a Task while it is being processed by DeferredProcessor
-        // if the task is not permanent.
-        delete self;
+        // TODO Review self-ref logics carefully.
+        //      It looks like there's a logical error (double-free possible?)
+        assert (self->task.self_ref.ptr());
+        self->task.self_ref.selfUnref ();
         return false /* do not reschedule */;
     }
 
 public:
     DeferredProcessor_Task task;
 
-    Cb_SpecificDeferredCall (void (* const cb_func) (Args..., void*),
-                             void           * const cb_data,
-                             WeakCodeRef const   * const weak_code_ref,
-                             VirtReferenced * const ref_data,
+    Cb_SpecificDeferredCall (CB                * const cb_func,
+                             void              * const cb_data,
+                             WeakCodeRef const * const weak_code_ref,
+                             VirtReferenced    * const ref_data,
+                             VirtReferenced    * const extra_ref_data,
                              Args... args)
         : cb (cb_func, cb_data, weak_code_ref, ref_data),
+          extra_ref_data (extra_ref_data),
           data (args...)
     {
         task.cb = CbDesc<DeferredProcessor_TaskCallback> (&taskCallback,
                                                           this /* cb_data */,
                                                           NULL /* coderef_container */,
-                                                          this /* ref_data */);
+                                                          NULL /* ref_data */);
+        task.self_ref = this;
     }
 };
 
 template <class T>
 template <class CB, class ...Args>
 void Cb<T>::call_deferred (DeferredProcessor_Registration * const mt_nonnull def_reg,
-                           CB const tocall,
-                           Args ...args) const
+                           CB                             * const tocall,
+                           VirtReferenced                 * const extra_ref_data,
+                           Args                            ...args) const
 {
     if (!tocall)
         return;
 
-    Cb_SpecificDeferredCall <Args...> * const deferred_call =
-            new Cb_SpecificDeferredCall <Args...> (tocall,
-                                                   cb_data,
-                                                   &weak_code_ref,
-                                                   ref_data.ptr(),
-                                                   args...);
-    // Note that 'def_reg' will reset deferred_call->task.cb.virt_ref when release,
+    Cb_SpecificDeferredCall <CB, Args...> * const deferred_call =
+            new Cb_SpecificDeferredCall <CB, Args...> (tocall,
+                                                       cb_data,
+                                                       &weak_code_ref,
+                                                       ref_data.ptr(),
+                                                       extra_ref_data,
+                                                       args...);
+    // Note that 'def_reg' will reset deferred_call->task.self_ref when released,
     // which will delete 'deferred_call' object.
     def_reg->scheduleTask (&deferred_call->task, false /* permanent */);
-    // 'deferred_call' references itself via task.cb.virt_ref.
+    // 'deferred_call' references itself via task.self_ref.
     deferred_call->unref();
 }
 
