@@ -120,6 +120,7 @@ public:
     void prepend (Element * const mt_nonnull el,
 		  Element * const to_el)
     {
+        // TODO likely?
 	if (mt_likely (!to_el)) {
 	    el->next = NULL;
 	    el->previous = NULL;

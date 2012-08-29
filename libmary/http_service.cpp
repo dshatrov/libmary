@@ -359,7 +359,9 @@ HttpService::httpClosed (Exception * const exc_,
     if (exc_)
 	logE_ (_func, exc_->toString());
 
-    logD (http_service, _func, "http_conn 0x", fmt_hex, (UintPtr) http_conn, ", refcount: ", fmt_def, http_conn->getRefCount(), ", cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
+    logD (http_service, _func, "http_conn 0x", fmt_hex, (UintPtr) http_conn, ", "
+          "refcount: ", fmt_def, http_conn->getRefCount(), ", "
+          "cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
 
     doCloseHttpConnection (http_conn);
 }

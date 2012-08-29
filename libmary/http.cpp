@@ -31,7 +31,7 @@
 namespace M {
 
 namespace {
-LogGroup libMary_logGroup_http ("http", LogLevel::N);
+LogGroup libMary_logGroup_http ("http", LogLevel::I);
 }
 
 Receiver::Frontend const HttpServer::receiver_frontend = {
@@ -73,7 +73,7 @@ HttpRequest::parseParameters (Memory const mem)
 	    param_pos = uri_end;
 	}
 
-	logD_ (_func, "parameter: ", name, " = ", value);
+//	logD_ (_func, "parameter: ", name, " = ", value);
 
 	{
 	    HttpRequest::Parameter * const param = new HttpRequest::Parameter;

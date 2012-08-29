@@ -147,15 +147,19 @@ public:
 
     mt_mutex (mutex) void unsubscribe_unlocked (SubscriptionKey sbn_key);
 
+#if 0
+// Deprecated requirement.
     // If @coderef_container is not null, then @mutex should be the state mutex
     // of @coderef_container.
+#endif
     GenericInformer (Object     * const coderef_container,
 		     StateMutex * const mutex)
 	: DependentCodeReferenced (coderef_container),
 	  mutex (mutex),
 	  traversing (0)
     {
-	assert (!coderef_container || &coderef_container->mutex == mutex);
+// Deprecated requirement.
+//	assert (!coderef_container || &coderef_container->mutex == mutex);
     }
 
     ~GenericInformer ();
