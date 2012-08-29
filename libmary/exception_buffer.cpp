@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011, 2012 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,24 +17,28 @@
 */
 
 
-#include <libmary/libmary_config.h>
+#include <libmary/log.h>
 
-#include <libmary/exception.h>
+#include <libmary/exception_buffer.h>
 
 
 namespace M {
 
-#if defined LIBMARY_MT_SAFE && !defined LIBMARY_TLOCAL
-ExcWrapper exc;
-#else
-#ifdef LIBMARY_TLOCAL
-LIBMARY_TLOCAL_SPEC ExceptionBuffer *_libMary_exc_buf = NULL;
-#else
-ExceptionBuffer *_libMary_exc_buf = NULL;
-#endif
-LIBMARY_TLOCAL_SPEC Exception *exc = NULL;
-LIBMARY_TLOCAL_SPEC Uint32 _libMary_exc_block = 0;
-#endif
+Byte*
+ExceptionBuffer::push (Size const len)
+{
+  // We cannot realloc 'data_buf' because doing so would break
+  // 'Exception::cause' pointers.
+
+    while (data_len + len > alloc_len) {
+        logE_ (_func, "exception buffer full, exception lost");
+        return NULL;
+    }
+
+    Byte * const res_buf = data_buf + data_len;
+    data_len += len;
+    return res_buf;
+}
 
 }
 

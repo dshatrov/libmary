@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011, 2012 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -22,12 +22,19 @@
 
 
 #include <libmary/types.h>
-#include <stdlib.h>
+#include <cstdlib>
+
+#include <libmary/referenced.h>
+
+
+#define LIBMARY__EXCEPTION_BUFFER_SIZE 4096
 
 
 namespace M {
 
-class ExceptionBuffer
+class Exception;
+
+class ExceptionBuffer : public Referenced
 {
 private:
     Byte *data_buf;
@@ -35,32 +42,19 @@ private:
     Size alloc_len;
 
 public:
+    Exception* getException () const
+    {
+        return reinterpret_cast <Exception*> (data_buf);
+    }
+
     Byte* throw_ (Size const len)
     {
 	data_len = len;
 	return data_buf;
     }
 
-    Byte* push (Size const len)
-    {
-	Size new_alloc_len = alloc_len;
-	while (data_len + len > new_alloc_len) {
-	    new_alloc_len <<= 1;
-	    assert (new_alloc_len > 0);
-	}
-
-	if (new_alloc_len != alloc_len) {
-	    assert (new_alloc_len > alloc_len);
-	    Byte * const new_data_buf = reinterpret_cast <Byte*> (realloc (data_buf, new_alloc_len));
-	    assert_hard (new_data_buf);
-	    alloc_len = new_alloc_len;
-	    memcpy (new_data_buf, data_buf, data_len);
-	}
-
-	Byte * const res_buf = data_buf + data_len;
-	data_len += len;
-	return res_buf;
-    }
+    // Returns NULL when the buffer is full.
+    Byte* push (Size len);
 
     void reset ()
     {

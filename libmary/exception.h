@@ -35,16 +35,8 @@
 
 namespace M {
 
-// TODO Implement cloning of exceptions.
 class Exception
 {
-#if 0
-protected:
-    // Exception destructors are never called.
-    // NOT TRUE when creating exceptions on stack
-    ~Exception ();
-#endif
-
 public:
     Exception *cause;
 
@@ -53,13 +45,16 @@ public:
 	return grab (new String);
     }
 
-    // TOOD toHumanString() ?
+    // TODO toHumanString() ?
 
     Exception ()
 	: cause (NULL)
     {
     }
 
+    // TODO Exception desrtuctors are never called for exceptions stored
+    //      in ExceptionBuffer. Can something be done about it, and is it worth
+    //      it to call destructors?
     virtual ~Exception () {}
 };
 
@@ -78,33 +73,55 @@ public:
 
 extern ExcWrapper exc;
 
+static inline Ref<ExceptionBuffer> exc_swap ()
+{
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
+    Ref<ExceptionBuffer> const prv_exc_buf = tlocal->exc_buffer;
+    tlocal->exc_buffer = grab (new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE));
+    return prv_exc_buf;
+}
+
+static inline ExceptionBuffer* exc_swap_noref ()
+{
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
+    ExceptionBuffer * const prv_exc_buf = tlocal->exc_buffer;
+    tlocal->exc_buffer.setNoUnref (grab (new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE)));
+    return prv_exc_buf;
+}
+
+static inline void exc_delete (ExceptionBuffer * const exc_buf)
+{
+    delete exc_buf;
+}
+
 static inline void exc_none ()
 {
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
     if (tlocal->exc_block == 0)	 {
-	tlocal->exc_buffer.reset ();
+	tlocal->exc_buffer->reset ();
 	tlocal->exc = NULL;
     }
 }
 
-// TODO rename to _libMary_exc_push_mem
-static inline Byte* exc_push_mem (Size const len)
+static inline Byte* _libMary_exc_push_mem (Size const len)
 {
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
     if (tlocal->exc_block == 0) {
-	Byte * const data = libMary_getThreadLocal()->exc_buffer.push (len);
+	Byte * const data = libMary_getThreadLocal()->exc_buffer->push (len);
+        if (!data)
+            return NULL;
+
 	tlocal->exc = reinterpret_cast <Exception*> (data);
 	return data;
     }
     return NULL;
 }
 
-// TODO rename to _libMary_exc_throw_mem
-static inline Byte* exc_throw_mem (Size const len)
+static inline Byte* _libMary_exc_throw_mem (Size const len)
 {
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
     if (tlocal->exc_block == 0) {
-	Byte * const data = tlocal->exc_buffer.throw_ (len);
+	Byte * const data = tlocal->exc_buffer->throw_ (len);
 	tlocal->exc = reinterpret_cast <Exception*> (data);
 	return data;
     }
@@ -118,7 +135,10 @@ void exc_push (Args const & ...args)
     if (tlocal->exc_block == 0) {
 	Exception * const cause = tlocal->exc;
 
-	Byte * const data = libMary_getThreadLocal()->exc_buffer.push (sizeof (T));
+	Byte * const data = libMary_getThreadLocal()->exc_buffer->push (sizeof (T));
+        if (!data)
+            return;
+
 	tlocal->exc = reinterpret_cast <Exception*> (data);
 
 	new (data) T (args...);
@@ -131,7 +151,7 @@ void exc_throw (Args const & ...args)
 {
     LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
     if (tlocal->exc_block == 0) {
-	Byte * const data = tlocal->exc_buffer.throw_ (sizeof (T));
+	Byte * const data = tlocal->exc_buffer->throw_ (sizeof (T));
 	tlocal->exc = reinterpret_cast <Exception*> (data);
 
 	new (data) T (args...);
@@ -167,12 +187,32 @@ static inline ExceptionBuffer* _libMary_get_exc_buf ()
     if (_libMary_exc_buf)
 	return _libMary_exc_buf;
 
-    _libMary_exc_buf = new ExceptionBuffer (1024 /* alloc_len */);
+    _libMary_exc_buf = new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE);
     return _libMary_exc_buf;
 }
 #else
 extern ExceptionBuffer *_libMary_exc_buf;
 #endif
+
+static inline Ref<ExceptionBuffer> exc_swap ()
+{
+    Ref<ExceptionBuffer> prv_exc_buf;
+    prv_exc_buf.setNoRef (_libMary_exc_buf);
+    _libMary_exc_buf = new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE);
+    return prv_exc_buf;
+}
+
+static inline ExceptionBuffer* exc_swap_noref ()
+{
+    ExceptionBuffer * const prv_exc_buf = _libMary_exc_buf;
+    _libMary_exc_buf = new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE);
+    return prv_exc_buf;
+}
+
+static inline void exc_delete (ExceptionBuffer * const exc_buf)
+{
+    delete exc_buf;
+}
 
 extern LIBMARY_TLOCAL_SPEC Exception *exc;
 // Block counter.
@@ -184,33 +224,36 @@ static inline void exc_none ()
 #ifdef LIBMARY_TLOCAL
 	_libMary_get_exc_buf()->reset ();
 #else
-	_libMary_exc_buf.reset ();
+	_libMary_exc_buf->reset ();
 #endif
 	exc = NULL;
     }
 }
 
-static inline Byte* exc_push_mem (Size const len)
+static inline Byte* _libMary_exc_push_mem (Size const len)
 {
     if (_libMary_exc_block == 0) {
 #ifdef LIBMARY_TLOCAL
 	Byte * const data = _libMary_get_exc_buf()->push (len);
 #else
-	Byte * const data = _libMary_exc_buf.push (len);
+	Byte * const data = _libMary_exc_buf->push (len);
 #endif
+        if (!data)
+            return NULL;
+
 	exc = reinterpret_cast <Exception*> (data);
 	return data;
     }
     return NULL;
 }
 
-static inline Byte* exc_throw_mem (Size const len)
+static inline Byte* _libMary_exc_throw_mem (Size const len)
 {
     if (_libMary_exc_block == 0) {
 #ifdef LIBMARY_TLOCAL
 	Byte * const data = _libMary_get_exc_buf()->throw_ (len);
 #else
-	Byte * const data = _libMary_exc_buf.throw_ (len);
+	Byte * const data = _libMary_exc_buf->throw_ (len);
 #endif
 	exc = reinterpret_cast <Exception*> (data);
 	return data;
@@ -223,7 +266,11 @@ void exc_push (Args const & ...args)
 {
     if (_libMary_exc_block == 0) {
 	Exception * const cause = exc;
-	new (exc_push_mem (sizeof (T))) T (args...);
+        Byte * const data = _libMary_exc_push_mem (sizeof (T));
+        if (!data)
+            return;
+
+	new (data) T (args...);
 	exc->cause = cause;
     }
 }
@@ -232,7 +279,7 @@ template <class T, class ...Args>
 void exc_throw (Args const & ...args)
 {
     if (_libMary_exc_block == 0) {
-	new (exc_throw_mem (sizeof (T))) T (args...);
+	new (_libMary_exc_throw_mem (sizeof (T))) T (args...);
 	exc->cause = NULL;
     }
 }
@@ -249,66 +296,6 @@ static inline void exc_unblock ()
 }
 
 #endif // thread-local
-
-#if 0 // Deprecated macros
-#ifdef LIBMARY_MT_SAFE
-#define exc_push(a)								\
-	do {									\
-	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();	\
-	    if (tlocal->exc_block == 0) {					\
-		Exception * const cause = tlocal->exc;				\
-		Byte * const data = libMary_getThreadLocal()->exc_buffer.push (sizeof (a));	\
-		tlocal->exc = reinterpret_cast <Exception*> (data);		\
-		new (data) a;							\
-		tlocal->exc->cause = cause;					\
-	    }									\
-	} while (0)
-#else
-#define exc_push(a)				\
-	do {					\
-	    Exception * const cause = M::exc;	\
-	    new (exc_push_mem (sizeof (a))) a;	\
-	    M::exc->cause = cause;		\
-	} while (0)
-#endif
-
-#ifdef LIBMARY_MT_SAFE
-#define exc_throw(a)								\
-	do {									\
-	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();	\
-	    if (tlocal->exc_block == 0) {					\
-		Byte * const data = tlocal->exc_buffer.throw_ (len);		\
-		tlocal->exc = reinterpret_cast <Exception*> (data);		\
-		new (data) a;							\
-		tlocal->exc->cause = NULL;					\
-	    }									\
-	} while (0)
-#else
-#define exc_throw(a)				\
-	do {					\
-	    new (exc_throw_mem (sizeof (a))) a;	\
-	    M::exc->cause = NULL;		\
-	} while (0)
-#endif
-
-#ifdef LIBMARY_MT_SAFE
-#define exc_block(tlocal)	\
-	(++tlocal->exc_block)
-#define exc_unblock(tlocal)			\
-	do {					\
-	    assert (tlocal->exc_block > 0);	\
-	    --tlocal->exc_block;		\
-	} while (0)
-#else
-#define exc_block()	\
-	(++_libMary_exc_block)
-#define exc_unblock()				\
-	do {					\
-	    assert (_libMary_exc_block > 0);	\
-	    --_libMary_exc_block;		\
-	} while (0)
-#endif
-#endif // Deprecated macros
 
 class InternalException : public Exception
 {
