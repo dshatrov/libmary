@@ -64,6 +64,11 @@ public:
 	    return (Byte*) this + sizeof (*this);
 	}
 
+        int getRefcount () const
+        {
+            return refcount.get();
+        }
+
 	Memory mem () const
 	{
 	    return Memory (getData (), data_len);
@@ -278,6 +283,26 @@ public:
 
     static void dumpPages (OutputStream * mt_nonnull outs,
                            PageListHead * mt_nonnull page_list);
+
+    static Size countPageListDataLen (Page * const first_page,
+                                      Size   const msg_offset)
+    {
+        Size pages_data_len = 0;
+        {
+            PagePool::Page *cur_page = first_page;
+            if (cur_page) {
+                assert (msg_offset <= cur_page->data_len);
+                pages_data_len += cur_page->data_len - msg_offset;
+                cur_page = cur_page->getNextMsgPage ();
+                while (cur_page) {
+                    pages_data_len += cur_page->data_len;
+                    cur_page = cur_page->getNextMsgPage ();
+                }
+            }
+        }
+
+        return pages_data_len;
+    }
 };
 
 }
