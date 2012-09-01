@@ -30,6 +30,9 @@
 
 namespace M {
 
+// TODO PagePool should be reference while there's any referenced page.
+//      This also means that PagePools should be independent objects,
+//      not dependent ones.
 class PagePool : public DependentCodeReferenced
 {
 public:
