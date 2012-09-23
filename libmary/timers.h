@@ -47,8 +47,18 @@ private:
     class TimerChain;
 
 public:
-    // TODO TimerKey auto-initializing to NULL.
-    typedef Timer* TimerKey;
+    class TimerKey
+    {
+        friend class Timers;
+    private:
+        Timer *timer;
+        Timer* operator -> () const { return timer; }
+        operator Timer* () const { return timer; }
+    public:
+        operator bool () const { return timer; }
+        TimerKey (Timer * const timer) : timer (timer) {}
+        TimerKey () : timer (NULL) {}
+    };
 
     typedef void (TimerCallback) (void *cb_data);
 
@@ -156,6 +166,11 @@ public:
 				    Time time_microseconds,
 				    bool periodical);
 
+    // FIXME restartTimer() has problematic semantics and should be removed.
+    //       In particular, there's no way for the client to guarantee that restartTimer()
+    //       is called only before the timer expires, i.e. there's always a risk of hitting
+    //       the assertion in restartTimer().
+    //
     // A non-periodical timer can be restarted only if it has not yet expired.
     void restartTimer (TimerKey mt_nonnull timer_key);
 
