@@ -141,6 +141,16 @@ class ReferencedWrap : public Referenced, public T
 {
 };
 
+template <class T>
+class Referenced_UnrefAction
+{
+public:
+    static void act (T * const obj)
+    {
+        static_cast <Referenced*> (obj)->unref ();
+    }
+};
+
 }
 
 
