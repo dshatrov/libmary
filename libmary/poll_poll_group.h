@@ -35,6 +35,8 @@ class PollPollGroup : public ActivePollGroup,
                       public DependentCodeReferenced
 {
 private:
+    StateMutex mutex;
+
     class PollableList_name;
     class SelectedList_name;
 
@@ -70,8 +72,6 @@ private:
 
     // Should be accessed from event processing thread only.
     bool got_deferred_tasks;
-
-    StateMutex mutex;
 
     DeferredProcessor deferred_processor;
 

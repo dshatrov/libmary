@@ -30,11 +30,14 @@
 
 namespace M {
 
-// TODO PagePool should be reference while there's any referenced page.
+// TODO PagePool should be referenced while there's any referenced page.
 //      This also means that PagePools should be independent objects,
 //      not dependent ones.
 class PagePool : public DependentCodeReferenced
 {
+private:
+    Mutex mutex;
+
 public:
     class Page
     {
@@ -232,8 +235,6 @@ private:
     Count num_pages;
 
     Page *first_spare_page;
-
-    Mutex mutex;
 
     Page* grabPage ();
 

@@ -120,6 +120,9 @@ typedef IntrusiveList <DeferredProcessor_Registration, DeferredProcessor_Permane
 
 class DeferredProcessor : public DependentCodeReferenced
 {
+private:
+    Mutex mutex;
+
 public:
     typedef DeferredProcessor_TaskCallback TaskCallback;
 
@@ -146,8 +149,6 @@ private:
 
     mt_mutex (mutex) bool processing;
     mt_mutex (mutex) TaskList processing_task_list;
-
-    Mutex mutex;
 
 public:
     // Returns 'true' if there are more tasks to process.

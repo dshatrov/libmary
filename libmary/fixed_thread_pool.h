@@ -42,6 +42,8 @@ class FixedThreadPool : public ServerThreadPool,
 			public DependentCodeReferenced
 {
 private:
+    StateMutex mutex;
+
 #ifdef LIBMARY_MT_SAFE
     class ThreadData : public Object
     {
@@ -90,8 +92,6 @@ private:
       static bool pollIterationEnd (void *_thread_ctx);
 
     mt_end
-
-    StateMutex mutex;
 
 public:
   mt_iface (ServerThreadPool)

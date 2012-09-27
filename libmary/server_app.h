@@ -42,6 +42,10 @@ namespace M {
 class ServerApp : public DependentCodeReferenced
 {
 private:
+#ifdef LIBMARY_MT_SAFE
+    StateMutex mutex;
+#endif
+
     class SA_ServerContext : public ServerContext
     {
     public:
@@ -110,10 +114,6 @@ private:
     static bool pollIterationEnd (void *_thread_ctx);
 
   mt_iface_end
-
-#ifdef LIBMARY_MT_SAFE
-    StateMutex mutex;
-#endif
 
 public:
     CodeDepRef<ServerContext> getServerContext ()

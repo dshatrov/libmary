@@ -35,6 +35,8 @@ class EpollPollGroup : public ActivePollGroup,
                        public DependentCodeReferenced
 {
 private:
+    StateMutex mutex;
+
     class PollableList_name;
     class PollableDeletionQueue_name;
 
@@ -64,8 +66,6 @@ private:
 
     mt_mutex (mutex) PollableList pollable_list;
     mt_mutex (mutex) PollableDeletionQueue pollable_deletion_queue;
-
-    StateMutex mutex;
 
     DeferredProcessor deferred_processor;
 
