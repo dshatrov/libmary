@@ -54,7 +54,7 @@ public:
     template <class ...CallArgs>
     void call (Cb<CB> * const cb, CallArgs... args)
     {
-        data.call <CallArgs..., T> (cb, args..., param);
+        data.call (cb, args..., param);
     }
 
     Cb_CallData (T param,
