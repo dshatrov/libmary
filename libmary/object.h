@@ -26,6 +26,7 @@
 #include <libmary/state_mutex.h>
 #include <libmary/referenced.h>
 #include <libmary/ref.h>
+#include <libmary/virt_ref.h>
 #include <libmary/code_referenced.h>
 
 
@@ -59,7 +60,7 @@ class Object : public virtual Referenced,
     friend void deletionQueue_process ();
 
 public:
-    typedef void (*DeletionCallback) (void *data);
+    typedef void DeletionCallback (void *data);
 
     class DeletionSubscription;
 
@@ -74,8 +75,7 @@ public:
 	DeletionSubscription* operator -> () const { return del_sbn; }
     public:
 	bool isNull () const { return del_sbn == NULL; } // Eases transition to M::Object for MyCpp.
-	// TODO This makes the wrapper useless. Replace this with operator bool ().
-	operator DeletionSubscription* () const { return del_sbn; }
+        operator bool () const { return del_sbn; }
 	// TODO Only class Object should be able to create bound deletion keys.
 	DeletionSubscriptionKey (DeletionSubscription * const del_sbn) : del_sbn (del_sbn) {}
 	DeletionSubscriptionKey () : del_sbn (NULL) {}
@@ -221,20 +221,20 @@ public:
 
   mt_iface_end
 
-    mt_locked DeletionSubscriptionKey addDeletionCallback (DeletionCallback  cb,
-							   void             *cb_data,
-							   Referenced       *ref_data,
-							   Object           *guard_obj);
+    mt_locked DeletionSubscriptionKey addDeletionCallback (CbDesc<DeletionCallback> const &cb);
 
     // TODO Is it really necessary to create a new DeletionCallback object for
     // mutual deletion callbacks? Perhaps the existing DeletionCallback object
     // could be reused.
-    mt_locked DeletionSubscriptionKey addDeletionCallbackNonmutual (DeletionCallback  cb,
-								    void             *cb_data,
-								    Referenced       *ref_data,
-								    Object           *guard_obj);
+    mt_locked DeletionSubscriptionKey addDeletionCallbackNonmutual (CbDesc<DeletionCallback> const &cb);
 
     void removeDeletionCallback (DeletionSubscriptionKey mt_nonnull sbn);
+
+private:
+    static void unrefOnDeletionCallback (void *_self);
+
+public:
+    void unrefOnDeletion (Object * mt_nonnull master_obj);
 
     Object ()
     {
@@ -265,10 +265,10 @@ class Object::DeletionSubscription : public IntrusiveListElement<>
     friend class Object;
 
 private:
-    DeletionCallback   const cb;
-    void             * const cb_data;
-    Ref<Referenced>    const ref_data;
-    WeakRef<Object>    const weak_peer_obj;
+    DeletionCallback    * const cb;
+    void                * const cb_data;
+    WeakRef<Object>       const weak_peer_obj;
+    VirtRef               const ref_data;
 
     // Subscription for deletion of the peer.
     DeletionSubscriptionKey mutual_sbn;
@@ -276,14 +276,11 @@ private:
     // Pointer to self (for mutual deletion callback).
     Object *obj;
 
-    DeletionSubscription (DeletionCallback   const cb,
-			  void             * const cb_data,
-			  Referenced       * const ref_data,
-			  Object           * const guard_obj)
-	: cb (cb),
-	  cb_data (cb_data),
-	  ref_data (ref_data),
-	  weak_peer_obj (guard_obj)
+    DeletionSubscription (CbDesc<DeletionCallback> const &cb)
+	: cb            (cb.cb),
+	  cb_data       (cb.cb_data),
+	  weak_peer_obj (cb.coderef_container),
+	  ref_data      (cb.ref_data)
     {
     }
 };
