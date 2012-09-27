@@ -110,7 +110,7 @@ protected:
     StateMutex * const mutex;
 
     mt_mutex (mutex) SubscriptionList sbn_list;
-    mt_mutex (mtuex) SubscriptionInvalidationList sbn_invalidation_list;
+    mt_mutex (mutex) SubscriptionInvalidationList sbn_invalidation_list;
     mt_mutex (mutex) Count traversing;
 
     mt_mutex (mutex) void releaseSubscription (Subscription *sbn);
@@ -122,7 +122,6 @@ protected:
 		    VoidFunction         inform_cb,
 		    void                *inform_cb_data);
 
-    // May unlock and lock 'mutex' in the process.
     mt_unlocks_locks (mutex) void informAll_unlocked (ProxyInformCallback  mt_nonnull proxy_inform_cb,
                                                       VoidFunction         inform_cb,
                                                       void                *inform_cb_data);
@@ -132,10 +131,10 @@ protected:
 				   VirtReferenced *ref_data,
 				   Object         *coderef_container);
 
-    SubscriptionKey subscribeVoid_unlocked (CallbackPtr     cb_ptr,
-					    void           *cb_data,
-					    VirtReferenced *ref_data,
-					    Object         *coderef_container);
+    mt_mutex (mutex) SubscriptionKey subscribeVoid_unlocked (CallbackPtr     cb_ptr,
+                                                             void           *cb_data,
+                                                             VirtReferenced *ref_data,
+                                                             Object         *coderef_container);
 
 public:
     mt_mutex (mutex) bool gotSubscriptions_unlocked ()
@@ -147,19 +146,15 @@ public:
 
     mt_mutex (mutex) void unsubscribe_unlocked (SubscriptionKey sbn_key);
 
-#if 0
-// Deprecated requirement.
-    // If @coderef_container is not null, then @mutex should be the state mutex
-    // of @coderef_container.
-#endif
+    // In general, if @coderef_container is not null, then @mutex should be
+    // the state mutex of @coderef_container. There may be concious deviations
+    // from this rule.
     GenericInformer (Object     * const coderef_container,
 		     StateMutex * const mutex)
 	: DependentCodeReferenced (coderef_container),
 	  mutex (mutex),
 	  traversing (0)
     {
-// Deprecated requirement.
-//	assert (!coderef_container || &coderef_container->mutex == mutex);
     }
 
     ~GenericInformer ();
@@ -259,7 +254,8 @@ public:
     mt_unlocks_locks (mutex) void informAll_unlocked (InformCallback    const inform_cb,
 			                              void            * const inform_cb_data)
     {
-	mt_unlocks_locks (mutex) GenericInformer::informAll_unlocked (proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
+	mt_unlocks_locks (mutex) GenericInformer::informAll_unlocked (
+                proxyInformCallback, (VoidFunction) inform_cb, inform_cb_data);
     }
 
     SubscriptionKey subscribe (T                const cb,
@@ -275,15 +271,15 @@ public:
 	return subscribeVoid ((VoidFunction) cb.cb, cb.cb_data, cb.ref_data, cb.coderef_container);
     }
 
-    SubscriptionKey subscribe_unlocked (T                const cb,
-					void           * const cb_data,
-					VirtReferenced * const ref_data,
-					Object         * const coderef_container)
+    mt_mutex (mutex) SubscriptionKey subscribe_unlocked (T                const cb,
+                                                         void           * const cb_data,
+                                                         VirtReferenced * const ref_data,
+                                                         Object         * const coderef_container)
     {
 	return subscribeVoid_unlocked ((VoidFunction) cb, cb_data, ref_data, coderef_container);
     }
 
-    SubscriptionKey subscribe_unlocked (CbDesc<T> const &cb)
+    mt_mutex (mutex) SubscriptionKey subscribe_unlocked (CbDesc<T> const &cb)
     {
 	return subscribeVoid_unlocked ((VoidFunction) cb.cb, cb.cb_data, cb.ref_data, cb.coderef_container);
     }

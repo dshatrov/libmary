@@ -158,9 +158,10 @@ GenericInformer::subscribeVoid (CallbackPtr      const cb_ptr,
 
     if (coderef_container) {
 	sbn->del_sbn = coderef_container->addDeletionCallback (
-		subscriberDeletionCallback, sbn, NULL /* ref_data */, getCoderefContainer());
-    } else {
-	sbn->del_sbn = NULL;
+                CbDesc<Object::DeletionCallback> (
+                        subscriberDeletionCallback,
+                        sbn,
+                        getCoderefContainer()));
     }
 
     mutex->lock ();
@@ -170,7 +171,7 @@ GenericInformer::subscribeVoid (CallbackPtr      const cb_ptr,
     return sbn;
 }
 
-GenericInformer::SubscriptionKey
+mt_mutex (mutex) GenericInformer::SubscriptionKey
 GenericInformer::subscribeVoid_unlocked (CallbackPtr      const cb_ptr,
 					 void           * const cb_data,
 					 VirtReferenced * const ref_data,
@@ -183,9 +184,10 @@ GenericInformer::subscribeVoid_unlocked (CallbackPtr      const cb_ptr,
 
     if (coderef_container) {
 	sbn->del_sbn = coderef_container->addDeletionCallback (
-		subscriberDeletionCallback, sbn, NULL /* ref_data */, getCoderefContainer());
-    } else {
-	sbn->del_sbn = NULL;
+                CbDesc<Object::DeletionCallback> (
+                        subscriberDeletionCallback,
+                        sbn,
+                        getCoderefContainer()));
     }
 
     sbn_list.prepend (sbn);
@@ -209,7 +211,7 @@ GenericInformer::unsubscribe (SubscriptionKey const sbn_key)
     mutex->unlock ();
 }
 
-void
+mt_mutex (mutex) void
 GenericInformer::unsubscribe_unlocked (SubscriptionKey const sbn_key)
 {
     sbn_key.sbn->valid = false;
@@ -217,6 +219,7 @@ GenericInformer::unsubscribe_unlocked (SubscriptionKey const sbn_key)
 	releaseSubscription (sbn_key.sbn);
 	sbn_list.remove (sbn_key.sbn);
 	delete sbn_key.sbn;
+        return;
     }
     sbn_invalidation_list.append (sbn_key.sbn);
 }
