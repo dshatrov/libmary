@@ -30,13 +30,18 @@
 #endif
 
 
+// Note that g_atomic_*_get/set() macros use some static assertion technique
+// which doesn't play well with C++'s "this" pointer. This is reproducible
+// with clang.
+
+
 namespace M {
 
 class AtomicInt
 {
 private:
 #ifdef LIBMARY_MT_SAFE
-    volatile gint value;
+    gint volatile value;
 #else
     int value;
 #endif
@@ -45,7 +50,8 @@ public:
     void set (int const value)
     {
 #ifdef LIBMARY_MT_SAFE
-	g_atomic_int_set (&this->value, (gint) value);
+        gint volatile * const ptr = &this->value;
+	g_atomic_int_set (ptr, (gint) value);
 #else
 	this->value = value;
 #endif
@@ -72,7 +78,7 @@ public:
     void add (int const a)
     {
 #ifdef LIBMARY_MT_SAFE
-	g_atomic_int_add (&value, (gint) a);
+	(void) g_atomic_int_add (&value, (gint) a);
 #else
 	value += a;
 #endif
@@ -131,7 +137,8 @@ public:
     AtomicInt (int const value = 0)
     {
 #ifdef LIBMARY_MT_SAFE
-	g_atomic_int_set (&this->value, (gint) value);
+        gint volatile * const ptr = &this->value;
+	g_atomic_int_set (ptr, (gint) value);
 #else
 	this->value = value;
 #endif
@@ -149,7 +156,8 @@ public:
     void set (void * const value)
     {
 #ifdef LIBMARY_MT_SAFE
-	g_atomic_pointer_set (&this->value, (gpointer) value);
+        gpointer volatile * const ptr = &this->value;
+	g_atomic_pointer_set (ptr, (gpointer) value);
 #else
 	this->value = value;
 #endif
@@ -158,7 +166,8 @@ public:
     void* get () const
     {
 #ifdef LIBMARY_MT_SAFE
-	return (void*) g_atomic_pointer_get (&this->value);
+        gpointer volatile * const ptr = &this->value;
+	return (void*) g_atomic_pointer_get (ptr);
 #else
 	return value;
 #endif
@@ -196,7 +205,8 @@ public:
     AtomicPointer (void * const value = NULL)
     {
 #ifdef LIBMARY_MT_SAFE
-	g_atomic_pointer_set (&this->value, value);
+        gpointer volatile * const ptr = &this->value;
+	g_atomic_pointer_set (ptr, value);
 #else
 	this->value = value;
 #endif
