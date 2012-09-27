@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011, 2012 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -119,15 +119,9 @@ Ref<String> toString (T obj, Format const &fmt = libMary_default_format)
 }
 
 template <class T>
-Size toString (Memory const &mem, T obj, Format const &fmt = libMary_default_format)
+inline Size toString (Memory const &mem, T obj, Format const &fmt = libMary_default_format)
 {
     return obj.toString_ (mem, fmt);
-}
-
-template <class T>
-Size toString (Memory const &mem, T * const obj, Format const &fmt = libMary_default_format)
-{
-    return obj->toString_ (mem, fmt);
 }
 
 template <Size N>
