@@ -29,19 +29,36 @@ namespace {
 LogGroup libMary_logGroup_timers ("timers", LogLevel::I);
 }
 
+void
+Timers::subscriberDeletionCallback (void * const _timer)
+{
+    Timer * const timer = static_cast <Timer*> (_timer);
+    Timers * const timers = timer->timers;
+
+    timers->deleteTimer (timer);
+}
+
 Timers::TimerKey
 Timers::addTimer_microseconds (CbDesc<TimerCallback> const &cb,
 			       Time const time_microseconds,
-			       bool const periodical)
+			       bool const periodical,
+                               bool const auto_delete)
 {
     logD (timers, _func, "time_microseconds: ", time_microseconds);
 
-    Timer * const timer = new Timer (cb);
+    Timer * const timer = new Timer (this, cb);
     timer->periodical = periodical;
     timer->due_time = getTimeMicroseconds() + time_microseconds;
     if (timer->due_time < time_microseconds) {
 	logW_ (_func, "Expiration time overflow");
 	timer->due_time = (Time) -1;
+    }
+
+    if (auto_delete && cb.coderef_container) {
+        timer->del_sbn = cb.coderef_container->addDeletionCallback (
+                CbDesc<Object::DeletionCallback> (subscriberDeletionCallback,
+                                                  timer,
+                                                  getCoderefContainer()));
     }
 
     logD (timers, _func, "getTimeMicroseconds(): ", getTimeMicroseconds(), ", due_time: ", timer->due_time);
@@ -114,6 +131,12 @@ Timers::deleteTimer (TimerKey const mt_nonnull timer_key)
     Timer * const timer = timer_key;
     TimerChain * const chain = timer->chain;
 
+    if (timer->del_sbn) {
+        CodeRef const code_ref = timer->timer_cb.getWeakCodeRef();
+        if (code_ref)
+            code_ref->removeDeletionCallback (timer->del_sbn);
+    }
+
     mutex.lock ();
 
     if (timer->active) {
@@ -127,8 +150,8 @@ Timers::deleteTimer (TimerKey const mt_nonnull timer_key)
 	    interval_tree.remove (chain);
 	    mutex.unlock ();
 
-	    delete chain;
-	    delete timer;
+            delete chain;
+            delete timer;
 
 	    return;
 	}

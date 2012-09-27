@@ -43,6 +43,8 @@ namespace M {
 class Timers : public DependentCodeReferenced
 {
 private:
+    Mutex mutex;
+
     class Timer;
     class TimerChain;
 
@@ -68,16 +70,20 @@ private:
     class Timer : public IntrusiveListElement<>
     {
     public:
+        mt_const Timers * const timers;
+        mt_const Object::DeletionSubscriptionKey del_sbn;
+
 	mt_const bool periodical;
 	mt_const Cb<TimerCallback> timer_cb;
 	mt_const TimerChain *chain;
 
 	mt_mutex (Timers::mutex) Time due_time;
-
 	mt_mutex (Timers::mutex) bool active;
 
-	Timer (CbDesc<TimerCallback> const &timer_cb)
-	    : timer_cb (timer_cb),
+	Timer (Timers * const timers,
+               CbDesc<TimerCallback> const &timer_cb)
+	    : timers (timers),
+              timer_cb (timer_cb),
 	      active (true)
 	{
 	}
@@ -126,7 +132,7 @@ private:
 
     mt_const Cb<FirstTimerAddedCallback> first_added_cb;
 
-    Mutex mutex;
+    static void subscriberDeletionCallback (void *_timer);
 
 public:
     // Every call to addTimer() must be matched with a call deleteTimer().
@@ -144,9 +150,10 @@ public:
     // Every call to addTimer_microseconds() must be matched with a call deleteTimer().
     TimerKey addTimer (CbDesc<TimerCallback> const &cb,
 		       Time time_seconds,
-		       bool periodical)
+		       bool periodical,
+                       bool auto_delete = true)
     {
-	return addTimer_microseconds (cb, time_seconds * 1000000, periodical);
+	return addTimer_microseconds (cb, time_seconds * 1000000, periodical, auto_delete);
     }
 
     // Every call to addTimer() must be matched with a call deleteTimer().
@@ -164,7 +171,8 @@ public:
     // Every call to addTimer_microseconds() must be matched with a call deleteTimer().
     TimerKey addTimer_microseconds (CbDesc<TimerCallback> const &cb,
 				    Time time_microseconds,
-				    bool periodical);
+				    bool periodical,
+                                    bool auto_delete = true);
 
     // FIXME restartTimer() has problematic semantics and should be removed.
     //       In particular, there's no way for the client to guarantee that restartTimer()
