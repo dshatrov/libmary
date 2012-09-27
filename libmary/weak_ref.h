@@ -63,6 +63,7 @@ public:
 	return Ref<T>::createNoRef (typed_weak_ptr);
     }
 
+    // TODO FIXME Revise usage of getRefPtr(): it grabs a reference, but I assumed that it doesn't.
     T* getRefPtr () const
     {
 	if (!shadow)
@@ -73,7 +74,7 @@ public:
 	if (!obj)
 	    return NULL;
 
-	return obj;
+	return typed_weak_ptr;
     }
 
     T* getTypedWeakPtr () const
