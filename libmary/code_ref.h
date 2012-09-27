@@ -156,7 +156,7 @@ void
 CodeReferenced::async_call (T *self, CB tocall, Args const &...args)
 {
     if (!self || !tocall)
-	return false;
+	return;
 
     Object* const coderef_container = getCoderefContainer();
 
