@@ -22,6 +22,19 @@
 
 namespace M {
 
+char const *
+_libMary_stripFuncFilePath (char const * const str)
+{
+    char const header [] = "../../";
+    unsigned const header_len = sizeof (header) - 1;
+    for (unsigned i = 0; i < header_len; ++i) {
+        if (str [i] == 0 || str [i] != header [i])
+            return str;
+    }
+
+    return str + header_len;
+}
+
 Size
 AsyncIoResult::toString_ (Memory const &mem,
 			  Format const & /* fmt */)

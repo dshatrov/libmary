@@ -21,6 +21,7 @@
 #define __LIBMARY__CB__H__
 
 
+#include <libmary/types.h>
 #include <libmary/virt_ref.h>
 #include <libmary/code_ref.h>
 #include <libmary/libmary_thread_local.h>
@@ -38,40 +39,6 @@
 namespace M {
 
 class DeferredProcessor_Registration;
-
-template <class T>
-class CbDesc
-{
-public:
-    T const        * const cb;
-    void           * const cb_data;
-    Object         * const coderef_container;
-    VirtReferenced * const ref_data;
-
-    T const * operator -> () const
-    {
-	return cb;
-    }
-
-    CbDesc (T const        * const cb,
-	    void           * const cb_data,
-	    Object         * const coderef_container,
-	    VirtReferenced * const ref_data = NULL)
-	: cb                (cb),
-	  cb_data           (cb_data),
-	  coderef_container (coderef_container),
-	  ref_data          (ref_data)
-    {
-    }
-
-    CbDesc ()
-	: cb (NULL),
-	  cb_data (NULL),
-	  coderef_container (NULL),
-	  ref_data (NULL)
-    {
-    }
-};
 
 template <class T>
 class Cb

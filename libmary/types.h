@@ -37,24 +37,26 @@ typedef void (GenericCallback) (void *cb_data);
 
 class EmptyBase {};
 
+char const * _libMary_stripFuncFilePath (char const *str);
+
 // TODO Move to log.h, append current session id string (log_prefix)
 // Evil macro to save a few keystrokes for logE_ (_func, ...)
 
 // _func2 and _func3 are a workaround to stringify __LINE__.
 
-#define _func3(line)								 		\
-	__FILE__,										\
+#define _func3(line, ...)							 	\
+	_libMary_stripFuncFilePath (__FILE__),							\
 	":" #line,								 		\
-	":", __func__, ":",									\
+	":" __VA_ARGS__, __func__, ":",								\
 	ConstMemory ("                                         " /* 41 spaces */, 		\
 		     sizeof (__FILE__) + sizeof (#line) + sizeof (__func__) + 3 < 40 + 1 ?	\
 			     40 - sizeof (__FILE__) - sizeof (#line) - sizeof (__func__) - 3 + 1 : 1)
 
-#define _func3_(line)								 		\
-	__FILE__,										\
+#define _func3_(line, ...)							 		\
+	_libMary_stripFuncFilePath (__FILE__),							\
 	":" #line,								 		\
-	":", __func__,										\
-	ConstMemory ("                                         " /* 40 spaces */, 		\
+	":" __VA_ARGS__, __func__,								\
+	ConstMemory ("                                        " /* 40 spaces */, 		\
 		     sizeof (__FILE__) + sizeof (#line) + sizeof (__func__) + 2 < 39 + 1 ?	\
 			     39 - sizeof (__FILE__) - sizeof (#line) - sizeof (__func__) - 2 + 1 : 1)
 
@@ -71,11 +73,15 @@ class EmptyBase {};
 #endif
 
 // No line padding  #define _func3(line) __FILE__ ":" #line ":", __func__
-#define _func2(line)  _func3(line)
-#define _func2_(line) _func3_(line)
+#define _func2( line, ...) _func3 (line __VA_ARGS__)
+#define _func2_(line, ...) _func3_(line __VA_ARGS__)
 
-#define _func  _func2(__LINE__)
-#define _func_ _func2_(__LINE__)
+#define _func       _func2 (__LINE__)
+#define _this_func  _func2 (__LINE__, , , fmt_hex, "0x", (unsigned long) this, fmt_def, " ")
+#define _self_func  _func2 (__LINE__, , , fmt_hex, "0x", (unsigned long) self, fmt_def, " ")
+#define _func_      _func2_(__LINE__)
+#define _this_func_ _func2_(__LINE__, , , fmt_hex, "0x", (unsigned long) this, fmt_def, " ")
+#define _self_func_ _func2_(__LINE__, , , fmt_hex, "0x", (unsigned long) self, fmt_def, " ")
 
 class Result
 {
@@ -150,6 +156,43 @@ struct iovec {
 
 #define IOV_MAX 1024
 #endif
+
+class Object;
+class VirtReferenced;
+
+template <class T>
+class CbDesc
+{
+public:
+    T const        * const cb;
+    void           * const cb_data;
+    Object         * const coderef_container;
+    VirtReferenced * const ref_data;
+
+    T const * operator -> () const
+    {
+	return cb;
+    }
+
+    CbDesc (T const        * const cb,
+	    void           * const cb_data,
+	    Object         * const coderef_container,
+	    VirtReferenced * const ref_data = NULL)
+	: cb                (cb),
+	  cb_data           (cb_data),
+	  coderef_container (coderef_container),
+	  ref_data          (ref_data)
+    {
+    }
+
+    CbDesc ()
+	: cb (NULL),
+	  cb_data (NULL),
+	  coderef_container (NULL),
+	  ref_data (NULL)
+    {
+    }
+};
 
 }
 
