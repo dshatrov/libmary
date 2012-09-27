@@ -139,8 +139,11 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
     if (self->no_keepalive_conns)
 	req->setKeepalive (false);
 
-    if (http_conn->conn_keepalive_timer)
-	self->timers->restartTimer (http_conn->conn_keepalive_timer);
+    if (http_conn->conn_keepalive_timer) {
+        // FIXME Race condition: the timer might have just expired
+        //       and an assertion in Timers::restartTimer() will be hit.
+        self->timers->restartTimer (http_conn->conn_keepalive_timer);
+    }
 
   // Searching for a handler with the longest matching path.
   //
@@ -436,11 +439,13 @@ HttpService::acceptOneConnection ()
 	// TODO There should be a periodical checker routing which would
 	// monitor connection's activity. Currently, this is an overly
 	// simplistic oneshot cutter, like a ticking bomb for every client.
-	http_conn->conn_keepalive_timer = timers->addTimer (connKeepaliveTimerExpired,
-							    http_conn,
-							    http_conn,
-							    keepalive_timeout_microsec,
-							    false /* periodical */);
+	http_conn->conn_keepalive_timer =
+                timers->addTimer_microseconds (CbDesc<Timers::TimerCallback> (connKeepaliveTimerExpired,
+                                                                              http_conn,
+                                                                              http_conn),
+                                               keepalive_timeout_microsec,
+                                               false /* periodical */,
+                                               false /* auto_delete */);
     } else {
 	http_conn->conn_keepalive_timer = NULL;
     }

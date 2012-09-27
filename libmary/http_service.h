@@ -36,6 +36,9 @@ namespace M {
 
 class HttpService : public DependentCodeReferenced
 {
+private:
+    StateMutex mutex;
+
 public:
     struct HttpHandler
     {
@@ -146,8 +149,6 @@ private:
 
     Namespace root_namespace;
 
-    StateMutex mutex;
-
     mt_mutex (mutex) void releaseHttpConnection (HttpConnection * mt_nonnull http_conn);
     mt_mutex (mutex) void destroyHttpConnection (HttpConnection * mt_nonnull http_conn);
 
@@ -212,7 +213,7 @@ public:
 			   Timers            * mt_nonnull timers,
                            DeferredProcessor * mt_nonnull deferred_processor,
 			   PagePool          * mt_nonnull page_pool,
-			   Time               keeaplive_timeout_microsec,
+			   Time               keepalive_timeout_microsec,
                            bool               no_keeaplive_conns);
 
     HttpService (Object *coderef_container);
