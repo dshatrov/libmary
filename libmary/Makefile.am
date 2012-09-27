@@ -1,6 +1,6 @@
 COMMON_CFLAGS =				\
 	-ggdb				\
-	-Wno-long-long -Wall -Wextra    \
+	-Wno-long-long -Wall            \
 	-include "local_config.h"	\
 	$(THIS_CFLAGS)
 
@@ -17,10 +17,10 @@ if LIBMARY_PLATFORM_DEFAULT
     COMMON_CFLAGS += -rdynamic
 endif
 
-AM_CFLAGS = -std=gnu99 $(COMMON_CFLAGS)
-AM_CXXFLAGS = -std=gnu++0x $(COMMON_CFLAGS)
+AM_CFLAGS   += -std=gnu99 $(COMMON_CFLAGS)
+AM_CXXFLAGS += $(COMMON_CFLAGS)
 
-INCLUDES = -I$(top_srcdir)
+INCLUDES = -I$(top_srcdir) -I$(top_builddir)
 
 mary_private_headers =
 
@@ -192,27 +192,27 @@ DISTCLEANFILES = libmary_config.h
 if LIBMARY_PLATFORM_WIN32
 native_file.h: native_file.win32.h
 	rm -f $@
-	ln -s native_file.win32.h native_file.h
+	ln -s $(srcdir)/native_file.win32.h native_file.h
 
 tcp_connection.h: tcp_connection.win32.h
 	rm -f $@
-	ln -s tcp_connection.win32.h tcp_connection.h
+	ln -s $(srcdir)/tcp_connection.win32.h tcp_connection.h
 
 tcp_server.h: tcp_server.win32.h
 	rm -f $@
-	ln -s tcp_server.win32.h tcp_server.h
+	ln -s $(srcdir)/tcp_server.win32.h tcp_server.h
 else
 native_file.h: native_file.linux.h
 	rm -f $@
-	ln -s native_file.linux.h native_file.h
+	ln -s $(srcdir)/native_file.linux.h native_file.h
 
 tcp_connection.h: tcp_connection.linux.h
 	rm -f $@
-	ln -s tcp_connection.linux.h tcp_connection.h
+	ln -s $(srcdir)/tcp_connection.linux.h tcp_connection.h
 
 tcp_server.h: tcp_server.linux.h
 	rm -f $@
-	ln -s tcp_server.linux.h tcp_server.h
+	ln -s $(srcdir)/tcp_server.linux.h tcp_server.h
 endif
 
 libmaryincludedir = $(includedir)/libmary-1.0/libmary
@@ -330,7 +330,7 @@ endif
 libmary_1_0_la_LDFLAGS = -no-undefined -version-info "0:0:0"
 libmary_1_0_la_LIBADD = $(THIS_LIBS)
 if LIBMARY_PLATFORM_WIN32
-libmary_1_0_la_LIBADD += -lws2_32
+libmary_1_0_la_LIBADD += -lws2_32 -lwinmm
 endif
 
 EXTRA_DIST = $(mary_private_headers) $(mary_extra_dist)
