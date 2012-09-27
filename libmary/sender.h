@@ -46,6 +46,9 @@ namespace M {
 
 class Sender : public virtual CodeReferenced
 {
+protected:
+    StateMutex mutex;
+
 public:
     enum SendState {
 			      // The comments below describe usual behavior of
@@ -300,9 +303,8 @@ public:
 	this->frontend = frontend;
     }
 
-    Sender (Object     * const coderef_container,
-            StateMutex * const mutex)
-        : event_informer (coderef_container, mutex)
+    Sender (Object * const coderef_container)
+        : event_informer (coderef_container, &mutex)
     {
     }
 };

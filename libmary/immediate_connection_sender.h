@@ -44,8 +44,6 @@ private:
     bool ready_for_output;
   mt_end
 
-    StateMutex mutex;
-
     mt_unlocks (mutex) void closeIfNeeded (bool deferred_event);
 
     static Connection::OutputFrontend const conn_output_frontend;

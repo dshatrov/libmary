@@ -58,8 +58,6 @@ private:
     bool in_output_queue;
   mt_end
 
-    StateMutex mutex;
-
     mt_unlocks (mutex) void toGlobOutputQueue (bool add_ref);
 
     mt_unlocks (mutex) void closeIfNeeded (bool deferred_event);
@@ -109,6 +107,8 @@ class DeferredConnectionSenderQueue : public DependentCodeReferenced
     friend class DeferredConnectionSender;
 
 private:
+    Mutex queue_mutex;
+
     typedef IntrusiveList<DeferredConnectionSender, DeferredConnectionSender_OutputQueue_name> OutputQueue;
     typedef IntrusiveList<DeferredConnectionSender, DeferredConnectionSender_ProcessingQueue_name> ProcessingQueue;
 
@@ -121,8 +121,6 @@ private:
     mt_mutex (queue_mutex) bool processing;
 
     mt_mutex (queue_mutex) bool released;
-
-    Mutex queue_mutex;
 
     static bool process (void *_self);
 

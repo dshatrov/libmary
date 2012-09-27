@@ -249,7 +249,7 @@ DeferredConnectionSender::setQueue (DeferredConnectionSenderQueue * const mt_non
 }
 
 DeferredConnectionSender::DeferredConnectionSender (Object * const coderef_container)
-    : Sender                  (coderef_container, &mutex),
+    : Sender                  (coderef_container),
       DependentCodeReferenced (coderef_container),
       dcs_queue               (coderef_container),
       conn_sender_impl        (true /* enable_processing_barrier */),
