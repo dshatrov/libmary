@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011, 2012 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -27,12 +27,14 @@
 
 namespace M {
 
-class IntrusiveList_DefaultList;
+class Referenced;
 
-template <class D = IntrusiveList_DefaultList>
+class IntrusiveList_name;
+
+template <class D = IntrusiveList_name>
 class IntrusiveListElement
 {
-    template <class T, class Element> friend class IntrusiveList;
+    template <class T, class Element, class RemoveAction> friend class IntrusiveList;
     template <class T, class Element> friend class IntrusiveCircularList;
 
 private:
@@ -40,7 +42,16 @@ private:
     IntrusiveListElement *previous;
 };
 
-template <class T, class ListName = IntrusiveList_DefaultList >
+template <class T>
+class IntrusiveList_NoAction
+{
+public:
+    static void act (T * const /* obj */)
+    {
+    }
+};
+
+template <class T, class ListName = IntrusiveList_name, class RemoveAction = IntrusiveList_NoAction<T> >
 class IntrusiveList
 {
 private:
@@ -184,12 +195,40 @@ public:
 	    el->next->previous = el->previous;
 	else
 	    last = el->previous;
+
+        RemoveAction::act (static_cast <T*> (el));
     }
+
+    template <class RemoveAction_>
+    struct doClear
+    {
+        static void clear (IntrusiveList * const self)
+        {
+            Element *el = self->first;
+            while (el) {
+                Element * const next_el = el->next;
+                RemoveAction::act (static_cast <T*> (el));
+                el = next_el;
+            }
+
+            self->first = NULL;
+            self->last = NULL;
+        }
+    };
+
+    template <class C>
+    struct doClear< IntrusiveList_NoAction <C> >
+    {
+        static void clear (IntrusiveList * const self)
+        {
+            self->first = NULL;
+            self->last = NULL;
+        }
+    };
 
     void clear ()
     {
-	first = NULL;
-	last = NULL;
+        doClear< RemoveAction >::clear (this);
     }
 
     Count countNumElements () const
@@ -209,6 +248,33 @@ public:
 	: first (NULL),
 	  last (NULL)
     {
+    }
+
+    template <class RemoveAction_>
+    struct doDestruct
+    {
+        static void destruct (IntrusiveList * const self)
+        {
+            Element *el = self->first;
+            while (el) {
+                Element * const next_el = el->next;
+                RemoveAction::act (static_cast <T*> (el));
+                el = next_el;
+            }
+        }
+    };
+
+    template <class C>
+    struct doDestruct< IntrusiveList_NoAction <C> >
+    {
+        static void destruct (IntrusiveList * const /* self */)
+        {
+        }
+    };
+
+    ~IntrusiveList ()
+    {
+        doDestruct <RemoveAction>::destruct (this);
     }
 
 // _________________________________ Iterator __________________________________
