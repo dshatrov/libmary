@@ -78,17 +78,28 @@ ImmediateConnectionSender::processOutput (void * const _self)
 	self->mutex.unlock ();
 
 	// exc is NULL for Eof.
-	if (res == AsyncIoResult::Error)
+	if (res == AsyncIoResult::Error) {
 	    logE_ (_func, exc->toString());
 
-        if (inform_closed) {
-            ExceptionBuffer * const exc_buf = exc_swap_noref ();
+            if (inform_closed) {
+                ExceptionBuffer * const exc_buf = exc_swap_noref ();
 
-            self->fireClosed (exc_buf->getException());
-            if (self->frontend)
-                self->frontend.call (self->frontend->closed, /*(*/ exc_buf->getException() /*)*/);
+                self->fireClosed (exc_buf->getException());
+                if (self->frontend) {
+                    self->frontend.call (self->frontend->closed,
+                                         /*(*/ exc_buf->getException() /*)*/);
+                }
 
-            exc_delete (exc_buf);
+                exc_delete (exc_buf);
+            }
+        } else {
+            if (inform_closed) {
+                self->fireClosed (NULL /* exc_ */);
+                if (self->frontend) {
+                    self->frontend.call (self->frontend->closed,
+                                         /*(*/ static_cast <Exception*> (NULL) /* exc_ */ /*)*/);
+                }
+            }
         }
 
 	return;
@@ -229,7 +240,7 @@ ImmediateConnectionSender::unlock ()
 }
 
 ImmediateConnectionSender::ImmediateConnectionSender (Object * const coderef_container)
-    : Sender (coderef_container, &mutex),
+    : Sender (coderef_container),
       DependentCodeReferenced (coderef_container),
       conn_sender_impl (false /* enable_processing_barrier */),
       closed (false),
