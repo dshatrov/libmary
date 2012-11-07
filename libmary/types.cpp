@@ -22,17 +22,29 @@
 
 namespace M {
 
-char const *
+ConstMemory
 _libMary_stripFuncFilePath (char const * const str)
 {
-    char const header [] = "../../";
-    unsigned const header_len = sizeof (header) - 1;
-    for (unsigned i = 0; i < header_len; ++i) {
-        if (str [i] == 0 || str [i] != header [i])
-            return str;
+    if (!str)
+        return ConstMemory ();
+
+    size_t const len = strlen (str);
+
+    size_t beg = 0;
+    for (size_t i = len; i > 0; --i) {
+        if (str [i - 1] == '/') {
+            beg = i;
+            break;
+        }
     }
 
-    return str + header_len;
+    if (len - beg >= 4
+        && equal (ConstMemory (str + len - 4, 4), ".cpp"))
+    {
+        return ConstMemory (str + beg, len - beg - 4);
+    }
+
+    return ConstMemory (str + beg, len - beg);
 }
 
 Size

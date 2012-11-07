@@ -22,6 +22,7 @@
 
 
 #include <libmary/types_base.h>
+#include <libmary/memory.h>
 
 
 #ifdef __GNUC__
@@ -37,40 +38,32 @@ typedef void (GenericCallback) (void *cb_data);
 
 class EmptyBase {};
 
-char const * _libMary_stripFuncFilePath (char const *str);
+ConstMemory _libMary_stripFuncFilePath (char const *str);
 
 // TODO Move to log.h, append current session id string (log_prefix)
 // Evil macro to save a few keystrokes for logE_ (_func, ...)
 
 // _func2 and _func3 are a workaround to stringify __LINE__.
 
-#define _func3(line, ...)							 	\
+#define _func3(line, ...)                                                                       \
 	_libMary_stripFuncFilePath (__FILE__),							\
 	":" #line,								 		\
-	":" __VA_ARGS__, __func__, ":",								\
+	":", __func__, ":",								        \
 	ConstMemory ("                                         " /* 41 spaces */, 		\
-		     sizeof (__FILE__) + sizeof (#line) + sizeof (__func__) + 3 < 40 + 1 ?	\
-			     40 - sizeof (__FILE__) - sizeof (#line) - sizeof (__func__) - 3 + 1 : 1)
+                     ({ Size const file_len = _libMary_stripFuncFilePath (__FILE__).len();      \
+                       file_len + sizeof (#line) + sizeof (__func__) + 3 < 40 + 1 ?             \
+                               40 - file_len - sizeof (#line) - sizeof (__func__) - 3 + 1 : 1; })) \
+        __VA_ARGS__
 
 #define _func3_(line, ...)							 		\
 	_libMary_stripFuncFilePath (__FILE__),							\
 	":" #line,								 		\
-	":" __VA_ARGS__, __func__,								\
-	ConstMemory ("                                        " /* 40 spaces */, 		\
-		     sizeof (__FILE__) + sizeof (#line) + sizeof (__func__) + 2 < 39 + 1 ?	\
-			     39 - sizeof (__FILE__) - sizeof (#line) - sizeof (__func__) - 2 + 1 : 1)
-
-#if 0
-// _func2 and _func3 are a workaround to stringify __LINE__.
-#define _func3(line)								\
-	__FILE__,								\
-	ConstMemory ("                    " /* 20 spaces */,			\
-		     sizeof (__FILE__) < 20 ? 20 - sizeof (__FILE__) : 0),	\
-	":" #line,								\
-	ConstMemory ("    " /* 5 spaces */,					\
-		     sizeof (#line) < 5 ? 5 - sizeof (#line) : 0),		\
-	":", __func__
-#endif
+	":" , __func__,								\
+	ConstMemory ("                                         " /* 41 spaces */, 		\
+                     ({ Size const file_len = _libMary_stripFuncFilePath (__FILE__).len();      \
+                        file_len + sizeof (#line) + sizeof (__func__) + 2 < 40 + 1 ?	        \
+                                40 - file_len - sizeof (#line) - sizeof (__func__) - 2 + 1 : 1; })) \
+        __VA_ARGS__
 
 // No line padding  #define _func3(line) __FILE__ ":" #line ":", __func__
 #define _func2( line, ...) _func3 (line __VA_ARGS__)
@@ -193,14 +186,6 @@ public:
     {
     }
 };
-
-}
-
-
-#include <libmary/memory.h>
-
-
-namespace M {
 
 class Format;
 
