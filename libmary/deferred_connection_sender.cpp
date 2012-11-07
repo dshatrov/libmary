@@ -252,7 +252,7 @@ DeferredConnectionSender::DeferredConnectionSender (Object * const coderef_conta
     : Sender                  (coderef_container),
       DependentCodeReferenced (coderef_container),
       dcs_queue               (coderef_container),
-      conn_sender_impl        (true /* enable_processing_barrier */),
+      conn_sender_impl        (/* TEST (set to true)  true */ false /* enable_processing_barrier */),
       closed                  (false),
       close_after_flush       (false),
       ready_for_output        (true),
@@ -385,19 +385,18 @@ DeferredConnectionSenderQueue::process (void *_self)
 	else
 	    deferred_sender->ready_for_output = true;
 
-	bool const tmp_extra_iteration_needed = deferred_sender->conn_sender_impl.processingBarrierHit();
-//	logD_ (_func, "tmp_extra_iteration_needed: ", tmp_extra_iteration_needed ? "true" : "false");
-
-	if (!tmp_extra_iteration_needed) {
+	if (!deferred_sender->conn_sender_impl.processingBarrierHit()) {
 	  // At this point, conn_sender_impl has either sent all data, or it has
 	  // gotten EAGAIN from writev. In either case, we should have removed
 	  // deferred_sender from output_queue.
 
 	    mt_unlocks (deferred_sender->mutex) deferred_sender->closeIfNeeded (false /* deferred_event */);
 
-	    Object * const coderef_container = deferred_sender->getCoderefContainer();
-	    if (coderef_container)
-		coderef_container->unref ();
+            {
+                Object * const coderef_container = deferred_sender->getCoderefContainer();
+                if (coderef_container)
+                    coderef_container->unref ();
+            }
 	} else {
             // TODO I recall thinking that processing barriers are stupid.
             //      Re-visit this topic.
@@ -405,8 +404,11 @@ DeferredConnectionSenderQueue::process (void *_self)
 	    // TEST
 	    assert (0);
 
+            // TODO toGlobOutputQueue calls trigger(), which is unnecessary here.
 	    mt_unlocks (deferred_sender->mutex) deferred_sender->toGlobOutputQueue (false /* add_ref */);
-	    extra_iteration_needed = true;
+
+// Overlaps with (!self->output_queue.isEmpty()) check below.
+//	    extra_iteration_needed = true;
 	}
     }
 
