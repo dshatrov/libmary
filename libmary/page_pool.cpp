@@ -465,13 +465,19 @@ PagePool::~PagePool ()
 
 void
 PagePool::dumpPages (OutputStream * const mt_nonnull outs,
-                     PageListHead * const mt_nonnull page_list)
+                     PageListHead * const mt_nonnull page_list,
+                     Size           const first_page_offs)
 {
     Page *page = page_list->first;
     Count i = 1;
     while (page) {
         outs->print ("\nPage #", i, "\n");
-        hexdump (outs, page->mem());
+
+        if (page == page_list->first)
+            hexdump (outs, page->mem().region (first_page_offs));
+        else
+            hexdump (outs, page->mem());
+
         page = page->getNextMsgPage();
         ++i;
     }

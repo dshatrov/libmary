@@ -30,6 +30,10 @@
 
 namespace M {
 
+// TODO Per-thread page pools. When a page is released in a given thread,
+//      it is put into page pool of that thread, which may be different
+//      from the one we took the page from.
+
 // TODO PagePool should be referenced while there's any referenced page.
 //      This also means that PagePools should be independent objects,
 //      not dependent ones.
@@ -286,7 +290,8 @@ public:
     ~PagePool ();
 
     static void dumpPages (OutputStream * mt_nonnull outs,
-                           PageListHead * mt_nonnull page_list);
+                           PageListHead * mt_nonnull page_list,
+                           Size          first_page_offs = 0);
 
     static Size countPageListDataLen (Page * const first_page,
                                       Size   const msg_offset)
