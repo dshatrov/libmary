@@ -40,6 +40,9 @@
 //#define LIBMARY_TEST_MWRITEV_SINGLE
 
 
+//#define LIBMARY__TCP_CONNECTION__DEBUG
+
+
 #ifdef LIBMARY_TEST_MWRITEV
 #include <libmary/mwritev.h>
 #endif
@@ -138,15 +141,32 @@ TcpConnection::processEvents (Uint32   const event_flags,
 	    }
 	}
 
-	if (self->output_frontend && self->output_frontend->processOutput)
+	if (self->output_frontend && self->output_frontend->processOutput) {
+#ifdef LIBMARY__TCP_CONNECTION__DEBUG
+            logD_ (_self_func, "calling frontend->processOutput()");
+#endif
+
 	    self->output_frontend.call (self->output_frontend->processOutput);
+
+#ifdef LIBMARY__TCP_CONNECTION__DEBUG
+            logD_ (_self_func, "frontend->processOutput() returned");
+#endif
+        }
     }
 
     if (event_flags & PollGroup::Input ||
 	event_flags & PollGroup::Hup)
     {
+#ifdef LIBMARY__TCP_CONNECTION__DEBUG
+        logD_ (_self_func, "calling frontend->processInput()");
+#endif
+
 	if (self->input_frontend && self->input_frontend->processInput)
 	    self->input_frontend.call (self->input_frontend->processInput);
+
+#ifdef LIBMARY__TCP_CONNECTION__DEBUG
+        logD_ (_self_func, "frontend->processInput() returned");
+#endif
     }
 
     if (event_flags & PollGroup::Error) {

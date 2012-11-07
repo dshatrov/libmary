@@ -28,6 +28,9 @@
 #include <libmary/epoll_poll_group.h>
 
 
+//#define LIBMARY__EPOLL_POLL_GROUP__DEBUG
+
+
 namespace M {
 
 namespace {
@@ -191,7 +194,16 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	    timeout = 0;
 	}
 
+#ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
+        logD_ (_this_func, "calling epoll_wait()");
+#endif
+
 	int const nfds = epoll_wait (efd, events, sizeof (events) / sizeof (events [0]), timeout);
+
+#ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
+        logD_ (_this_func, "epoll_wait() returned");
+#endif
+
 	if (nfds == -1) {
 	    if (errno == EINTR)
 		continue;
@@ -260,8 +272,16 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
                     event_flags |= PollGroup::Error;
 
                 if (event_flags) {
+#ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
+                    logD_ (_this_func, "calling pollable->processEvents()");
+#endif
+
                     pollable_entry->pollable.call_mutex (
                             pollable_entry->pollable->processEvents, mutex, /* ( */ event_flags /* ) */);
+
+#ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
+                    logD_ (_this_func, "pollable->processEvents() returned");
+#endif
                 }
             }
         } // for (;;) - for all fds.
@@ -299,8 +319,16 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 		got_deferred_tasks = true;
 	}
 
+#ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
+        logD_ (_this_func, "calling deferred_processor.process()");
+#endif
+
 	if (deferred_processor.process ())
 	    got_deferred_tasks = true;
+
+#ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
+        logD_ (_this_func, "deferred_processor.process() returned");
+#endif
 
 	if (trigger_break) {
 	    logD (epoll, _func, "trigger_break");
