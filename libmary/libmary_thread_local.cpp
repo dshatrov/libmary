@@ -43,6 +43,8 @@ LibMary_ThreadLocal::LibMary_ThreadLocal ()
       time_microseconds (0),
       unixtime (0),
 
+      time_log_frac (0),
+
       saved_unixtime (0),
       saved_monotime (0)
 
