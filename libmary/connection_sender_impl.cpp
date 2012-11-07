@@ -498,13 +498,25 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 				if (first_entry) {
 				    logD (writev, _func, "#", i, ": first page, first entry");
 
-				    assert (send_cur_offset < page->data_len);
+				    assert (send_cur_offset <= page->data_len);
+                                    if (send_cur_offset == page->data_len) {
+                                        logD_ (_func, "WARNING: "
+                                               "send_cur_offset (", send_cur_offset, ") == "
+                                               "page->data_len (", page->data_len, ")");
+                                    }
+
 				    iovs [i].iov_base = page->getData() + send_cur_offset;
 				    iovs [i].iov_len = page->data_len - send_cur_offset;
 				} else {
 				    logD (writev, _func, "#", i, ": first page");
 
-				    assert (msg_pages->msg_offset < page->data_len);
+				    assert (msg_pages->msg_offset <= page->data_len);
+                                    if (msg_pages->msg_offset == page->data_len) {
+                                        logD_ (_func, "WARNING: "
+                                               "msg_pages->msg_offset (", msg_pages->msg_offset, ") == "
+                                               "page->data_len (", page->data_len, ")");
+                                    }
+
 				    iovs [i].iov_base = page->getData() + msg_pages->msg_offset;
 				    iovs [i].iov_len = page->data_len - msg_pages->msg_offset;
 				}
@@ -521,7 +533,13 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 			if (react) {
 			    if (first_page) {
 				if (first_entry) {
-				    assert (send_cur_offset < page->data_len);
+				    assert (send_cur_offset <= page->data_len);
+                                    if (send_cur_offset == page->data_len) {
+                                        logD_ (_func, "WARNING: "
+                                               "send_cur_offset (", send_cur_offset, ") == "
+                                               "page->data_len (", page->data_len, ")");
+                                    }
+
 				    if (num_written < page->data_len - send_cur_offset) {
 					send_cur_offset += num_written;
 					num_written = 0;
@@ -531,7 +549,13 @@ ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iov
 
 				    num_written -= page->data_len - send_cur_offset;
 				} else {
-				    assert (msg_pages->msg_offset < page->data_len);
+				    assert (msg_pages->msg_offset <= page->data_len);
+                                    if (msg_pages->msg_offset == page->data_len) {
+                                        logD_ (_func, "WARNING: "
+                                               "msg_pages->msg_offset (", msg_pages->msg_offset, ") == "
+                                               "page->data_len (", page->data_len, ")");
+                                    }
+
 				    if (num_written < page->data_len - msg_pages->msg_offset) {
 					send_cur_offset += num_written;
 					num_written = 0;
