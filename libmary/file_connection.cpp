@@ -23,8 +23,8 @@
 namespace M {
 
 mt_throws AsyncIoResult
-FileConnection::read (Memory const &mem,
-		      Size         * const ret_nread)
+FileConnection::read (Memory  mem,
+		      Size   * const ret_nread)
 {
     IoResult const res = file->read (mem, ret_nread);
     switch (res) {
@@ -41,8 +41,8 @@ FileConnection::read (Memory const &mem,
 }
 
 mt_throws AsyncIoResult
-FileConnection::write (ConstMemory const &mem,
-		       Size              * const ret_nwritten)
+FileConnection::write (ConstMemory  mem,
+		       Size        * const ret_nwritten)
 {
     if (!file->write (mem, ret_nwritten))
 	return AsyncIoResult::Error;
@@ -83,6 +83,15 @@ void
 FileConnection::setFile (File * const file)
 {
     this->file = file;
+}
+
+FileConnection::FileConnection ()
+    : file (NULL)
+{
+}
+
+FileConnection::~FileConnection ()
+{
 }
 
 }

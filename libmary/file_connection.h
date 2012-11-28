@@ -21,6 +21,7 @@
 #define __LIBMARY__FILE_CONNECTION__H__
 
 
+#include <libmary/types.h>
 #include <libmary/connection.h>
 #include <libmary/file.h>
 
@@ -36,16 +37,16 @@ public:
     mt_iface (AsyncInputStream)
     mt_begin
 
-      mt_throws AsyncIoResult read (Memory const &mem,
-				    Size         *ret_nread);
+      mt_throws AsyncIoResult read (Memory  mem,
+				    Size   *ret_nread);
 
     mt_end
 
     mt_iface (AsyncOutputStream)
     mt_begin
 
-      mt_throws AsyncIoResult write (ConstMemory const &mem,
-				     Size              *ret_nwritten);
+      mt_throws AsyncIoResult write (ConstMemory  mem,
+				     Size        *ret_nwritten);
 
       mt_throws AsyncIoResult writev (struct iovec *iovs,
 				      Count         num_iovs,
@@ -65,6 +66,10 @@ public:
     mt_end
 
     mt_const void setFile (File *file);
+
+    FileConnection ();
+
+    ~FileConnection ();
 };
 
 }
