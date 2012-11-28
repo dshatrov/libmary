@@ -22,18 +22,21 @@
 
 
 #include <libmary/receiver.h>
-#include <libmary/connection.h>
+#include <libmary/async_input_stream.h>
 #include <libmary/code_referenced.h>
 
 
 namespace M {
+
+
+// TODO Rename to AsyncReceiver. It now depends on AsyncInputStream, not on Connection.
 
 // Synchronized externally by the associated Connection object.
 class ConnectionReceiver : public Receiver,
 			   public DependentCodeReferenced
 {
 private:
-    Connection *conn;
+    AsyncInputStream *conn;
 
     Byte *recv_buf;
     Size const recv_buf_len;
@@ -45,23 +48,25 @@ private:
 
     void doProcessInput ();
 
-    static Connection::InputFrontend const conn_input_frontend;
+    static AsyncInputStream::InputFrontend const conn_input_frontend;
 
     static void processInput (void *_self);
 
     static void processError (Exception *exc_,
-			      void *_self);
+			      void      *_self);
 
 public:
-    void setConnection (Connection * const conn)
+    void setConnection (AsyncInputStream * const conn)
     {
 	this->conn = conn;
-	conn->setInputFrontend (Cb<Connection::InputFrontend> (&conn_input_frontend, this, getCoderefContainer()));
+	conn->setInputFrontend (
+                Cb<AsyncInputStream::InputFrontend> (
+                        &conn_input_frontend, this, getCoderefContainer()));
     }
 
     // TODO Deprecated constructor. Delete it.
-    ConnectionReceiver (Object     * const coderef_container,
-			Connection * const mt_nonnull conn);
+    ConnectionReceiver (Object           * const coderef_container,
+			AsyncInputStream * const mt_nonnull conn);
 
     ConnectionReceiver (Object * const coderef_container);
 

@@ -28,7 +28,7 @@ namespace {
 LogGroup libMary_logGroup_msg ("msg", LogLevel::N);
 }
 
-Connection::InputFrontend const ConnectionReceiver::conn_input_frontend = {
+AsyncInputStream::InputFrontend const ConnectionReceiver::conn_input_frontend = {
     processInput,
     processError
 };
@@ -179,8 +179,8 @@ ConnectionReceiver::processError (Exception * const exc_,
 }
 
 // TODO Deprecated constructor.
-ConnectionReceiver::ConnectionReceiver (Object     * const coderef_container,
-					Connection * const mt_nonnull conn)
+ConnectionReceiver::ConnectionReceiver (Object           * const coderef_container,
+                                        AsyncInputStream * const mt_nonnull conn)
     : DependentCodeReferenced (coderef_container),
       conn (conn),
       recv_buf_len (1 << 16 /* 64 Kb */),
@@ -191,7 +191,9 @@ ConnectionReceiver::ConnectionReceiver (Object     * const coderef_container,
     recv_buf = new Byte [recv_buf_len];
     assert (recv_buf);
 
-    conn->setInputFrontend (Cb<Connection::InputFrontend> (&conn_input_frontend, this, getCoderefContainer()));
+    conn->setInputFrontend (
+            Cb<AsyncInputStream::InputFrontend> (
+                    &conn_input_frontend, this, getCoderefContainer()));
 }
 
 ConnectionReceiver::ConnectionReceiver (Object * const coderef_container)
