@@ -41,6 +41,12 @@ namespace M {
 
 class ServerApp : public DependentCodeReferenced
 {
+public:
+    struct Events
+    {
+        void (*threadStarted) (void *cb_data);
+    };
+
 private:
 #ifdef LIBMARY_MT_SAFE
     StateMutex mutex;
@@ -83,6 +89,8 @@ private:
     };
 #endif
 
+    Informer_<Events> event_informer;
+
     SA_ServerContext server_ctx;
     ServerThreadContext main_thread_ctx;
 
@@ -101,6 +109,12 @@ private:
 
     AtomicInt should_stop;
 
+    static void informThreadStarted (Events *events,
+                                     void   *cb_data,
+                                     void   *inform_data);
+
+    void fireThreadStarted ();
+
     static void firstTimerAdded (void *_active_poll_group);
 
     static void threadFunc (void *_self);
@@ -116,6 +130,11 @@ private:
   mt_iface_end
 
 public:
+    Informer_<Events>* getEventInformer ()
+    {
+        return &event_informer;
+    }
+
     CodeDepRef<ServerContext> getServerContext ()
     {
 	return &server_ctx;

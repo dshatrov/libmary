@@ -63,6 +63,21 @@ ServerApp::SA_ServerContext::selectThreadContext ()
 }
 
 void
+ServerApp::informThreadStarted (Events * const events,
+                                void   * const cb_data,
+                                void   * const /* inform_data */)
+{
+    if (events->threadStarted)
+        events->threadStarted (cb_data);
+}
+
+void
+ServerApp::fireThreadStarted ()
+{
+    event_informer.informAll (informThreadStarted, NULL /* inform_cb_data */);
+}
+
+void
 ServerApp::firstTimerAdded (void * const _active_poll_group)
 {
     logD (server_app, _func_);
@@ -174,6 +189,8 @@ ServerApp::threadFunc (void * const _self)
     self->thread_data_list.append (thread_data);
     self->mutex.unlock ();
 
+    self->fireThreadStarted ();
+
     for (;;) {
 	if (!thread_data->poll_group.poll (thread_data->timers.getSleepTime_microseconds())) {
 	    logE_ (_func, "poll_group.poll() failed: ", exc->toString());
@@ -256,6 +273,7 @@ ServerApp::release ()
 ServerApp::ServerApp (Object * const coderef_container,
 		      Count    const num_threads)
     : DependentCodeReferenced (coderef_container),
+      event_informer (coderef_container, &mutex),
       server_ctx (coderef_container,
                   this /* server_app */),
       main_thread_ctx (coderef_container),
