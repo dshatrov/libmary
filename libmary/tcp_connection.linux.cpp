@@ -204,8 +204,8 @@ TcpConnection::setFeedback (Cb<PollGroup::Feedback> const &feedback,
 }
 
 AsyncIoResult
-TcpConnection::read (Memory const &mem,
-		     Size * const ret_nread)
+TcpConnection::read (Memory   const mem,
+		     Size   * const ret_nread)
     mt_throw ((IoException,
 	       InternalException))
 {
@@ -256,8 +256,8 @@ TcpConnection::read (Memory const &mem,
 }
 
 AsyncIoResult
-TcpConnection::write (ConstMemory const &mem,
-		      Size * const ret_nwritten)
+TcpConnection::write (ConstMemory   const mem,
+		      Size        * const ret_nwritten)
     mt_throw ((IoException,
 	       InternalException))
 {

@@ -23,6 +23,7 @@
 
 #include <libmary/types.h>
 #include <libmary/exception.h>
+#include <libmary/cb.h>
 
 
 namespace M {
@@ -30,8 +31,24 @@ namespace M {
 class AsyncInputStream
 {
 public:
-    virtual mt_throws AsyncIoResult read (Memory const &mem,
-					  Size         *ret_nread) = 0;
+    struct InputFrontend {
+	void (*processInput) (void *cb_data);
+
+	void (*processError) (Exception *exc_,
+			      void      *cb_data);
+    };
+
+protected:
+    mt_const Cb<InputFrontend> input_frontend;
+
+public:
+    virtual mt_throws AsyncIoResult read (Memory  mem,
+					  Size   *ret_nread) = 0;
+
+    mt_const void setInputFrontend (Cb<InputFrontend> const &input_frontend)
+    {
+	this->input_frontend = input_frontend;
+    }
 
     virtual ~AsyncInputStream () {}
 };

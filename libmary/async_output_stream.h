@@ -28,6 +28,7 @@
 #endif
 
 #include <libmary/exception.h>
+#include <libmary/cb.h>
 
 
 namespace M {
@@ -35,12 +36,25 @@ namespace M {
 class AsyncOutputStream
 {
 public:
-    virtual mt_throws AsyncIoResult write (ConstMemory const &mem,
-					   Size              *ret_nwritten) = 0;
+    struct OutputFrontend {
+	void (*processOutput) (void *cb_data);
+    };
+
+protected:
+    mt_const Cb<OutputFrontend> output_frontend;
+
+public:
+    virtual mt_throws AsyncIoResult write (ConstMemory  mem,
+					   Size        *ret_nwritten) = 0;
 
     virtual mt_throws AsyncIoResult writev (struct iovec *iovs,
 					    Count         num_iovs,
 					    Size         *ret_nwritten);
+
+    mt_const void setOutputFrontend (Cb<OutputFrontend> const &output_frontend)
+    {
+	this->output_frontend = output_frontend;
+    }
 
     virtual ~AsyncOutputStream () {}
 };
