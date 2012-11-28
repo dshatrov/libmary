@@ -212,6 +212,62 @@ private:
     Value value;
 };
 
+class FileAccessMode
+{
+public:
+    enum Value {
+        ReadOnly = 0,
+        WriteOnly,
+        ReadWrite
+    };
+    operator Value () const { return value; }
+    FileAccessMode (Value value) : value (value) {}
+    FileAccessMode () {}
+private:
+    Value value;
+};
+
+class FileOpenFlags
+{
+public:
+    enum Value {
+        Create   = 0x1,
+        Truncate = 0x2,
+        Append   = 0x4
+    };
+    operator Uint32 () const { return value; }
+    FileOpenFlags (Value value) : value (value) {}
+    FileOpenFlags () {}
+private:
+    Value value;
+};
+
+class FileType
+{
+public:
+    enum Value {
+        BlockDevice,
+        CharacterDevice,
+        Fifo,
+        RegularFile,
+        Directory,
+        SymbolicLink,
+        Socket
+    };
+    operator Value () const { return value; }
+    FileType (Value const value) : value (value) {}
+    FileType () {}
+private:
+    Value value;
+};
+
+class FileStat /* Unnecessary   : public BasicReferenced */
+{
+public:
+    unsigned long long size;
+    FileType file_type;
+};
+
 }
 
 

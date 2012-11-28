@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011, 2012 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -34,62 +34,11 @@ namespace M {
 class File : public InputStream, public OutputStream
 {
 public:
-    class AccessMode
-    {
-    public:
-	enum Value {
-	    ReadOnly = 0,
-	    WriteOnly,
-	    ReadWrite
-	};
-	operator Value () const { return value; }
-	AccessMode (Value value) : value (value) {}
-	AccessMode () {}
-    private:
-	Value value;
-    };
+    typedef M::FileAccessMode AccessMode;
+    typedef M::FileOpenFlags  OpenFlags;
 
-    class OpenFlags
-    {
-    public:
-	enum Value {
-	    Create   = 0x1,
-	    Truncate = 0x2,
-	    Append   = 0x4
-	};
-	operator Uint32 () const { return value; }
-	OpenFlags (Value value) : value (value) {}
-	OpenFlags () {}
-    private:
-	Value value;
-    };
-
-    // TODO Unused?
-    class FileType
-    {
-    public:
-	enum Value {
-	    BlockDevice,
-	    CharacterDevice,
-	    Fifo,
-	    RegularFile,
-	    Directory,
-	    SymbolicLink,
-	    Socket
-	};
-	operator Value () const { return value; }
-	FileType (Value const value) : value (value) {}
-	FileType () {}
-    private:
-	Value value;
-    };
-
-    class FileStat : public BasicReferenced
-    {
-    public:
-	unsigned long long size;
-	FileType file_type;
-    };
+    typedef M::FileType FileType;
+    typedef M::FileStat FileStat;
 
     virtual mt_throws Result seek (FileOffset offset,
 				   SeekOrigin origin) = 0;
