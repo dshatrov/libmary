@@ -18,7 +18,9 @@
 
 
 #include <libmary/types.h>
+#include <cstdlib>
 #include <cstdio>
+#include <locale.h>
 
 
 #include <libmary/libmary.h>
@@ -52,6 +54,15 @@ void libMaryInit ()
 	}
 	initialized = true;
     }
+
+    // Setting numeric locale for snprintf() to behave uniformly in all cases.
+    // Specifically, we need dot ('.') to be used as a decimal separator.
+    if (setlocale (LC_NUMERIC, "C") == NULL)
+        fprintf (stderr, "WARNING: Could not set LC_NUMERIC locale to \"C\"\n");
+
+    // GStreamer calls setlocale(LC_ALL, ""), which is lame. We fight this with setenv().
+    if (setenv ("LC_NUMERIC", "C", 1 /* overwrite */) == -1)
+        perror ("WARNING: Could not set LC_NUMERIC environment variable to \"C\"");
 
 #ifdef LIBMARY_MT_SAFE
     if (!g_thread_get_initialized ())
