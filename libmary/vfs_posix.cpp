@@ -25,6 +25,7 @@
 #include <libmary/native_file.h>
 #include <libmary/log.h>
 #include <libmary/util_dev.h>
+#include <libmary/util_posix.h>
 
 #include <libmary/vfs_posix.h>
 
@@ -163,11 +164,10 @@ VfsPosix::Directory::~Directory ()
     }
 }
 
-mt_throws Ref<Vfs::FileStat>
-VfsPosix::stat (ConstMemory const &_name)
+mt_throws Result
+VfsPosix::stat (ConstMemory   const _name,
+                FileStat    * const mt_nonnull ret_stat)
 {
-  // TODO There's code duplication with NativeFile::stat().
-
     Ref<String> name_str;
     ConstMemory const name = makePathCstr (name_str, _name);
 
@@ -176,49 +176,14 @@ VfsPosix::stat (ConstMemory const &_name)
     int const res = ::stat ((char const*) name.mem(), &stat_buf);
     if (res == -1) {
 	exc_throw <PosixException> (errno);
-	return NULL;
+	return Result::Failure;
     } else
     if (res != 0) {
 	exc_throw <InternalException> (InternalException::BackendMalfunction);
-	return NULL;
+        return Result::Failure;
     }
 
-    Ref<FileStat> stat_data = grab (new FileStat);
-
-    if (S_ISBLK (stat_buf.st_mode))
-	stat_data->file_type = FileType::BlockDevice;
-    else
-    if (S_ISCHR (stat_buf.st_mode))
-	stat_data->file_type = FileType::CharacterDevice;
-    else
-    if (S_ISDIR (stat_buf.st_mode))
-	stat_data->file_type = FileType::Directory;
-    else
-    if (S_ISFIFO (stat_buf.st_mode))
-	stat_data->file_type = FileType::Fifo;
-    else
-    if (S_ISREG (stat_buf.st_mode))
-	stat_data->file_type = FileType::RegularFile;
-#ifndef LIBMARY_PLATFORM_WIN32
-    else
-    if (S_ISLNK (stat_buf.st_mode))
-	stat_data->file_type = FileType::SymbolicLink;
-    else
-    if (S_ISSOCK (stat_buf.st_mode))
-	stat_data->file_type = FileType::Socket;
-#endif
-    else {
-	logE_ (_func, "Unknown file type:");
-        logLock ();
-	hexdump (logs, ConstMemory::forObject (stat_buf.st_mode));
-        logUnlock ();
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
-	return NULL;
-    }
-
-    stat_data->size = (unsigned long long) stat_buf.st_size;
-
-    return stat_data;
+    return posix_statToFileStat (&stat_buf, ret_stat);
 }
 
 mt_throws Ref<Vfs::Directory>

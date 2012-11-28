@@ -60,7 +60,8 @@ public:
 	~Directory ();
     };
 
-    mt_throws Ref<FileStat> stat (ConstMemory const &name);
+    mt_throws Result stat (ConstMemory  name,
+                           FileStat    * mt_nonnull ret_stat);
 
     mt_throws Ref<Vfs::Directory> openDirectory (ConstMemory const &dirname);
 

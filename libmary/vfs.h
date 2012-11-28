@@ -44,7 +44,8 @@ public:
 	virtual mt_throws Result rewind () = 0;
     };
 
-    virtual mt_throws Ref<FileStat> stat (ConstMemory const &name) = 0;
+    virtual mt_throws Result stat (ConstMemory  name,
+                                   FileStat    * mt_nonnull ret_stat) = 0;
 
     virtual mt_throws Ref<Directory> openDirectory (ConstMemory const &dirname) = 0;
 

@@ -23,6 +23,7 @@
 #include <fcntl.h>
 
 #include <libmary/log.h>
+#include <libmary/util_dev.h>
 
 #include <libmary/util_posix.h>
 
@@ -128,6 +129,45 @@ mt_throws Result commonTriggerPipeRead (int const fd)
 	    break;
 	}
     }
+
+    return Result::Success;
+}
+
+mt_throws Result posix_statToFileStat (struct stat * const mt_nonnull stat_buf,
+                                       FileStat    * const mt_nonnull ret_stat)
+{
+    if (S_ISBLK (stat_buf->st_mode))
+	ret_stat->file_type = FileType::BlockDevice;
+    else
+    if (S_ISCHR (stat_buf->st_mode))
+	ret_stat->file_type = FileType::CharacterDevice;
+    else
+    if (S_ISDIR (stat_buf->st_mode))
+	ret_stat->file_type = FileType::Directory;
+    else
+    if (S_ISFIFO (stat_buf->st_mode))
+	ret_stat->file_type = FileType::Fifo;
+    else
+    if (S_ISREG (stat_buf->st_mode))
+	ret_stat->file_type = FileType::RegularFile;
+#ifndef LIBMARY_PLATFORM_WIN32
+    else
+    if (S_ISLNK (stat_buf->st_mode))
+	ret_stat->file_type = FileType::SymbolicLink;
+    else
+    if (S_ISSOCK (stat_buf->st_mode))
+	ret_stat->file_type = FileType::Socket;
+#endif
+    else {
+	logE_ (_func, "Unknown file type:");
+        logLock ();
+	hexdump (logs, ConstMemory::forObject (stat_buf->st_mode));
+        logUnlock ();
+	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	return Result::Failure;
+    }
+
+    ret_stat->size = (unsigned long long) stat_buf->st_size;
 
     return Result::Success;
 }
