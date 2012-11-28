@@ -90,6 +90,11 @@ public:
     mt_throws AcceptResult accept (TcpConnection * mt_nonnull tcp_connection,
 				   IpAddress     *ret_addr = NULL);
 
+private:
+    mt_throws AcceptResult doAccept (TcpConnection * mt_nonnull tcp_connection,
+                                     IpAddress     *ret_addr);
+
+public:
     // Should be called before listen().
     mt_throws Result bind (IpAddress const &ip_addr);
 
