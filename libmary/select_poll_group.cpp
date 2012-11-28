@@ -170,7 +170,7 @@ SelectPollGroup::addPollable (CbDesc<Pollable> const &pollable,
 mt_throws Result
 SelectPollGroup::activatePollable (PollableKey const mt_nonnull key)
 {
-    PollableEntry * const pollable_entry = static_cast <PollableEntry*> (key);
+    PollableEntry * const pollable_entry = static_cast <PollableEntry*> ((void*) key);
 
     mutex.lock ();
     assert (!pollable_entry->activated);
@@ -188,7 +188,7 @@ SelectPollGroup::activatePollable (PollableKey const mt_nonnull key)
 void
 SelectPollGroup::removePollable (PollableKey const mt_nonnull key)
 {
-    PollableEntry * const pollable_entry = static_cast <PollableEntry*> (key);
+    PollableEntry * const pollable_entry = static_cast <PollableEntry*> ((void*) key);
 
     logD (select, _func, "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry);
 

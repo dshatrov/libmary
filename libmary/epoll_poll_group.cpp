@@ -128,7 +128,7 @@ EpollPollGroup::doActivate (PollableEntry * const mt_nonnull pollable_entry)
 mt_throws Result
 EpollPollGroup::activatePollable (PollableKey const mt_nonnull key)
 {
-    PollableEntry * const pollable_entry = static_cast <PollableEntry*> (key);
+    PollableEntry * const pollable_entry = static_cast <PollableEntry*> ((void*) key);
 
     logD (epoll, _func, "0x", fmt_hex, (UintPtr) this, ": "
 	  "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry);
@@ -139,7 +139,7 @@ EpollPollGroup::activatePollable (PollableKey const mt_nonnull key)
 void
 EpollPollGroup::removePollable (PollableKey const mt_nonnull key)
 {
-    PollableEntry * const pollable_entry = static_cast <PollableEntry*> (key);
+    PollableEntry * const pollable_entry = static_cast <PollableEntry*> ((void*) key);
 
     logD (epoll, _func, "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry);
 

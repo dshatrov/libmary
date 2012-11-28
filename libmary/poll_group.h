@@ -77,7 +77,15 @@ public:
 			     void *cb_data);
     };
 
-    typedef void *PollableKey;
+    class PollableKey
+    {
+    private:
+        void *key;
+    public:
+        operator void* () const { return key; }
+        PollableKey (void * const key) : key (key) {}
+        PollableKey () : key (NULL) {}
+    };
 
 public:
     // Every successful call to addPollable() must be matched with a call
