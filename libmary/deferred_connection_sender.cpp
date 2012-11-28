@@ -340,7 +340,7 @@ DeferredConnectionSenderQueue::process (void *_self)
                 if (!deferred_sender->closed) {
                     deferred_sender->closed = true;
 
-                    ExceptionBuffer * const exc_buf = exc_swap_noref ();
+                    ExceptionBuffer * const exc_buf = exc_swap_nounref ();
 
                     deferred_sender->fireClosed_unlocked (exc_buf->getException());
                     if (deferred_sender->frontend && deferred_sender->frontend->closed) {
@@ -576,7 +576,7 @@ DeferredConnectionSenderQueue::process_mwritev (void *_self)
                         if (!closed) {
                             closed = true;
 
-                            ExceptionBuffer * const exc_buf = exc_swap_noref ();
+                            ExceptionBuffer * const exc_buf = exc_swap_nounref ();
 
                             deferred_sender->fireClosed_unlocked (exc_buf->getException());
                             if (deferred_sender->frontend && deferred_sender->frontend->closed) {

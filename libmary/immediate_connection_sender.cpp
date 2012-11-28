@@ -82,7 +82,7 @@ ImmediateConnectionSender::processOutput (void * const _self)
 	    logE_ (_func, exc->toString());
 
             if (inform_closed) {
-                ExceptionBuffer * const exc_buf = exc_swap_noref ();
+                ExceptionBuffer * const exc_buf = exc_swap_nounref ();
 
                 self->fireClosed (exc_buf->getException());
                 if (self->frontend) {

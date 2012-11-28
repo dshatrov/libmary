@@ -81,12 +81,24 @@ static inline Ref<ExceptionBuffer> exc_swap ()
     return prv_exc_buf;
 }
 
-static inline ExceptionBuffer* exc_swap_noref ()
+static inline ExceptionBuffer* exc_swap_nounref ()
 {
     LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
     ExceptionBuffer * const prv_exc_buf = tlocal->exc_buffer;
     tlocal->exc_buffer.setNoUnref (grab (new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE)));
     return prv_exc_buf;
+}
+
+static inline void exc_set (ExceptionBuffer * const exc_buf)
+{
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
+    tlocal->exc_buffer = exc_buf;
+}
+
+static inline void exc_set_noref (ExceptionBuffer * const exc_buf)
+{
+    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
+    tlocal->exc_buffer.setNoRef (exc_buf);
 }
 
 static inline void exc_delete (ExceptionBuffer * const exc_buf)
@@ -202,11 +214,24 @@ static inline Ref<ExceptionBuffer> exc_swap ()
     return prv_exc_buf;
 }
 
-static inline ExceptionBuffer* exc_swap_noref ()
+static inline ExceptionBuffer* exc_swap_nounref ()
 {
     ExceptionBuffer * const prv_exc_buf = _libMary_exc_buf;
     _libMary_exc_buf = new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE);
     return prv_exc_buf;
+}
+
+static inline void exc_set (ExceptionBuffer * const exc_buf)
+{
+    delete _libMary_exc_buf;
+    _libMary_exc_buf = exc_buf;
+    exc_buf->ref ();
+}
+
+static inline void exc_set_noref (ExceptionBuffer * const exc_buf)
+{
+    delete _libMary_exc_buf;
+    _libMary_exc_buf = exc_buf;
 }
 
 static inline void exc_delete (ExceptionBuffer * const exc_buf)
