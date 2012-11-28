@@ -422,7 +422,7 @@ HttpService::acceptOneConnection ()
 
     http_conn->http_server.init (client_addr);
     http_conn->http_server.setSender (&http_conn->conn_sender, page_pool);
-    http_conn->http_server.setFrontend (Cb<HttpServer::Frontend> (&http_frontend, http_conn, http_conn));
+    http_conn->http_server.setFrontend (CbDesc<HttpServer::Frontend> (&http_frontend, http_conn, http_conn));
 
     mutex.lock ();
     http_conn->pollable_key = poll_group->addPollable (http_conn->tcp_conn.getPollable(), NULL /* ret_reg */);
@@ -436,7 +436,7 @@ HttpService::acceptOneConnection ()
     }
 
     if (keepalive_timeout_microsec > 0) {
-	// TODO There should be a periodical checker routing which would
+	// TODO There should be a periodical checker routine which would
 	// monitor connection's activity. Currently, this is an overly
 	// simplistic oneshot cutter, like a ticking bomb for every client.
 	http_conn->conn_keepalive_timer =

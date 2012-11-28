@@ -263,7 +263,7 @@ private:
 
     void resetRequestState ();
 
-  // Receiver frontend.
+  mt_iface (Receiver::Frontend)
 
     static Receiver::Frontend const receiver_frontend;
 
@@ -276,6 +276,8 @@ private:
     static void processError (Exception *exc_,
 			      void      *_self);
 
+  mt_iface_end
+
 public:
     // TODO setReceiver
 
@@ -284,7 +286,7 @@ public:
 	return Cb<Receiver::Frontend> (&receiver_frontend, this, getCoderefContainer());
     }
 
-    void setFrontend (Cb<Frontend> const frontend)
+    void setFrontend (CbDesc<Frontend> const &frontend)
     {
 	this->frontend = frontend;
     }
