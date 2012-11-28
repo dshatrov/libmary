@@ -72,7 +72,9 @@
 #include <libmary/io.h>
 #include <libmary/log.h>
 #include <libmary/file.h>
+#include <libmary/async_file.h>
 #include <libmary/native_file.h>
+#include <libmary/native_async_file.h>
 #include <libmary/output_stream.h>
 #include <libmary/buffered_output_stream.h>
 #include <libmary/array_output_stream.h>
@@ -88,6 +90,10 @@
 #include <libmary/deferred_connection_sender.h>
 #include <libmary/receiver.h>
 #include <libmary/connection_receiver.h>
+
+#include <libmary/line_server.h>
+#include <libmary/line_service.h>
+#include <libmary/line_pipe.h>
 
 #include <libmary/vfs.h>
 #ifndef LIBMARY_PLATFORM_WIN32
