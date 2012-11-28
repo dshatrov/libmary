@@ -91,7 +91,9 @@ mary_target_headers =			\
 	io.h				\
 	log.h				\
 	file.h				\
+        async_file.h                    \
 	native_file.h			\
+        native_async_file.h             \
 	input_stream.h			\
 	output_stream.h			\
 	buffered_output_stream.h	\
@@ -109,6 +111,10 @@ mary_target_headers =			\
 	deferred_connection_sender.h	\
 	receiver.h			\
 	connection_receiver.h		\
+                                        \
+        line_server.h                   \
+        line_service.h                  \
+        line_pipe.h                     \
 					\
 	vfs.h				\
 	vfs_posix.h			\
@@ -177,6 +183,7 @@ endif
 
 MARY_GENFILES =			\
 	native_file.h		\
+        native_async_file.h     \
 	tcp_connection.h	\
 	tcp_server.h
 BUILT_SOURCES = $(MARY_GENFILES)
@@ -186,6 +193,7 @@ nodist_libmary_1_0_la_SOURCES = $(MARY_GENFILES)
 DISTCLEANFILES = libmary_config.h
 
 .PHONY: native_file.h           \
+        native_async_file.h     \
         tcp_connection.h        \
         tcp_server.h
 
@@ -193,6 +201,10 @@ if LIBMARY_PLATFORM_WIN32
 native_file.h: native_file.win32.h
 	rm -f $@
 	ln -s $(srcdir)/native_file.win32.h native_file.h
+
+native_async_file.h: native_async_file.win32.h
+	rm -f $@
+	ln -s $(srcdir)/native_async_file.win32.h native_async_file.h
 
 tcp_connection.h: tcp_connection.win32.h
 	rm -f $@
@@ -205,6 +217,10 @@ else
 native_file.h: native_file.linux.h
 	rm -f $@
 	ln -s $(srcdir)/native_file.linux.h native_file.h
+
+native_async_file.h: native_async_file.linux.h
+	rm -f $@
+	ln -s $(srcdir)/native_async_file.linux.h native_async_file.h
 
 tcp_connection.h: tcp_connection.linux.h
 	rm -f $@
@@ -220,7 +236,6 @@ libmaryinclude_HEADERS = $(mary_target_headers)
 
 lib_LTLIBRARIES = libmary-1.0.la
 libmary_1_0_la_SOURCES =		\
-	libmary.cpp			\
 	util_c.c			\
 	util_base.cpp			\
         util_common.cpp                 \
@@ -264,6 +279,10 @@ libmary_1_0_la_SOURCES =		\
 	deferred_connection_sender.cpp	\
 	receiver.cpp			\
 	connection_receiver.cpp		\
+                                        \
+        line_server.cpp                 \
+        line_service.cpp                \
+        line_pipe.cpp                   \
 					\
 	deferred_processor.cpp		\
 					\
@@ -276,7 +295,9 @@ libmary_1_0_la_SOURCES =		\
 	server_app.cpp                  \
                                         \
         md5/md5.c                       \
-        libmary_md5.cpp
+        libmary_md5.cpp                 \
+                                        \
+	libmary.cpp
 
 mary_extra_dist = libmary_config.h.in
 
@@ -295,6 +316,7 @@ mary_linux_sources =			\
 	posix.cpp			\
 	util_posix.cpp			\
 	native_file.linux.cpp		\
+        native_async_file.linux.cpp     \
 	tcp_connection.linux.cpp	\
 	tcp_server.linux.cpp		\
 	select_poll_group.cpp		\
@@ -303,6 +325,7 @@ mary_linux_sources =			\
 mary_win32_sources =			\
         win32.cpp                       \
 	native_file.win32.cpp		\
+        native_async_file.win32.cpp     \
 	tcp_connection.win32.cpp	\
 	tcp_server.win32.cpp            \
 	wsa_poll_group.cpp
