@@ -570,7 +570,8 @@ HttpService::init (PollGroup         * const mt_nonnull poll_group,
     if (!tcp_server.open ())
 	return Result::Failure;
 
-    tcp_server.setFrontend (Cb<TcpServer::Frontend> (&tcp_server_frontend, this, getCoderefContainer()));
+    tcp_server.init (CbDesc<TcpServer::Frontend> (&tcp_server_frontend, this, getCoderefContainer()),
+                     timers);
 
     return Result::Success;
 }

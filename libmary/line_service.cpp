@@ -155,9 +155,10 @@ LineService::init (ServerContext    * const mt_nonnull server_ctx,
     if (!tcp_server.open ())
         return Result::Failure;
 
-    tcp_server.setFrontend (
-            Cb<TcpServer::Frontend> (
-                    &tcp_server_frontend, this, getCoderefContainer()));
+    tcp_server.init (
+            CbDesc<TcpServer::Frontend> (
+                    &tcp_server_frontend, this, getCoderefContainer()),
+            server_ctx->getTimers());
 
     return Result::Success;
 }

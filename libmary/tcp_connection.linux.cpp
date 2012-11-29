@@ -376,6 +376,8 @@ TcpConnection::writev (struct iovec * const iovs,
 mt_throws Result
 TcpConnection::close ()
 {
+  // TODO Protect against duplicate calls to close() somehow.
+
     if (fd == -1)
 	return Result::Success;
 

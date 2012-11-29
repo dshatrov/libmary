@@ -22,8 +22,9 @@
 
 
 #include <libmary/code_referenced.h>
-#include <libmary/poll_group.h>
 #include <libmary/exception.h>
+#include <libmary/poll_group.h>
+#include <libmary/timers.h>
 #include <libmary/tcp_connection.h>
 
 
@@ -38,6 +39,10 @@ public:
     };
 
 private:
+    mt_const Time accept_retry_timeout_millisec;
+
+    mt_const DataDepRef<Timers> timers;
+
     int fd;
 
     Cb<Frontend> frontend;
@@ -68,6 +73,14 @@ private:
 			     void *_self);
 
   mt_iface_end
+
+    struct AcceptRetryTimerData : public Referenced
+    {
+        Timers::TimerKey timer;
+        TcpServer *tcp_server;
+    };
+
+    static void acceptRetryTimerTick (void *_data);
 
 public:
     mt_throws Result open ();
@@ -101,23 +114,19 @@ public:
     // Should only be called once.
     mt_throws Result listen ();
 
-    mt_throws Result close ();
-
-    void setFrontend (Cb<Frontend> const &frontend)
-    {
-	this->frontend = frontend;
-    }
+//    // TODO Questionable: there's no synchronization for "fd = -1" assignment.
+//    mt_throws Result close ();
 
     CbDesc<PollGroup::Pollable> getPollable ()
     {
         return CbDesc<PollGroup::Pollable> (&pollable, this, getCoderefContainer());
     }
 
-    TcpServer (Object * const coderef_container)
-	: DependentCodeReferenced (coderef_container),
-	  fd (-1)
-    {
-    }
+    void init (CbDesc<Frontend> const &frontend,
+               Timers *timers,
+               Time    accept_retry_timeout_millisec = 1000);
+
+    TcpServer (Object *coderef_container);
 
     ~TcpServer ();
 };

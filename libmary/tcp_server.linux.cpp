@@ -54,7 +54,7 @@ TcpServer::processEvents (Uint32   const event_flags,
 	logE_ (_self_func, "PollGroup::Output");
 
     if (event_flags & PollGroup::Input) {
-	if (self->frontend && self->frontend->accepted)
+	if (self->frontend)
 	    self->frontend.call (self->frontend->accepted);
     }
 
@@ -75,6 +75,14 @@ TcpServer::setFeedback (Cb<PollGroup::Feedback> const &feedback,
 {
     TcpServer * const self = static_cast <TcpServer*> (_self);
     self->feedback = feedback;
+}
+
+void
+TcpServer::acceptRetryTimerTick (void * const _self)
+{
+    TcpServer * const self = static_cast <TcpServer*> (_self);
+    if (self->frontend)
+        self->frontend.call (self->frontend->accepted);
 }
 
 mt_throws Result
@@ -184,16 +192,25 @@ TcpServer::doAccept (TcpConnection * const mt_nonnull tcp_connection,
 		return AcceptResult::NotAccepted;
 	    }
 
-#if 0
-// INCORRECT!
-
             if (errno == EMFILE || errno == ENFILE) {
-                logE_ (_this_func, "accept() failed (EMFILE/ENFILE): ", errnoString (errno));
+                logE_ (_this_func, "accept() failed (",
+                       (errno == EMFILE ? "EMFILE" : "ENFILE"), "): ",
+                       errnoString (errno));
+
+                if (timers) {
+                    timers->addTimer_microseconds (
+                            CbDesc<Timers::TimerCallback> (acceptRetryTimerTick,
+                                                           this,
+                                                           getCoderefContainer()),
+                            accept_retry_timeout_millisec * 1000,
+                            false /* periodical */,
+                            true  /* auto_delete */,
+                            true  /* delete_after_tick */);
+                }
+
                 requestInput ();
-                // TODO Correct?
                 return AcceptResult::NotAccepted;
             }
-#endif
 
 #if 0
             // It is safer to loop here to avoid missing incoming connections
@@ -332,6 +349,7 @@ TcpServer::listen ()
     return Result::Success;
 }
 
+#if 0
 mt_throws Result
 TcpServer::close ()
 {
@@ -363,6 +381,25 @@ TcpServer::close ()
     }
 
     return ret_res;
+}
+#endif
+
+void
+TcpServer::init (CbDesc<Frontend>   const &frontend,
+                 Timers           * const  timers,
+                 Time               const  accept_retry_timeout_millisec)
+{
+    this->frontend = frontend;
+    this->timers = timers;
+    this->accept_retry_timeout_millisec = accept_retry_timeout_millisec;
+}
+
+TcpServer::TcpServer (Object * const coderef_container)
+    : DependentCodeReferenced (coderef_container),
+      accept_retry_timeout_millisec (1000),
+      timers (coderef_container),
+      fd (-1)
+{
 }
 
 TcpServer::~TcpServer ()
