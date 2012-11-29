@@ -42,12 +42,14 @@ Timers::TimerKey
 Timers::addTimer_microseconds (CbDesc<TimerCallback> const &cb,
 			       Time const time_microseconds,
 			       bool const periodical,
-                               bool const auto_delete)
+                               bool const auto_delete,
+                               bool const delete_after_tick)
 {
     logD (timers, _func, "time_microseconds: ", time_microseconds);
 
     Timer * const timer = new Timer (this, cb);
     timer->periodical = periodical;
+    timer->delete_after_tick = delete_after_tick;
     timer->due_time = getTimeMicroseconds() + time_microseconds;
     if (timer->due_time < time_microseconds) {
 	logW_ (_func, "Expiration time overflow");
@@ -210,6 +212,8 @@ Timers::processTimers ()
 	Timer * const timer = chain->timer_list.getFirst ();
 	assert (timer->active);
 	chain->timer_list.remove (timer);
+
+        bool delete_timer = false;
 	if (timer->periodical) {
 	    timer->due_time += chain->interval_microseconds;
 	    if (timer->due_time < chain->interval_microseconds) {
@@ -219,6 +223,18 @@ Timers::processTimers ()
 	    chain->timer_list.append (timer);
 	} else {
 	    timer->active = false;
+
+            if (timer->delete_after_tick) {
+                if (timer->del_sbn) {
+                    // TODO We create CodeRef twice: here and in call_unlocks_mutex_().
+                    //      Should do this only once for efficiency.
+                    CodeRef const code_ref = timer->timer_cb.getWeakCodeRef();
+                    if (code_ref)
+                        code_ref->removeDeletionCallback (timer->del_sbn);
+                }
+
+                delete_timer = true;
+            }
 	}
 
 	bool delete_chain;
@@ -245,6 +261,9 @@ Timers::processTimers ()
       // We can't delete the timer ourselves here for a similar reason: its
       // lifetime is controlled by the user, so we can't tie it to callback's
       // weak_obj.
+
+        if (delete_timer)
+            delete timer;
 
 	if (delete_chain)
 	    delete chain;

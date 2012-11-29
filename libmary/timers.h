@@ -74,6 +74,7 @@ private:
         mt_const Object::DeletionSubscriptionKey del_sbn;
 
 	mt_const bool periodical;
+        mt_const bool delete_after_tick;
 	mt_const Cb<TimerCallback> timer_cb;
 	mt_const TimerChain *chain;
 
@@ -135,7 +136,7 @@ private:
     static void subscriberDeletionCallback (void *_timer);
 
 public:
-    // Every call to addTimer() must be matched with a call deleteTimer().
+    // Every call to addTimer() must be matched with a call to deleteTimer().
     TimerKey addTimer (TimerCallback * const cb,
 		       void          * const cb_data,
 		       Object        * const coderef_container,
@@ -147,7 +148,7 @@ public:
 				      periodical);
     }
 
-    // Every call to addTimer_microseconds() must be matched with a call deleteTimer().
+    // Every call to addTimer_microseconds() must be matched with a call to deleteTimer().
     TimerKey addTimer (CbDesc<TimerCallback> const &cb,
 		       Time time_seconds,
 		       bool periodical,
@@ -156,7 +157,7 @@ public:
 	return addTimer_microseconds (cb, time_seconds * 1000000, periodical, auto_delete);
     }
 
-    // Every call to addTimer() must be matched with a call deleteTimer().
+    // Every call to addTimer() must be matched with a call to deleteTimer().
     TimerKey addTimer_microseconds (TimerCallback * const cb,
 				    void          * const cb_data,
 				    Object        * const coderef_container,
@@ -168,11 +169,12 @@ public:
 				      periodical);
     }
 
-    // Every call to addTimer_microseconds() must be matched with a call deleteTimer().
+    // Every call to addTimer_microseconds() must be matched with a call to deleteTimer().
     TimerKey addTimer_microseconds (CbDesc<TimerCallback> const &cb,
 				    Time time_microseconds,
 				    bool periodical,
-                                    bool auto_delete = true);
+                                    bool auto_delete = true,
+                                    bool delete_after_tick = false /* For non-periodical timers only */);
 
     // FIXME restartTimer() has problematic semantics and should be removed.
     //       In particular, there's no way for the client to guarantee that restartTimer()
