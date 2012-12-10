@@ -133,7 +133,9 @@ mary_target_headers =			\
 	server_context.h		\
 	server_thread_pool.h		\
 	fixed_thread_pool.h		\
-	server_app.h
+	server_app.h                    \
+                                        \
+        stat.h
 
 mary_mtsafe_headers = 			\
 	cond.h				\
@@ -293,6 +295,8 @@ libmary_1_0_la_SOURCES =		\
 					\
 	fixed_thread_pool.cpp		\
 	server_app.cpp                  \
+                                        \
+        stat.cpp                        \
                                         \
         md5/md5.c                       \
         libmary_md5.cpp                 \

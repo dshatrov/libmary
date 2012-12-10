@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011, 2012 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -130,6 +130,8 @@
 #include <libmary/server_thread_pool.h>
 #include <libmary/fixed_thread_pool.h>
 #include <libmary/server_app.h>
+
+#include <libmary/stat.h>
 
 
 namespace M {

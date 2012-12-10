@@ -44,6 +44,8 @@ OutputStream *outs;
 OutputStream *errs;
 OutputStream *logs;
 
+Stat *_libMary_stat;
+
 void libMaryInit ()
 {
     {
@@ -68,6 +70,8 @@ void libMaryInit ()
     if (!g_thread_get_initialized ())
 	g_thread_init (NULL);
 #endif
+
+    _libMary_stat = new Stat;
 
 #if !defined LIBMARY_MT_SAFE || defined LIBMARY_TLOCAL
     _libMary_exc_buf = new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE);

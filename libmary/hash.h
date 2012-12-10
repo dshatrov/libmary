@@ -49,8 +49,23 @@ class HashEntry : public IntrusiveAvlTree_Node<HashName>,
 		  public IntrusiveListElement<HashName>
 {
 //    template <class T, class HashName> friend class Hash_common;
-    template <class T, class KeyType, class Extractor, class Comparator, class Hasher, class HashName_> friend class Hash_anybase;
-    template <class T, class KeyType, class Extractor, class Comparator, class Hasher, class HashName_, class Base> friend class Hash;
+
+    template <class T,
+              class KeyType,
+              class Extractor,
+              class Comparator,
+              class Hasher,
+              class HashName_>
+            friend class Hash_anybase;
+
+    template <class T,
+              class KeyType,
+              class Extractor,
+              class Comparator,
+              class Hasher,
+              class HashName_,
+              class Base>
+            friend class Hash;
 
 private:
     Uint32 unrolled_hash;

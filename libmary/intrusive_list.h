@@ -520,6 +520,16 @@ public:
     }
 };
 
+template <class T>
+class DeleteAction
+{
+public:
+    static void act (T * const obj)
+    {
+        delete obj;
+    }
+};
+
 }
 
 
