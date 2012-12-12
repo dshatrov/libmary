@@ -21,7 +21,8 @@
 #define __LIBMARY__STAT__H___
 
 
-#include <libmary/object.h>
+#include <libmary/types.h>
+#include <libmary/referenced.h>
 #include <libmary/list.h>
 #include <libmary/hash.h>
 #include <libmary/string.h>
@@ -29,7 +30,7 @@
 
 namespace M {
 
-class Stat : public Object
+class Stat
 {
 private:
     Mutex mutex;
