@@ -128,9 +128,16 @@ public:
 	return CbDesc<PollGroup::Pollable> (&pollable, this, getCoderefContainer());
     }
 
+    enum ConnectResult
+    {
+        ConnectResult_Error = 0,
+        ConnectResult_Connected,
+        ConnectResult_InProgress
+    };
+
     // May be called only once. Must be called early (during initialzation)
     // to ensure proper synchronization of accesses to 'connected' data member.
-    mt_throws Result connect (IpAddress const &addr);
+    mt_throws ConnectResult connect (IpAddress const &addr);
 
     // Should be called just once by TcpServer.
     void setFd (int const fd)

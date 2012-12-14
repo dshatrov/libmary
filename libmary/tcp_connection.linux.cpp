@@ -403,7 +403,7 @@ TcpConnection::close ()
     return Result::Success;
 }
 
-mt_throws Result
+mt_throws TcpConnection::ConnectResult
 TcpConnection::connect (IpAddress const &addr)
 {
     struct sockaddr_in saddr;
@@ -414,7 +414,7 @@ TcpConnection::connect (IpAddress const &addr)
 	exc_throw <PosixException> (errno);
 	exc_push <InternalException> (InternalException::BackendError);
 	logE_ (_func, "socket() failed: ", errnoString (errno));
-	return Result::Failure;
+        return ConnectResult_Error;
     }
 
     {
@@ -423,7 +423,7 @@ TcpConnection::connect (IpAddress const &addr)
 	    exc_throw <PosixException> (errno);
 	    exc_push <InternalException> (InternalException::BackendError);
 	    logE_ (_func, "fcntl() failed (F_GETFL): ", errnoString (errno));
-	    return Result::Failure;
+            return ConnectResult_Error;
 	}
 
 	flags |= O_NONBLOCK;
@@ -432,7 +432,7 @@ TcpConnection::connect (IpAddress const &addr)
 	    exc_throw <PosixException> (errno);
 	    exc_push <InternalException> (InternalException::BackendError);
 	    logE_ (_func, "fcntl() failed (F_SETFL): ", errnoString (errno));
-	    return Result::Failure;
+            return ConnectResult_Error;
 	}
     }
 
@@ -443,12 +443,12 @@ TcpConnection::connect (IpAddress const &addr)
 	    exc_throw <PosixException> (errno);
 	    exc_push <InternalException> (InternalException::BackendError);
 	    logE_ (_func, "setsockopt() failed (TCP_NODELAY): ", errnoString (errno));
-	    return Result::Failure;
+            return ConnectResult_Error;
 	} else
 	if (res != 0) {
 	    exc_throw <InternalException> (InternalException::BackendMalfunction);
 	    logE_ (_func, "setsockopt() (TCP_NODELAY): unexpected return value: ", res);
-	    return Result::Failure;
+            return ConnectResult_Error;
 	}
     }
 
@@ -462,12 +462,12 @@ TcpConnection::connect (IpAddress const &addr)
             exc_throw <PosixException> (errno);
             exc_push <InternalException> (InternalException::BackendError);
             logE_ (_func, "setsockopt() failed (TCP_QUICKACK): ", errnoString (errno));
-            return Result::Failure;
+            return ConnectResult_Error;
         } else
         if (res != 0) {
             exc_throw <InternalException> (InternalException::BackendMalfunction);
             logE_ (_func, "setsockopt() (TCP_QUICKACK): unexpected return value: ", res);
-            return Result::Failure;
+            return ConnectResult_Error;
         }
     }
 #endif /* __linux__ */
@@ -476,10 +476,7 @@ TcpConnection::connect (IpAddress const &addr)
 	int const res = ::connect (fd, (struct sockaddr*) &saddr, sizeof (saddr));
 	if (res == 0) {
 	    connected = true;
-	    if (frontend && frontend->connected) {
-		logD (tcp_conn, _func, "Calling frontend->connected");
-		frontend.call (frontend->connected, /*(*/ (Exception*) NULL /* exc */ /*)*/);
-	    }
+            return ConnectResult_Connected;
 	} else
 	if (res == -1) {
 	    if (errno == EINTR)
@@ -493,17 +490,17 @@ TcpConnection::connect (IpAddress const &addr)
 	    exc_throw <PosixException> (errno);
 	    exc_push <IoException> ();
 	    logE_ (_func, "connect() failed: ", errnoString (errno));
-	    return Result::Failure;
+            return ConnectResult_Error;
 	} else {
 	    exc_throw <InternalException> (InternalException::BackendMalfunction);
 	    logE_ (_func, "connect(): unexpected return value ", res);
-	    return Result::Failure;
+            return ConnectResult_Error;
 	}
 
 	break;
     }
 
-    return Result::Success;
+    return ConnectResult_InProgress;
 }
 
 TcpConnection::TcpConnection (Object * const coderef_container)
