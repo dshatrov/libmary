@@ -117,6 +117,7 @@ Result doTest ()
 	return Result::Failure;
     }
 
+    // TODO TcpConnection::connect() API has changed.
     if (!conn.connect (addr))
 	goto exc_;
 
