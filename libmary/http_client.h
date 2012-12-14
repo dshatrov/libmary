@@ -135,6 +135,8 @@ private:
     mt_mutex (mutex) IpAddress cur_server_addr;
     mt_mutex (mutex) IpAddress next_server_addr;
 
+    mt_mutex (mutex) Ref<String> host;
+
     mt_mutex (mutex) List< Ref<HttpClientConnection> > http_conns;
 
   mt_iface (TcpConnection::Frontend)
@@ -182,8 +184,8 @@ private:
 
     mt_mutex (mutex) Ref<HttpClientConnection> getConnection (bool *ret_connected);
 
-    void sendRequest (HttpClientConnection * mt_nonnull http_conn,
-                      HttpClientRequest    *http_req);
+    mt_mutex (mutex) void sendRequest (HttpClientConnection * mt_nonnull http_conn,
+                                       HttpClientRequest    * mt_nonnull http_req);
 
     Result queueRequest (HttpRequestType req_type,
                          ConstMemory     req_path,
@@ -205,11 +207,13 @@ public:
                      bool        preassembly       = false,
                      bool        parse_body_params = false);
 
-    void setServerAddr (IpAddress server_addr);
+    void setServerAddr (IpAddress   server_addr,
+                        ConstMemory host);
 
     mt_const void init (ServerContext * mt_nonnull server_ctx,
                         PagePool      * mt_nonnull page_pool,
                         IpAddress      server_addr,
+                        ConstMemory    host,
                         bool           keepalive,
                         Size           preassembly_limit = 0);
 

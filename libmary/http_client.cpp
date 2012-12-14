@@ -522,15 +522,15 @@ HttpClient::getConnection (bool * const ret_connected)
     return connect (ret_connected);
 }
 
-void
+mt_mutex (mutex) void
 HttpClient::sendRequest (HttpClientConnection * const mt_nonnull http_conn,
-                         HttpClientRequest    * const http_req)
+                         HttpClientRequest    * const mt_nonnull http_req)
 {
-    // TODO Use 'http_req' request
     http_conn->sender.send (page_pool,
                             true /* do_flush */,
-                            "GET /index.html HTTP/1.1\r\n"
-                            "Host: momentvideo.org\r\n"
+                            (http_req->req_type == HttpRequestType_Get ? "GET" : "POST"),
+                            " ", http_req->req_path, " HTTP/1.1\r\n"
+                            "Host: ", host, "\r\n"
                             "\r\n");
 
     http_req->releaseRequestData ();
@@ -602,10 +602,12 @@ HttpClient::httpPost (ConstMemory const req_path,
 }
 
 void
-HttpClient::setServerAddr (IpAddress const server_addr)
+HttpClient::setServerAddr (IpAddress   const server_addr,
+                           ConstMemory const host)
 {
     mutex.lock ();
     this->next_server_addr = server_addr;
+    this->host = grab (new String (host));
     mutex.unlock ();
 }
 
@@ -613,6 +615,7 @@ mt_const void
 HttpClient::init (ServerContext * const mt_nonnull server_ctx,
                   PagePool      * const mt_nonnull page_pool,
                   IpAddress       const server_addr,
+                  ConstMemory     const host,
                   bool            const keepalive,
                   Size            const preassembly_limit)
 {
@@ -620,6 +623,7 @@ HttpClient::init (ServerContext * const mt_nonnull server_ctx,
     this->server_ctx = server_ctx;
     this->page_pool = page_pool;
     next_server_addr = server_addr;
+    this->host = grab (new String (host));
     this->preassembly_limit = preassembly_limit;
 }
 
