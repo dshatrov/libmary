@@ -219,7 +219,7 @@ NativeAsyncFile::sync ()
 }
 
 mt_throws Result
-NativeAsyncFile::close (bool const fludh_data)
+NativeAsyncFile::close (bool const flush_data)
 {
   // TODO
     return Result::Success;
