@@ -56,6 +56,11 @@ Result serviceToPort (ConstMemory  service,
 	Uint32 ip_addr;
 	Uint16 port;
 
+        bool operator == (IpAddress const &addr) const
+        {
+            return (ip_addr == addr.ip_addr) && (port == addr.port);
+        }
+
 	void reset ()
 	{
 	    ip_addr = 0;
@@ -64,6 +69,12 @@ Result serviceToPort (ConstMemory  service,
 
 	Size toString_ (Memory const &mem,
 		        Format const &fmt);
+
+        IpAddress ()
+            : ip_addr (0),
+              port (0)
+        {
+        }
     };
 
     static inline void setIpAddress (Uint32 const ip_addr,
