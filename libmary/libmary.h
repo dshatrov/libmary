@@ -114,6 +114,7 @@
 #endif
 
 #include <libmary/http.h>
+#include <libmary/http_client.h>
 #include <libmary/http_service.h>
 
 #include <libmary/module.h>

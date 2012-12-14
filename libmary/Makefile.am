@@ -125,6 +125,7 @@ mary_target_headers =			\
 	select_poll_group.h		\
 					\
 	http.h				\
+        http_client.h                   \
 	http_service.h			\
 					\
 	module.h			\
@@ -289,6 +290,7 @@ libmary_1_0_la_SOURCES =		\
 	deferred_processor.cpp		\
 					\
 	http.cpp			\
+        http_client.cpp                 \
 	http_service.cpp		\
 					\
 	module.cpp			\
