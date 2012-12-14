@@ -546,16 +546,23 @@ HttpServer::processHeaderField (ConstMemory const &mem)
     } else
     if (!compare (header_name, "expect")) {
 	if (!compare (header_value, "100-continue")) {
-	    logD (http, _func, "responding to 100-continue");
-	    sender->send (
-		    page_pool,
-		    true /* do_flush */,
-		    "HTTP/1.1 100 Continue\r\n"
-		    "Cache-Control: no-cache\r\n"
-		    "Content-Type: application/x-fcs\r\n"
-		    "Content-Length: 0\r\n"
-		    "Connection: Keep-Alive\r\n"
-		    "\r\n");
+            if (sender && page_pool) {
+                logD (http, _func, "responding to 100-continue");
+                sender->send (
+                        page_pool,
+                        true /* do_flush */,
+                        "HTTP/1.1 100 Continue\r\n"
+                        "Cache-Control: no-cache\r\n"
+                        "Content-Type: application/x-fcs\r\n"
+                        "Content-Length: 0\r\n"
+                        "Connection: Keep-Alive\r\n"
+                        "\r\n");
+            } else {
+                if (!sender)
+                    logW_ (_this_func, "Sender is not set");
+                if (!page_pool)
+                    logW_ (_this_func, "PagePool is not set");
+            }
 	}
     } else
     if (!compare (header_name, "accept-language")) {

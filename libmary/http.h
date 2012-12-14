@@ -218,7 +218,7 @@ public:
 			     Size        * mt_nonnull ret_accepted,
 			     void        *cb_data);
 
-	void (*closed) (Exception *exc,
+	void (*closed) (Exception *exc_,
 			void      *cb_data);
     };
 
@@ -291,6 +291,7 @@ public:
 	this->frontend = frontend;
     }
 
+    // Not necessary for client mode.
     void setSender (Sender   * const sender,
 		    PagePool * const page_pool)
     {
