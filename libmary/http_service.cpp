@@ -213,11 +213,13 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
     http_conn->preassembled_len = 0;
 
     if (!handler->preassembly || req->getContentLength() == 0) {
-	if (!handler->cb.call (handler->cb->httpRequest,
-		    /* ( */ req, &http_conn->conn_sender, Memory(), &http_conn->cur_msg_data /* ) */))
-	{
-	    http_conn->cur_handler = NULL;
-	}
+        if (handler->cb->httpRequest) {
+            if (!handler->cb.call (handler->cb->httpRequest,
+                        /* ( */ req, &http_conn->conn_sender, Memory(), &http_conn->cur_msg_data /* ) */))
+            {
+                http_conn->cur_handler = NULL;
+            }
+        }
     }
 }
 
@@ -271,32 +273,53 @@ HttpService::httpMessageBody (HttpRequest  * const mt_nonnull req,
 //                  logLock ();
 //		    hexdump (logs, ConstMemory (http_conn->preassembly_buf, http_conn->preassembled_len));
 //                  logUnlock ();
-		    req->parseParameters (Memory (http_conn->preassembly_buf, http_conn->preassembled_len));
+		    req->parseParameters (
+                            Memory (http_conn->preassembly_buf,
+                                    http_conn->preassembled_len));
 		}
 
-		if (!http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpRequest,
-			    /* ( */ req,
-				    &http_conn->conn_sender,
-				    Memory (http_conn->preassembly_buf, http_conn->preassembled_len),
-				    &http_conn->cur_msg_data /* ) */))
-		{
-		    http_conn->cur_handler = NULL;
-		}
+                if (http_conn->cur_handler->cb->httpRequest) {
+                    Result res = Result::Failure;
+                    if (!http_conn->cur_handler->cb.call_ret<Result> (
+                                &res,
+                                http_conn->cur_handler->cb->httpRequest,
+                                /*(*/
+                                    req,
+                                    &http_conn->conn_sender,
+                                    Memory (http_conn->preassembly_buf,
+                                            http_conn->preassembled_len),
+                                    &http_conn->cur_msg_data
+                                /*)*/))
+                    {
+                        http_conn->cur_handler = NULL;
+                    }
+
+                    if (!res)
+                        http_conn->cur_handler = NULL;
+                }
 	    }
 
 	    if (*ret_accepted < mem.len()) {
+                Result res = Result::Failure;;
 		Size accepted = 0;
-		if (!http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody, /*(*/
-			    req,
-			    &http_conn->conn_sender,
-			    mem.region (*ret_accepted),
-			    end_of_request,
-			    &accepted,
-			    &http_conn->cur_msg_data /*)*/)
+		if (!http_conn->cur_handler->cb.call_ret<Result> (
+                            &res,
+                            http_conn->cur_handler->cb->httpMessageBody,
+                            /*(*/
+                                req,
+                                &http_conn->conn_sender,
+                                mem.region (*ret_accepted),
+                                end_of_request,
+                                &accepted,
+                                http_conn->cur_msg_data
+                            /*)*/)
 		    || end_of_request)
 		{
 		    http_conn->cur_handler = NULL;
 		}
+
+                if (!res)
+                    http_conn->cur_handler = NULL;
 
 		*ret_accepted += accepted;
 	    }
@@ -311,17 +334,27 @@ HttpService::httpMessageBody (HttpRequest  * const mt_nonnull req,
 	return;
     }
 
-    if (!http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody, /*(*/
-		req,
-		&http_conn->conn_sender,
-		mem,
-		end_of_request,
-		ret_accepted,
-		http_conn->cur_msg_data /*)*/)
+    Result res = Result::Failure;
+    if (!http_conn->cur_handler->cb.call_ret<Result> (
+                &res,
+                http_conn->cur_handler->cb->httpMessageBody,
+                /*(*/
+                    req,
+                    &http_conn->conn_sender,
+                    mem,
+                    end_of_request,
+                    ret_accepted,
+                    http_conn->cur_msg_data
+                /*)*/)
 	|| end_of_request)
     {
 	http_conn->cur_handler = NULL;
 	*ret_accepted = mem.len();
+    }
+
+    if (!res) {
+        http_conn->cur_handler = NULL;
+        *ret_accepted = mem.len();
     }
 }
 
@@ -330,13 +363,16 @@ HttpService::doCloseHttpConnection (HttpConnection * const http_conn)
 {
     if (http_conn->cur_handler) {
 	Size accepted = 0;
-	http_conn->cur_handler->cb.call (http_conn->cur_handler->cb->httpMessageBody, /*(*/
-		(HttpRequest*) NULL,
-		&http_conn->conn_sender,
-		Memory(),
-		true /* end_of_request */,
-		&accepted,
-		http_conn->cur_msg_data /*)*/);
+	http_conn->cur_handler->cb.call (
+                http_conn->cur_handler->cb->httpMessageBody,
+                /*(*/
+                    (HttpRequest*) NULL,
+                    &http_conn->conn_sender,
+                    Memory(),
+                    true /* end_of_request */,
+                    &accepted,
+                    http_conn->cur_msg_data
+                /*)*/);
 
 	http_conn->cur_handler = NULL;
 	logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);

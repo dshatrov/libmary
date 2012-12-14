@@ -117,7 +117,7 @@ private:
 	PollGroup::PollableKey pollable_key;
 	mt_const Timers::TimerKey conn_keepalive_timer;
 
-	// The following fields are synchroinzed by http_serverer.
+	// The following fields are synchroinzed by http_server.
 	// They should only be accessed from HttpServer::Frontend callbacks.
 	// {
 	    HandlerEntry *cur_handler;
