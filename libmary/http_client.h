@@ -75,10 +75,20 @@ private:
         mt_const Ref<String> req_path;
         mt_const Cb<HttpResponseHandler> response_cb;
 
+        mt_const bool preassembly;
+        mt_const bool parse_body_params;
+
         mt_mutex (HttpClient::Mutex) bool receiving_body;
         mt_mutex (HttpClient::Mutex) List< Ref<HttpClientRequest> >::Element *req_list_el;
 
         mt_mutex (HttpClient::Mutex) void *user_msg_data;
+
+        mt_sync (HttpClientConnection::http_server)
+        mt_begin
+
+          bool discarded;
+
+        mt_end
 
         void releaseRequestData ();
     };
@@ -95,6 +105,15 @@ private:
         mt_mutex (HttpClient::mutex) List< Ref<HttpClientConnection> >::Element *conn_list_el;
         mt_mutex (mutex) PollGroup::PollableKey pollable_key;
 
+        mt_sync (http_server)
+        mt_begin
+
+          Byte *preassembly_buf;
+          Size  preassembly_buf_size;
+          Size  preassembled_len;
+
+        mt_end
+
         TcpConnection tcp_conn;
         DeferredConnectionSender sender;
         ConnectionReceiver receiver;
@@ -103,9 +122,12 @@ private:
         mt_mutex (mutex) List< Ref<HttpClientRequest> > requests;
 
         HttpClientConnection ();
+
+        ~HttpClientConnection ();
     };
 
     mt_const bool keepalive;
+    mt_const Size preassembly_limit;
 
     mt_const DataDepRef<ServerContext> server_ctx;
     mt_const DataDepRef<PagePool> page_pool;
@@ -165,24 +187,31 @@ private:
 
     Result queueRequest (HttpRequestType req_type,
                          ConstMemory     req_path,
-                         CbDesc<HttpResponseHandler> const &response_cb);
+                         CbDesc<HttpResponseHandler> const &response_cb,
+                         bool            preassembly,
+                         bool            parse_body_params);
 
 public:
   // TODO Make requests by URI
 
     Result httpGet (ConstMemory req_path,
-                    CbDesc<HttpResponseHandler> const &response_cb);
+                    CbDesc<HttpResponseHandler> const &response_cb,
+                    bool        preassembly       = false,
+                    bool        parse_body_params = false);
 
     Result httpPost (ConstMemory req_path,
                      ConstMemory post_data,
-                     CbDesc<HttpResponseHandler> const &response_cb);
+                     CbDesc<HttpResponseHandler> const &response_cb,
+                     bool        preassembly       = false,
+                     bool        parse_body_params = false);
 
     void setServerAddr (IpAddress server_addr);
 
     mt_const void init (ServerContext * mt_nonnull server_ctx,
                         PagePool      * mt_nonnull page_pool,
                         IpAddress      server_addr,
-                        bool           keepalive);
+                        bool           keepalive,
+                        Size           preassembly_limit = 0);
 
     HttpClient (Object *coderef_container);
 

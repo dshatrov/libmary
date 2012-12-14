@@ -40,6 +40,11 @@ HttpClient::HttpClientConnection::HttpClientConnection ()
 {
 }
 
+HttpClient::HttpClientConnection::~HttpClientConnection ()
+{
+    delete[] preassembly_buf;
+}
+
 TcpConnection::Frontend const HttpClient::tcp_conn_frontend = {
     connected
 };
@@ -121,12 +126,67 @@ HttpClient::httpReply (HttpRequest * const mt_nonnull reply,
                        void        *_http_conn)
 {
     HttpClientConnection * const http_conn = static_cast <HttpClientConnection*> (_http_conn);
+    HttpClient * const self = http_conn->http_client;
 
     logD_ (_func_);
 
-  // TODO
+    self->mutex.lock ();
+    if (!http_conn->valid) {
+        logD_ (_func, "http_conn gone");
+        self->mutex.unlock ();
+        return;
+    }
+
+    if (http_conn->requests.isEmpty()) {
+        logE_ (_func, "spurious HTTP reply, disconnecting");
+        self->destroyHttpClientConnection (http_conn);
+        self->mutex.unlock ();
+        return;
+    }
+
+    Ref<HttpClientRequest> const http_req = http_conn->requests.getFirst();
+    if (reply->getContentLength() == 0) {
+        http_conn->requests.remove (http_req->req_list_el);
+        http_req->req_list_el = NULL;
+
+        if (!self->keepalive) {
+            mt_unlocks_locks (mutex) self->destroyHttpClientConnection (http_conn);
+            // 'http_conn' is still accessible (referenced) and preassembly state
+            // is kept valid.
+        }
+    }
+
+    self->mutex.unlock ();
+
+    if (http_req->discarded
+        || !http_req->response_cb)
+    {
+        return;
+    }
+
+    http_conn->preassembled_len = 0;
+
+    if (!http_req->preassembly || reply->getContentLength() == 0) {
+        if (http_req->response_cb->httpResponse) {
+            Result res = Result::Failure;
+            bool const called = http_req->response_cb.call_ret<Result> (&res,
+                                                                        http_req->response_cb->httpResponse,
+                                                                        /*(*/
+                                                                            reply,
+                                                                            Memory(),
+                                                                            &http_req->user_msg_data
+                                                                        /*)*/);
+            if (!(called && res))
+                http_req->discarded = true;
+
+            if (http_req->user_msg_data && reply->getContentLength() == 0)
+                logW_ (_func, "msg_data is likely lost");
+        }
+    }
 }
 
+// Request body assembly logics is very similar to that in HttpService,
+// almost to the point of code duplication. It probably belongs to HttpServer.
 void
 HttpClient::httpReplyBody (HttpRequest  * const mt_nonnull reply,
                            Memory const &mem,
@@ -135,14 +195,155 @@ HttpClient::httpReplyBody (HttpRequest  * const mt_nonnull reply,
                            void         * const _http_conn)
 {
     HttpClientConnection * const http_conn = static_cast <HttpClientConnection*> (_http_conn);
+    HttpClient * const self = http_conn->http_client;
 
-    logD_ (_func,
-           "end_of_reply: ", end_of_reply);
-    hexdump (logs, mem);
+    self->mutex.lock ();
+    if (!http_conn->valid) {
+        logD_ (_func, "http_conn gone");
+        *ret_accepted = mem.len();
+        self->mutex.unlock ();
+        return;
+    }
 
-  // TODO
+    if (http_conn->requests.isEmpty()) {
+        logE_ (_func, "spurious HTTP reply, disconnecting");
+        self->destroyHttpClientConnection (http_conn);
+        self->mutex.unlock ();
+        *ret_accepted = mem.len();
+        return;
+    }
 
-    *ret_accepted = mem.len();
+    Ref<HttpClientRequest> const http_req = http_conn->requests.getFirst();
+    if (end_of_reply) {
+        logD_ (_func, "end_of_reply");
+
+        http_conn->requests.remove (http_req->req_list_el);
+        http_req->req_list_el = NULL;
+
+        if (!self->keepalive) {
+            logD_ (_func, "destroying http client conn");
+
+            mt_unlocks_locks (mutex) self->destroyHttpClientConnection (http_conn);
+            // 'http_conn' is still accessible (referenced) and preassembly state
+            // is kept valid.
+        }
+    }
+
+    self->mutex.unlock ();
+
+    if (http_req->discarded
+        || !http_req->response_cb)
+    {
+        *ret_accepted = mem.len();
+        return;
+    }
+
+    if (http_req->preassembly
+        && http_conn->preassembled_len < self->preassembly_limit)
+    {
+        Size size = reply->getContentLength();
+        if (size > self->preassembly_limit)
+            size = self->preassembly_limit;
+
+        bool alloc_new = true;
+        if (http_conn->preassembly_buf) {
+            if (http_conn->preassembly_buf_size >= size)
+                alloc_new = false;
+            else
+                delete[] http_conn->preassembly_buf;
+        }
+
+        if (alloc_new) {
+            http_conn->preassembly_buf = new Byte [size];
+            http_conn->preassembly_buf_size = size;
+        }
+
+        if (mem.len() + http_conn->preassembled_len < mem.len() /* dirty */
+            || mem.len() + http_conn->preassembled_len >= size)
+        {
+            *ret_accepted = 0;
+            if (size > 0) {
+                memcpy (http_conn->preassembly_buf + http_conn->preassembled_len,
+                        mem.mem(),
+                        size - http_conn->preassembled_len);
+                *ret_accepted = size - http_conn->preassembled_len;
+                http_conn->preassembled_len = size;
+
+                if (http_req->parse_body_params) {
+                    reply->parseParameters (
+                            Memory (http_conn->preassembly_buf,
+                                    http_conn->preassembled_len));
+                }
+
+                if (http_req->response_cb->httpResponse) {
+                    Result res = Result::Failure;
+                    bool const called =
+                            http_req->response_cb.call_ret<Result> (
+                                    &res,
+                                    http_req->response_cb->httpResponse,
+                                    /*(*/
+                                        reply,
+                                        Memory (http_conn->preassembly_buf,
+                                                http_conn->preassembled_len),
+                                        &http_req->user_msg_data
+                                    /*)*/);
+                    if (!(called && res)) {
+                        http_req->discarded = true;
+                        *ret_accepted = mem.len();
+                        return;
+                    }
+                }
+            }
+
+            if (*ret_accepted < mem.len()) {
+                Size accepted = 0;
+                Result res = Result::Failure;
+                bool const called =
+                        http_req->response_cb.call_ret<Result> (
+                                &res,
+                                http_req->response_cb->httpResponseBody,
+                                /*(*/
+                                    reply,
+                                    mem.region (*ret_accepted),
+                                    end_of_reply,
+                                    &accepted,
+                                    http_req->user_msg_data
+                                /*)*/);
+                if (!(called && res)) {
+                    http_req->discarded = true;
+                    *ret_accepted = mem.len();
+                    return;
+                }
+
+                *ret_accepted += accepted;
+            }
+        } else {
+            memcpy (http_conn->preassembly_buf + http_conn->preassembled_len,
+                    mem.mem(),
+                    mem.len());
+            *ret_accepted = mem.len();
+            http_conn->preassembled_len += mem.len();
+        }
+
+        return;
+    }
+
+    Result res = Result::Failure;
+    bool const called =
+            http_req->response_cb.call_ret<Result> (
+                    &res,
+                    http_req->response_cb->httpResponseBody,
+                    /*(*/
+                        reply,
+                        mem,
+                        end_of_reply,
+                        ret_accepted,
+                        http_req->user_msg_data
+                    /*)*/);
+    if (!(called && res)) {
+        http_req->discarded = true;
+        *ret_accepted = mem.len();
+    }
 }
 
 void
@@ -153,6 +354,9 @@ HttpClient::httpClosed (Exception * const exc_,
     HttpClient * const self = http_conn->http_client;
 
     logD_ (_func_);
+
+    if (exc_)
+        logE_ (_func, "exception: ", exc_->toString());
 
     self->mutex.lock ();
     mt_unlocks_locks (mutex) self->destroyHttpClientConnection (http_conn);
@@ -235,6 +439,10 @@ HttpClient::connect (bool * const ret_connected)
     http_conn->server_addr = next_server_addr;
     http_conn->valid = true;
     http_conn->conn_list_el = NULL;
+
+    http_conn->preassembly_buf = NULL;
+    http_conn->preassembly_buf_size = 0;
+    http_conn->preassembled_len = 0;
 
     CodeDepRef<ServerThreadContext> const thread_ctx = server_ctx->selectThreadContext ();
     http_conn->weak_thread_ctx = thread_ctx;
@@ -331,7 +539,9 @@ HttpClient::sendRequest (HttpClientConnection * const mt_nonnull http_conn,
 Result
 HttpClient::queueRequest (HttpRequestType const req_type,
                           ConstMemory     const req_path,
-                          CbDesc<HttpResponseHandler> const &response_cb)
+                          CbDesc<HttpResponseHandler> const &response_cb,
+                          bool            const preassembly,
+                          bool            const parse_body_params)
 {
     mutex.lock ();
 
@@ -341,12 +551,18 @@ HttpClient::queueRequest (HttpRequestType const req_type,
         return Result::Failure;
 
     Ref<HttpClientRequest> const http_req = grab (new HttpClientRequest);
-    http_req->req_type = HttpRequestType_Get;
+    http_req->req_type = req_type;
     // TODO No need to allocate when 'connected' is true.
     http_req->req_path = grab (new String (req_path));
     http_req->response_cb = response_cb;
+
+    http_req->preassembly = preassembly;
+    http_req->parse_body_params = parse_body_params;
+
     http_req->receiving_body = false;
     http_req->user_msg_data = NULL;
+
+    http_req->discarded = false;
 
     http_req->req_list_el = http_conn->requests.append (http_req);
 
@@ -360,17 +576,29 @@ HttpClient::queueRequest (HttpRequestType const req_type,
 
 Result
 HttpClient::httpGet (ConstMemory const req_path,
-                     CbDesc<HttpResponseHandler> const &response_cb)
+                     CbDesc<HttpResponseHandler> const &response_cb,
+                     bool            const preassembly,
+                     bool            const parse_body_params)
 {
-    return queueRequest (HttpRequestType_Get, req_path, response_cb);
+    return queueRequest (HttpRequestType_Get,
+                         req_path,
+                         response_cb,
+                         preassembly,
+                         parse_body_params);
 }
 
 Result
 HttpClient::httpPost (ConstMemory const req_path,
-                      ConstMemory const post_data,
-                      CbDesc<HttpResponseHandler> const &response_cb)
+                      ConstMemory const /* post_data */ /* TODO Send post_data, probably specify it in pages */,
+                      CbDesc<HttpResponseHandler> const &response_cb,
+                      bool            const preassembly,
+                      bool            const parse_body_params)
 {
-    return queueRequest (HttpRequestType_Post, req_path, response_cb);
+    return queueRequest (HttpRequestType_Post,
+                         req_path,
+                         response_cb,
+                         preassembly,
+                         parse_body_params);
 }
 
 void
@@ -385,12 +613,14 @@ mt_const void
 HttpClient::init (ServerContext * const mt_nonnull server_ctx,
                   PagePool      * const mt_nonnull page_pool,
                   IpAddress       const server_addr,
-                  bool            const keepalive)
+                  bool            const keepalive,
+                  Size            const preassembly_limit)
 {
     this->keepalive = keepalive;
     this->server_ctx = server_ctx;
     this->page_pool = page_pool;
     next_server_addr = server_addr;
+    this->preassembly_limit = preassembly_limit;
 }
 
 HttpClient::HttpClient (Object * const coderef_container)
