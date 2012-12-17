@@ -286,15 +286,30 @@ IpAddress::toString_ (Memory const &mem,
 		      Format const & /* fmt */)
 {
     Size offs = 0;
-    offs += toString (mem.region (offs), (ip_addr >> 24) & 0xff, fmt_def);
-    offs += toString (mem.region (offs), ".");
-    offs += toString (mem.region (offs), (ip_addr >> 16) & 0xff, fmt_def);
-    offs += toString (mem.region (offs), ".");
-    offs += toString (mem.region (offs), (ip_addr >>  8) & 0xff, fmt_def);
-    offs += toString (mem.region (offs), ".");
-    offs += toString (mem.region (offs), (ip_addr >>  0) & 0xff, fmt_def);
-    offs += toString (mem.region (offs), ":");
-    offs += toString (mem.region (offs), port);
+    offs += toString (mem.safeRegion (offs), (ip_addr >> 24) & 0xff, fmt_def);
+    offs += toString (mem.safeRegion (offs), ".");
+    offs += toString (mem.safeRegion (offs), (ip_addr >> 16) & 0xff, fmt_def);
+    offs += toString (mem.safeRegion (offs), ".");
+    offs += toString (mem.safeRegion (offs), (ip_addr >>  8) & 0xff, fmt_def);
+    offs += toString (mem.safeRegion (offs), ".");
+    offs += toString (mem.safeRegion (offs), (ip_addr >>  0) & 0xff, fmt_def);
+    offs += toString (mem.safeRegion (offs), ":");
+    offs += toString (mem.safeRegion (offs), port);
+    return offs;
+}
+
+Size
+IpAddress_NoPort::toString_ (Memory const &mem,
+                             Format const & /* fmt */)
+{
+    Size offs = 0;
+    offs += toString (mem.safeRegion (offs), (ip_addr >> 24) & 0xff, fmt_def);
+    offs += toString (mem.safeRegion (offs), ".");
+    offs += toString (mem.safeRegion (offs), (ip_addr >> 16) & 0xff, fmt_def);
+    offs += toString (mem.safeRegion (offs), ".");
+    offs += toString (mem.safeRegion (offs), (ip_addr >>  8) & 0xff, fmt_def);
+    offs += toString (mem.safeRegion (offs), ".");
+    offs += toString (mem.safeRegion (offs), (ip_addr >>  0) & 0xff, fmt_def);
     return offs;
 }
 

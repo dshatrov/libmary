@@ -77,6 +77,20 @@ Result serviceToPort (ConstMemory  service,
         }
     };
 
+    class IpAddress_NoPort
+    {
+    public:
+        Uint32 ip_addr;
+
+        Size toString_ (Memory const &mem,
+                        Format const &fmt);
+
+        IpAddress_NoPort (IpAddress const addr)
+            : ip_addr (addr.ip_addr)
+        {
+        }
+    };
+
     static inline void setIpAddress (Uint32 const ip_addr,
 				     Uint16 const port,
 				     IpAddress * const ret_addr)
