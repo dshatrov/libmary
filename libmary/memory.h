@@ -41,7 +41,7 @@ public:
     Byte* mem () const { return mem_; }
     Size  len () const { return len_; }
 
-    // TODO rename to isEmpty(). isNull() is for "mem_ == 0" test.
+    // TODO rename to isEmpty(). isNull() is for "mem_ == NULL" test.
     bool isNull () const { return len_ == 0; }
 
     bool isEmpty () const { return len_ == 0; }

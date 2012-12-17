@@ -526,6 +526,7 @@ mt_mutex (mutex) void
 HttpClient::sendRequest (HttpClientConnection * const mt_nonnull http_conn,
                          HttpClientRequest    * const mt_nonnull http_req)
 {
+    // TODO keep-alive header for keepalive mode
     http_conn->sender.send (page_pool,
                             true /* do_flush */,
                             (http_req->req_type == HttpRequestType_Get ? "GET" : "POST"),
