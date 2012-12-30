@@ -37,6 +37,7 @@ class LogLevel
 public:
     enum Value {
 	All     =  1000,
+        Stream  = 1500,
 	Debug   =  2000,
 	Info    =  3000,
 	Warning =  4000,
@@ -48,6 +49,7 @@ public:
 	// Short loglevel name aliases are useful to enable/disable certain
 	// loglevels from source quickly. Don't use them if you don't need
 	// to flip between loglevels from time to time.
+        S = Stream,
 	D = Debug,
 	I = Info,
 	W = Warning,
@@ -186,6 +188,7 @@ void _libMary_log (char const * const loglevel_str, Args const &...args)
 
 void _libMary_log_printLoglevel (LogLevel loglevel);
 
+extern char const _libMary_loglevel_str_S [4];
 extern char const _libMary_loglevel_str_D [4];
 extern char const _libMary_loglevel_str_I [4];
 extern char const _libMary_loglevel_str_W [4];
@@ -223,6 +226,11 @@ extern char const _libMary_loglevel_str_N [4];
 #define log_unlocked(group, loglevel, ...) _libMary_log_macro (_libMary_log_unlocked, group,   (loglevel), __VA_ARGS__)
 #define log_(loglevel, ...)                _libMary_log_macro (_libMary_log,          default, (loglevel), __VA_ARGS__)
 #define log_unlocked_(loglevel, ...)       _libMary_log_macro (_libMary_log_unlocked, default, (loglevel), __VA_ARGS__)
+
+#define logS(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::S, _libMary_loglevel_str_S, __VA_ARGS__)
+#define logS_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::S, _libMary_loglevel_str_S, __VA_ARGS__)
+#define logS_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::S, _libMary_loglevel_str_S, __VA_ARGS__)
+#define logS_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::S, _libMary_loglevel_str_S, __VA_ARGS__)
 
 #define logD(group, ...)          _libMary_log_macro_s (_libMary_log,          group,   LogLevel::D, _libMary_loglevel_str_D, __VA_ARGS__)
 #define logD_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::D, _libMary_loglevel_str_D, __VA_ARGS__)

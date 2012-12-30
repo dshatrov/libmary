@@ -22,6 +22,7 @@
 
 namespace M {
 
+char const _libMary_loglevel_str_S [4] = " S ";
 char const _libMary_loglevel_str_D [4] = " D ";
 char const _libMary_loglevel_str_I [4] = " I ";
 char const _libMary_loglevel_str_W [4] = " W ";
@@ -41,6 +42,8 @@ char const * LogLevel::toCompactCstr ()
     switch (value) {
 	case LogLevel::All:
 	    return "ALL";
+        case LogLevel::Stream:
+            return "S";
 	case LogLevel::Debug:
 	    return "D";
 	case LogLevel::Info:
@@ -73,6 +76,9 @@ LogLevel::fromString (ConstMemory   const str,
 
     if (equal (str, "All")) {
 	loglevel = LogLevel::All;
+    } else
+    if (equal (str, "S") || equal (str, "Stream")) {
+        loglevel = LogLevel::Stream;
     } else
     if (equal (str, "D") || equal (str, "Debug")) {
 	loglevel = LogLevel::Debug;
