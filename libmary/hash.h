@@ -207,7 +207,28 @@ public:
 	delete[] hash_table;
     }
 
-  // Iterators
+
+  // ________________________________ iterator _________________________________
+
+    class iterator
+    {
+    private:
+	typename IntrusiveList<T, HashName>::iterator node_iter;
+
+    public:
+        iterator (Hash_anybase< T, KeyType, Extractor, Comparator, Hasher, HashName > &hash)
+                : node_iter (hash.node_list) {}
+        iterator () {}
+
+        bool operator == (iterator const &iter) const { return node_iter == iter.node_iter; }
+        bool operator != (iterator const &iter) const { return node_iter != iter.node_iter; }
+
+        bool done () const { return node_iter.done(); }
+        T* next () { return node_iter.next(); }
+    };
+
+
+  // __________________________________ iter ___________________________________
 
     class iter
     {
@@ -217,14 +238,9 @@ public:
 	typename IntrusiveList<T, HashName>::iter node_iter;
 
     public:
-	iter ()
-	{
-	}
-
 	iter (Hash_anybase< T, KeyType, Extractor, Comparator, Hasher, HashName > &hash)
-	    : node_iter (hash.node_list)
-	{
-	}
+	    : node_iter (hash.node_list) {}
+	iter () {}
 
  	// Methods for C API binding.
 	void *getAsVoidPtr () const { return node_iter.getAsVoidPtr (); }
@@ -250,6 +266,9 @@ public:
     {
 	return node_list.iter_done (iter.node_iter);
     }
+
+  // ___________________________________________________________________________
+
 };
 
 template < class T,

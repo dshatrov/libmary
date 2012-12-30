@@ -277,7 +277,27 @@ public:
         doDestruct <RemoveAction>::destruct (this);
     }
 
-// _________________________________ Iterator __________________________________
+
+  // ________________________________ iterator _________________________________
+
+    class iterator
+    {
+    private:
+        T *cur;
+
+    public:
+        iterator (IntrusiveList &list) : cur (list.getFirst()) {}
+        iterator () {}
+
+        bool operator == (iterator const &iter) const { return cur == iter.cur; }
+        bool operator != (iterator const &iter) const { return cur != iter.cur; }
+
+        bool done () const { return cur == NULL; }
+        T* next () { T * const tmp = cur; cur = getNext (cur); return tmp; }
+    };
+
+
+  // __________________________________ iter ___________________________________
 
     class iter
     {
@@ -292,15 +312,8 @@ public:
 	iter () {}
 	iter (IntrusiveList &list) { list.iter_begin (*this); }
 
-	bool operator == (iter const &iter) const
-	{
-	    return cur == iter.cur;
-	}
-
-	bool operator != (iter const &iter) const
-	{
-	    return cur != iter.cur;
-	}
+        bool operator == (iter const &iter) const { return cur == iter.cur; }
+        bool operator != (iter const &iter) const { return cur != iter.cur; }
 
  	// Methods for C API binding.
 	void *getAsVoidPtr () const { return static_cast <void*> (cur); }
@@ -325,7 +338,8 @@ public:
 	return iter.cur == NULL;
     }
 
-  // ___________________________ Reverse iterator ______________________________
+
+  // ________________________________ rev_iter _________________________________
 
     class rev_iter
     {

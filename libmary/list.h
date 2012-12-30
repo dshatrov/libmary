@@ -534,6 +534,26 @@ public:
 	clear ();
     }
 
+
+  // ________________________________ iterator _________________________________
+
+    class iterator
+    {
+    private:
+        Element *cur;
+
+    public:
+        iterator (List &list) : cur (list.getFirstElement()) {}
+        iterator () {}
+
+        bool operator == (iterator const &iter) const { return cur == iter.cur; }
+        bool operator != (iterator const &iter) const { return cur != iter.cur; }
+
+        bool done () const { return cur == NULL; }
+        Element* next () { Element * const tmp = cur; cur = cur->next; return tmp; }
+    };
+
+
 // _________________________________ Iterator __________________________________
 
     class iter
@@ -549,15 +569,8 @@ public:
 	iter () {}
 	iter (List &list) { list.iter_begin (*this); }
 
-	bool operator == (iter const &iter) const
-	{
-	    return cur == iter.cur;
-	}
-
-	bool operator != (iter const &iter) const
-	{
-	    return cur != iter.cur;
-	}
+	bool operator == (iter const &iter) const { return cur == iter.cur; }
+	bool operator != (iter const &iter) const { return cur != iter.cur; }
 
  	// Methods for C API binding.
 	void *getAsVoidPtr () const { return static_cast <void*> (cur); }
