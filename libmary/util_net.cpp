@@ -181,7 +181,10 @@ Result hostToIp (ConstMemory   const host,
 
 	    break;
 	}
-	assert (he_res);
+        if (!he_res) {
+            logE_ (_func, "could not resolve host name: ", host);
+            return Result::Failure;
+        }
 
 	addr.sin_addr = *(struct in_addr*) he_res->h_addr;
 
