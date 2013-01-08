@@ -309,10 +309,10 @@ public:
 };
 
 template < class T,
-	   class M = T&,
+	   class X = T&,
 	   class Extractor = DirectExtractor<T&>,
 	   class Base = EmptyBase >
-class ArrayIterator : public Iterator<M, Base>
+class ArrayIterator : public Iterator<X, Base>
 {
 protected:
     T * const array;
@@ -321,7 +321,7 @@ protected:
     unsigned long cur_element;
 
 public:
-    M next ()
+    X next ()
     {
 	if (cur_element >= num_elements)
 	    unreachable ();
