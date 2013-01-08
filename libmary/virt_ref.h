@@ -50,6 +50,7 @@ public:
 
     // TODO Unrefing late in all *Ref<> classes is probably a good idea.
     //      ^^^ For sure!
+    //      ^^^ 13.01.05 Did some fixes in this direction.
     void selfUnref ()
     {
         if (this->ref) {
@@ -64,12 +65,14 @@ public:
         if (this->ref == ref)
             return *this;
 
-	if (this->ref)
-	    this->ref->virt_unref ();
+        VirtReferenced * const old_obj = this->ref;
 
 	this->ref = ref;
 	if (ref)
 	    ref->virt_ref ();
+
+	if (old_obj)
+	    old_obj->virt_unref ();
 
 	return *this;
     }
@@ -79,12 +82,14 @@ public:
 	if (this == &virt_ref || ref == virt_ref.ref)
 	    return *this;
 
-	if (ref)
-	    ref->virt_unref ();
+        VirtReferenced * const old_obj = ref;
 
 	ref = virt_ref.ref;
 	if (ref)
 	    ref->virt_ref ();
+
+        if (old_obj)
+	    old_obj->virt_unref ();
 
 	return *this;
     }
