@@ -48,10 +48,10 @@ public:
 };
 
 template < class T,      // The type of an aggregate which we are extracting from
-	   class M,      // The type of an element to extract
-	   M T::*m,      // Pointer to the element being extracted
-	   class E = M&, // Return type of the extractor
-	   class Extractor = DirectExtractor<M&> >
+	   class X,      // The type of an element to extract
+	   X T::*m,      // Pointer to the element being extracted
+	   class E = X&, // Return type of the extractor
+	   class Extractor = DirectExtractor<X&> >
 class MemberExtractor
 {
 public:
@@ -87,10 +87,10 @@ public:
 #endif
 
 template < class T,
-	   class M,
-	   M (T::*m) () const,
-	   class E = M,
-	   class Extractor = DirectExtractor<M> >
+	   class X,
+	   X (T::*m) () const,
+	   class E = X,
+	   class Extractor = DirectExtractor<X> >
 class AccessorExtractor
 {
 public:
@@ -114,10 +114,10 @@ public:
 //
 template < class B,
 	   class T,
-	   class M,
-	   M (T::*m) () const,
-	   class E = M,
-	   class Extractor = DirectExtractor<M> >
+	   class X,
+	   X (T::*m) () const,
+	   class E = X,
+	   class Extractor = DirectExtractor<X> >
 class AccessorExtractorEx
 {
 public:
