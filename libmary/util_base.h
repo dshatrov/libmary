@@ -27,7 +27,7 @@
 //#define unreachable_point(file, line, str) (unreachable_ (file ":" #line str))
 //#define unreachable() (unreachable_point (__FILE__, __LINE__, ": unreachable point reached\n"))
 
-#define unreachable3(line) (unreachable_ (__FILE__ ":" #line "::", __func__))
+#define unreachable3(line) (_libMary_unreachable_ (__FILE__ ":" #line "::", __func__))
 #define unreachable2(line) unreachable3(line)
 #define unreachable() unreachable2(__LINE__)
 
@@ -48,8 +48,8 @@ extern "C" {
 
 namespace M {
 
-void unreachable_ (ConstMemory const &mem,
-		   ConstMemory const &func);
+void _libMary_unreachable_ (ConstMemory const &mem,
+                            ConstMemory const &func);
 
 /* 07.05.26
  * I introduced libraryLock and libraryUnlock to wrap

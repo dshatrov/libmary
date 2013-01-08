@@ -49,7 +49,7 @@ _libMary_stripFuncFilePath (char const * const str)
 
 Size
 AsyncIoResult::toString_ (Memory const &mem,
-			  Format const & /* fmt */)
+			  Format const & /* fmt */) const
 {
     switch (value) {
 	case Normal:

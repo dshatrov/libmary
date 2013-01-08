@@ -21,11 +21,22 @@
 #define __LIBMARY__TYPES_BASE__H__
 
 
+#ifdef __GNUC__
+#define mt_likely(x)   __builtin_expect(!!(x), 1)
+#define mt_unlikely(x) __builtin_expect(!!(x), 0)
+#endif
+
+
 // For numeric limits
 //#include <glib/gtypes.h>
 #include <glib.h>
 // Using a C header doesn't feel good.
 #include <stdint.h>
+
+//#if GLIB_MAJOR_VERSION == 2 && GLIB_MINOR_VERSION < 31
+#if !GLIB_CHECK_VERSION (2, 31, 0)
+#define LIBMARY__OLD_GTHREAD_API
+#endif
 
 #if 0
 // Another approach to getting numeric limits macros. This one suffers from
@@ -41,6 +52,8 @@
 
 #include <cstddef>
 #include <cassert>
+
+#include <new>
 
 #include <libmary/libmary_config.h>
 #include <libmary/annotations.h>
@@ -136,6 +149,14 @@ public:
     Bool (bool value) : value (value) {}
     Bool () { value = false; }
 };
+
+// This is a replacement for std::align, which is not in libstdc++ yet.
+// We have to use implementation-defined pointer conversions here.
+static inline void* alignPtr (void   * const ptr,
+                              size_t   const type_alignment)
+{
+    return (char*) ((size_t) ((char*) ptr + (type_alignment - 1)) & -type_alignment);
+}
 
 }
 

@@ -68,7 +68,7 @@ Result serviceToPort (ConstMemory  service,
 	}
 
 	Size toString_ (Memory const &mem,
-		        Format const &fmt);
+		        Format const &fmt) const;
 
         IpAddress ()
             : ip_addr (0),
@@ -83,7 +83,7 @@ Result serviceToPort (ConstMemory  service,
         Uint32 ip_addr;
 
         Size toString_ (Memory const &mem,
-                        Format const &fmt);
+                        Format const &fmt) const;
 
         IpAddress_NoPort (IpAddress const addr)
             : ip_addr (addr.ip_addr)

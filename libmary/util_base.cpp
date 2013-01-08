@@ -51,8 +51,8 @@ namespace M {
 Mutex _libMary_library_mutex;
 Mutex _libMary_helper_mutex;
 
-void unreachable_ (ConstMemory const &mem,
-		   ConstMemory const &func)
+void _libMary_unreachable_ (ConstMemory const &mem,
+                            ConstMemory const &func)
 {
     fprintf (stderr, "%.*s%.*s: unreachable point reached\n", (int) mem.len(), mem.mem(), (int) func.len(), func.mem());
     abort ();

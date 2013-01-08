@@ -286,7 +286,7 @@ Result serviceToPort (ConstMemory   const service,
 
 Size
 IpAddress::toString_ (Memory const &mem,
-		      Format const & /* fmt */)
+		      Format const & /* fmt */) const
 {
     Size offs = 0;
     offs += toString (mem.safeRegion (offs), (ip_addr >> 24) & 0xff, fmt_def);
@@ -303,7 +303,7 @@ IpAddress::toString_ (Memory const &mem,
 
 Size
 IpAddress_NoPort::toString_ (Memory const &mem,
-                             Format const & /* fmt */)
+                             Format const & /* fmt */) const
 {
     Size offs = 0;
     offs += toString (mem.safeRegion (offs), (ip_addr >> 24) & 0xff, fmt_def);

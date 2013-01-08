@@ -25,12 +25,6 @@
 #include <libmary/memory.h>
 
 
-#ifdef __GNUC__
-#define mt_likely(x)   __builtin_expect(!!(x), 1)
-#define mt_unlikely(x) __builtin_expect(!!(x), 0)
-#endif
-
-
 namespace M {
 
 typedef void (*VoidFunction) (void);
@@ -207,7 +201,7 @@ public:
     operator Value () const { return value; }
     AsyncIoResult (Value const value) : value (value) {}
     AsyncIoResult () {}
-    Size toString_ (Memory const &mem, Format const &fmt);
+    Size toString_ (Memory const &mem, Format const &fmt) const;
 private:
     Value value;
 };
@@ -261,7 +255,7 @@ private:
     Value value;
 };
 
-class FileStat /* Unnecessary   : public BasicReferenced */
+class FileStat
 {
 public:
     unsigned long long size;
