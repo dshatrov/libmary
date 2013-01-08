@@ -1,5 +1,24 @@
-#ifndef __LIBMARY__VSTACK__H__
-#define __LIBMARY__VSTACK__H__
+/*  LibMary - C++ library for high-performance network servers
+    Copyright (C) 2011-2013 Dmitry Shatrov
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License as published by the Free Software Foundation; either
+    version 2.1 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+
+#ifndef LIBMARY__VSTACK__H__
+#define LIBMARY__VSTACK__H__
 
 
 #include <libmary/types.h>
@@ -14,6 +33,10 @@ public:
     typedef Size Level;
 
 private:
+    // TODO Use one malloc for Block+buf,
+    //      with buf allocated right after Block.
+    //      Don't forget about alignment requirements
+    //      for the first data block in buf.
     class Block : public IntrusiveListElement<>
     {
     public:
@@ -33,149 +56,28 @@ private:
     BlockList block_list;
     Block *cur_block;
 
-    Byte* addBlock (Size const num_bytes)
-    {
-	Byte *ret_buf = NULL;
-
-	if (cur_block != NULL &&
-	    block_list.getNext (cur_block) != NULL)
-	{
-	  // Reusing allocated block.
-	    Block * const block = block_list.getNext (cur_block);
-	    block->start_level = level;
-	    block->height = num_bytes;
-
-	    cur_block = block;
-	    ret_buf = block->buf;
-	} else {
-	  // Allocating a new block.
-	    // TODO 'block.buf' could be allocated along with 'block'
-	    // in the same chunk of memory.
-	    Block * const block = new Block;
-	    block_list.append (block);
-
-	    block->buf = new Byte [block_size];
-	    block->start_level = level;
-	    block->height = num_bytes;
-
-	    cur_block = block_list.getLast();
-	    ret_buf = block->buf;
-	}
-
-	level += num_bytes;
-
-	return ret_buf;
-    }
+    Byte* addBlock (Size num_bytes);
 
 public:
-    Byte* push (Size num_bytes)
-    {
-	assert (num_bytes <= block_size);
+    Byte* push_unaligned (Size num_bytes);
 
-	if (block_list.isEmpty () ||
-	    block_size - cur_block->height < num_bytes)
-	{
-	    return addBlock (num_bytes);
-	}
+    Byte* push_malign (Size num_bytes,
+                       Size alignment);
 
-	Block * const block = cur_block;
+    Level getLevel () const { return level; }
 
-	Size const prv_height = block->height;
-	block->height += num_bytes;
+    void setLevel (Level new_level);
 
-	level += num_bytes;
-
-	return block->buf + prv_height;
-    }
-
-    Byte* push_malign (Size num_bytes)
-    {
-	return push_malign (num_bytes, num_bytes);
-    }
-
-    // Returned address meets alignment requirements for an object of class A
-    // if sizeof(A) is @alignment.
-    // Returned address is always a multiple of @alignment bytes away from
-    // the start of the corresponding block.
-    Byte* push_malign (Size num_bytes, Size alignment)
-    {
-	assert (num_bytes <= block_size);
-
-	if (block_list.isEmpty () ||
-	    block_size - cur_block->height < num_bytes)
-	{
-	    return addBlock (num_bytes);
-	}
-
-	Block * const block = cur_block;
-
-	Size new_height = block->height + num_bytes;
-	Size delta = new_height % alignment;
-	if (delta > 0)
-	    new_height = new_height - delta + alignment;
-
-	if (new_height > block_size) {
-	    return addBlock (num_bytes);
-	}
-
-	Size const prv_height = block->height;
-	block->height = new_height;
-
-	level += new_height - prv_height;
-
-	return block->buf + prv_height;
-    }
-
-    Level getLevel () const
-    {
-	return level;
-    }
-
-    void setLevel (Level const &new_level)
-    {
-	if (!block_list.isEmpty ()) {
-	    if (cur_block->start_level > new_level) {
-		Block * const prv_block = block_list.getPrevious (cur_block);
-
-		if (shrinking) {
-		  // Deleting block.
-		    delete[] cur_block->buf;
-		    block_list.remove (cur_block);
-		    delete cur_block;
-		  // 'cur_block' is not valid anymore
-		}
-
-		cur_block = prv_block;
-	    } else {
-		cur_block->height = new_level - cur_block->start_level;
-	    }
-	}
-
-	level = new_level;
-    }
+    void clear () { setLevel (0); }
 
     VStack (Size block_size /* > 0 */,
-	    bool shrinking = false)
-	: block_size (block_size),
-	  shrinking (shrinking),
-	  level (0),
-	  cur_block (NULL)
-    {
-    }
+	    bool shrinking = false);
 
-    ~VStack ()
-    {
-	BlockList::iter iter (block_list);
-	while (!block_list.iter_done (iter)) {
-	    Block * const block = block_list.iter_next (iter);
-	    delete[] block->buf;
-	    delete block;
-	}
-    }
+    ~VStack ();
 };
 
 }
 
 
-#endif /* __LIBMARY__VSTACK__H__ */
+#endif /* LIBMARY__VSTACK__H__ */
 
