@@ -135,7 +135,7 @@ public:
     {
 	Node *node = NULL;
 	if (free_nodes.isEmpty ()) {
-	    node = new (vstack.push_malign (sizeof (Node))) Node;
+	    node = new (vstack.push_malign (sizeof (Node), alignof (Node))) Node;
 	    node->refcount = 1;
 	} else {
 	    node = free_nodes.getFirst ();
@@ -152,12 +152,13 @@ public:
     // Deprecated method
     // TODO The API is misleading. The same @size should be specified
     // for all alloc() calls on the same VSlab.
+//#warning What's @size and does it play well with alignment?
     T* alloc (Size const size,
 	      AllocKey * const ret_key)
     {
 	Node *node = NULL;
 	if (free_nodes.isEmpty ()) {
-	    node = new (vstack.push_malign (sizeof (Node) - sizeof (T) + size, sizeof (Node))) Node;
+	    node = new (vstack.push_malign (sizeof (Node) - sizeof (T) + size, alignof (Node))) Node;
 	    node->refcount = 1;
 	} else {
 	    node = free_nodes.getFirst ();
@@ -175,7 +176,7 @@ public:
     {
 	Node *node = NULL;
 	if (free_nodes.isEmpty ()) {
-	    node = new (vstack.push_malign (sizeof (Node))) Node;
+	    node = new (vstack.push_malign (sizeof (Node), alignof (Node))) Node;
 	    node->refcount = 0;
 	} else {
 	    node = free_nodes.getFirst ();
@@ -194,7 +195,7 @@ public:
 
 	Node *node = NULL;
 	if (free_nodes.isEmpty ()) {
-	    node = new (vstack.push_malign (sizeof (Node) - sizeof (T) + size, sizeof (Node))) Node;
+	    node = new (vstack.push_malign (sizeof (Node) - sizeof (T) + size, alignof (Node))) Node;
 	    node->refcount = 0;
 	} else {
 	    node = free_nodes.getFirst ();
