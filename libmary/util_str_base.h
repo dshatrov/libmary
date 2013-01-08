@@ -28,6 +28,7 @@
 #include <cstdio>
 
 #include <libmary/ref.h>
+#include <libmary/st_ref.h>
 #include <libmary/string.h>
 
 #if defined(LIBMARY_PLATFORM_WIN32) || defined(LIBMARY_PLATFORM_CYGWIN)
@@ -108,10 +109,10 @@ namespace {
 }
 
 template <class T>
-Ref<String> toString (T obj, Format const &fmt = libMary_default_format)
+Ref<String> toString (T const &obj, Format const &fmt = libMary_default_format)
 {
     Size const len = toString (Memory(), obj, fmt);
-    Ref<String> const str = grab (new String (len));
+    Ref<String> const str = grab (new (std::nothrow) String (len));
     Memory const mem = str->mem();
     // +1 byte for terminating null byte written by snprintf()
     toString (Memory (mem.mem(), mem.len() + 1), obj, fmt);
@@ -119,7 +120,7 @@ Ref<String> toString (T obj, Format const &fmt = libMary_default_format)
 }
 
 template <class T>
-inline Size toString (Memory const &mem, T obj, Format const &fmt = libMary_default_format)
+inline Size toString (Memory const &mem, T const &obj, Format const &fmt = libMary_default_format)
 {
     return obj.toString_ (mem, fmt);
 }
@@ -134,8 +135,7 @@ inline Size toString (Memory const &mem, char const (&str) [N], Format const & /
     return len;
 }
 
-template <>
-inline Size toString (Memory const &mem, char * const str, Format const & /* fmt */)
+inline Size toString (Memory const &mem, char * const str, Format const & /* fmt */ = libMary_default_format)
 {
     Size const len = strlen (str);
     if (len <= mem.len())
@@ -144,8 +144,7 @@ inline Size toString (Memory const &mem, char * const str, Format const & /* fmt
     return len;
 }
 
-template <>
-inline Size toString (Memory const &mem, char const * const str, Format const & /* fmt */)
+inline Size toString (Memory const &mem, char const * const str, Format const & /* fmt */ = libMary_default_format)
 {
     Size const len = strlen (str);
     if (len <= mem.len())
@@ -154,8 +153,17 @@ inline Size toString (Memory const &mem, char const * const str, Format const & 
     return len;
 }
 
-template <>
-inline Size toString (Memory const &mem, Memory const &str, Format const & /* fmt */)
+#if 0
+inline Size toString (Memory const &mem, Memory const &str, Format const & /* fmt */ = libMary_default_format)
+{
+    if (str.len() <= mem.len())
+	memcpy (mem.mem(), str.mem(), str.len());
+
+    return str.len();
+}
+#endif
+
+inline Size toString (Memory const &mem, Memory str, Format const & /* fmt */ = libMary_default_format)
 {
     if (str.len() <= mem.len())
 	memcpy (mem.mem(), str.mem(), str.len());
@@ -163,8 +171,17 @@ inline Size toString (Memory const &mem, Memory const &str, Format const & /* fm
     return str.len();
 }
 
-template <>
-inline Size toString (Memory const &mem, Memory str, Format const & /* fmt */)
+#if 0
+inline Size toString (Memory const &mem, ConstMemory const &str, Format const & /* fmt */ = libMary_default_format)
+{
+    if (str.len() <= mem.len())
+	memcpy (mem.mem(), str.mem(), str.len());
+
+    return str.len();
+}
+#endif
+
+inline Size toString (Memory const &mem, ConstMemory str, Format const & /* fmt */ = libMary_default_format)
 {
     if (str.len() <= mem.len())
 	memcpy (mem.mem(), str.mem(), str.len());
@@ -172,22 +189,15 @@ inline Size toString (Memory const &mem, Memory str, Format const & /* fmt */)
     return str.len();
 }
 
-template <>
-inline Size toString (Memory const &mem, ConstMemory const &str, Format const & /* fmt */)
+inline Size toString (Memory const &mem, StRef<String> const &str, Format const & /* fmt */ = libMary_default_format)
 {
-    if (str.len() <= mem.len())
-	memcpy (mem.mem(), str.mem(), str.len());
+    if (!str)
+        return 0;
 
-    return str.len();
-}
+    if (str->len() <= mem.len())
+        memcpy (mem.mem(), str->mem().mem(), str->len());
 
-template <>
-inline Size toString (Memory const &mem, ConstMemory str, Format const & /* fmt */)
-{
-    if (str.len() <= mem.len())
-	memcpy (mem.mem(), str.mem(), str.len());
-
-    return str.len();
+    return str->len();
 }
 
 // @flags Combination of FormatFlag flags.
@@ -235,8 +245,7 @@ inline Size _libMary_snprintf (Memory      const &mem,
     return res;
 }
 
-template <>
-inline Size toString (Memory const &mem, char value, Format const &fmt)
+inline Size toString (Memory const &mem, char value, Format const &fmt = libMary_default_format)
 {
     if (fmt.num_base == 16)
 	return _libMary_snprintf (mem, "x", (unsigned) (unsigned char) value, fmt, FormatFlags::WithMinDigits);
@@ -244,8 +253,7 @@ inline Size toString (Memory const &mem, char value, Format const &fmt)
     return _libMary_snprintf (mem, "d", (int) value, fmt, FormatFlags::WithMinDigits);
 }
 
-template <>
-inline Size toString (Memory const &mem, unsigned char value, Format const &fmt)
+inline Size toString (Memory const &mem, unsigned char value, Format const &fmt = libMary_default_format)
 {
     if (fmt.num_base == 16)
 	return _libMary_snprintf (mem, "x", (unsigned) (unsigned char) value, fmt, FormatFlags::WithMinDigits);
@@ -253,8 +261,7 @@ inline Size toString (Memory const &mem, unsigned char value, Format const &fmt)
     return _libMary_snprintf (mem, "u", (unsigned) value, fmt, FormatFlags::WithMinDigits);
 }
 
-template <>
-inline Size toString (Memory const &mem, signed char value, Format const &fmt)
+inline Size toString (Memory const &mem, signed char value, Format const &fmt = libMary_default_format)
 {
     if (fmt.num_base == 16)
 	return _libMary_snprintf (mem, "x", (unsigned) (unsigned char) value, fmt, FormatFlags::WithMinDigits);
@@ -262,8 +269,7 @@ inline Size toString (Memory const &mem, signed char value, Format const &fmt)
     return _libMary_snprintf (mem, "d", (int) value, fmt, FormatFlags::WithMinDigits);
 }
 
-template <>
-inline Size toString (Memory const &mem, short value, Format const &fmt)
+inline Size toString (Memory const &mem, short value, Format const &fmt = libMary_default_format)
 {
     if (fmt.num_base == 16)
 	return _libMary_snprintf (mem, "x", (unsigned) (unsigned short) value, fmt, FormatFlags::WithMinDigits);
@@ -271,8 +277,7 @@ inline Size toString (Memory const &mem, short value, Format const &fmt)
     return _libMary_snprintf (mem, "d", (int) value, fmt, FormatFlags::WithMinDigits);
 }
 
-template <>
-inline Size toString (Memory const &mem, int value, Format const &fmt)
+inline Size toString (Memory const &mem, int value, Format const &fmt = libMary_default_format)
 {
     if (fmt.num_base == 16)
 	return _libMary_snprintf (mem, "x", (unsigned) value, fmt, FormatFlags::WithMinDigits);
@@ -280,8 +285,7 @@ inline Size toString (Memory const &mem, int value, Format const &fmt)
     return _libMary_snprintf (mem, "d", (int) value, fmt, FormatFlags::WithMinDigits);
 }
 
-template <>
-inline Size toString (Memory const &mem, long value, Format const &fmt)
+inline Size toString (Memory const &mem, long value, Format const &fmt = libMary_default_format)
 {
     if (fmt.num_base == 16)
 	return _libMary_snprintf (mem, "lx", (unsigned long) value, fmt, FormatFlags::WithMinDigits);
@@ -289,8 +293,7 @@ inline Size toString (Memory const &mem, long value, Format const &fmt)
     return _libMary_snprintf (mem, "ld", (long) value, fmt, FormatFlags::WithMinDigits);
 }
 
-template <>
-inline Size toString (Memory const &mem, long long value, Format const &fmt)
+inline Size toString (Memory const &mem, long long value, Format const &fmt = libMary_default_format)
 {
     if (fmt.num_base == 16)
 	return _libMary_snprintf (mem, "llx", (unsigned long long) value, fmt, FormatFlags::WithMinDigits);
@@ -298,8 +301,7 @@ inline Size toString (Memory const &mem, long long value, Format const &fmt)
     return _libMary_snprintf (mem, "lld", (long long) value, fmt, FormatFlags::WithMinDigits);
 }
 
-template <>
-inline Size toString (Memory const &mem, unsigned short value, Format const &fmt)
+inline Size toString (Memory const &mem, unsigned short value, Format const &fmt = libMary_default_format)
 {
     if (fmt.num_base == 16)
 	return _libMary_snprintf (mem, "x", (unsigned) value, fmt, FormatFlags::WithMinDigits);
@@ -307,8 +309,7 @@ inline Size toString (Memory const &mem, unsigned short value, Format const &fmt
     return _libMary_snprintf (mem, "u", (unsigned) value, fmt, FormatFlags::WithMinDigits);
 }
 
-template <>
-inline Size toString (Memory const &mem, unsigned value, Format const &fmt)
+inline Size toString (Memory const &mem, unsigned value, Format const &fmt = libMary_default_format)
 {
     if (fmt.num_base == 16)
 	return _libMary_snprintf (mem, "x", (unsigned) value, fmt, FormatFlags::WithMinDigits);
@@ -316,8 +317,7 @@ inline Size toString (Memory const &mem, unsigned value, Format const &fmt)
     return _libMary_snprintf (mem, "u", (unsigned) value, fmt, FormatFlags::WithMinDigits);
 }
 
-template <>
-inline Size toString (Memory const &mem, unsigned long value, Format const &fmt)
+inline Size toString (Memory const &mem, unsigned long value, Format const &fmt = libMary_default_format)
 {
     if (fmt.num_base == 16)
 	return _libMary_snprintf (mem, "lx", (unsigned long) value, fmt, FormatFlags::WithMinDigits);
@@ -326,8 +326,7 @@ inline Size toString (Memory const &mem, unsigned long value, Format const &fmt)
     return res;
 }
 
-template <>
-inline Size toString (Memory const &mem, unsigned long long value, Format const &fmt)
+inline Size toString (Memory const &mem, unsigned long long value, Format const &fmt = libMary_default_format)
 {
     if (fmt.num_base == 16)
 	return _libMary_snprintf (mem, "llx", (unsigned long long) value, fmt, FormatFlags::WithMinDigits);
@@ -335,26 +334,22 @@ inline Size toString (Memory const &mem, unsigned long long value, Format const 
     return _libMary_snprintf (mem, "llu", (unsigned long long) value, fmt, FormatFlags::WithMinDigits);
 }
 
-template <>
-inline Size toString (Memory const &mem, float value, Format const &fmt)
+inline Size toString (Memory const &mem, float value, Format const &fmt = libMary_default_format)
 {
     return _libMary_snprintf (mem, "f", (double) value, fmt, FormatFlags::WithPrecision);
 }
 
-template <>
-inline Size toString (Memory const &mem, double value, Format const &fmt)
+inline Size toString (Memory const &mem, double value, Format const &fmt = libMary_default_format)
 {
     return _libMary_snprintf (mem, "f", (double) value, fmt, FormatFlags::WithPrecision);
 }
 
-template <>
-inline Size toString (Memory const &mem, long double value, Format const &fmt)
+inline Size toString (Memory const &mem, long double value, Format const &fmt = libMary_default_format)
 {
     return _libMary_snprintf (mem, "Lf", (long double) value, fmt, FormatFlags::WithPrecision);
 }
 
-template <>
-inline Size toString (Memory const &mem, bool value, Format const & /* fmt */)
+inline Size toString (Memory const &mem, bool value, Format const & /* fmt */ = libMary_default_format)
 {
     return value ? toString (mem, "true") : toString (mem, "false");
 }
@@ -388,15 +383,16 @@ Size measureString (Args const &...args)
     return _do_measureString (fmt_def, args...);
 }
 
-static inline void
+static inline Size
 _do_makeString (Memory const & /* mem */,
 		Format const & /* fmt */)
 {
   // No-op
+    return 0;
 }
 
 template <class T, class ...Args>
-void _do_makeString (Memory const &mem,
+Size _do_makeString (Memory const &mem,
 		     Format const &fmt,
 		     T      const &obj,
 		     Args   const &...args)
@@ -404,21 +400,41 @@ void _do_makeString (Memory const &mem,
     Size const len = toString (mem, obj, fmt);
     assert (len <= mem.len());
     _do_makeString (mem.region (len), fmt, args...);
+    return len;
 }
 
 template <class ...Args>
-void _do_makeString (Memory const &mem,
+Size _do_makeString (Memory const &mem,
 		     Format const & /* fmt */,
 		     Format const &new_fmt,
 		     Args   const &...args)
 {
-    _do_makeString (mem, new_fmt, args...);
+    return _do_makeString (mem, new_fmt, args...);
 }
 
+// Note: mem should have space for terminating null byte.
+template <class ...Args>
+Size makeStringInto (Memory const mem,
+                     Args const &...args)
+{
+   return _do_makeString (mem, fmt_def, args...);
+}
+
+// TODO replace Ref makeString with StRef st_makeString
 template <class ...Args>
 Ref<String> makeString (Args const &...args)
 {
-    Ref<String> const str = grab (new String (measureString (args...)));
+    Ref<String> const str = grab (new (std::nothrow) String (measureString (args...)));
+    Memory const mem = str->mem();
+    // +1 byte for terminating null byte written by snprintf()
+    _do_makeString (Memory (mem.mem(), mem.len() + 1), fmt_def, args...);
+    return str;
+}
+
+template <class ...Args>
+StRef<String> st_makeString (Args const &...args)
+{
+    StRef<String> const str = st_grab (new (std::nothrow) String (measureString (args...)));
     Memory const mem = str->mem();
     // +1 byte for terminating null byte written by snprintf()
     _do_makeString (Memory (mem.mem(), mem.len() + 1), fmt_def, args...);
@@ -454,6 +470,10 @@ static inline bool equal (ConstMemory const &left,
 
     return !memcmp (left.mem(), right.mem(), left.len());
 }
+
+bool stringHasSuffix (ConstMemory  str,
+                      ConstMemory  suffix,
+                      ConstMemory *ret_str);
 
 static inline unsigned long strToUlong (char const * const cstr)
 {
