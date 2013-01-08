@@ -262,7 +262,7 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 	    } else
 	    if (nfds < 0) {
 		logE_ (_func, "unexpected return value from poll(): ", nfds);
-		exc_throw <InternalException> (InternalException::BackendMalfunction);
+		exc_throw (InternalException, InternalException::BackendMalfunction);
 		ret_res = Result::Failure;
 		goto _poll_interrupted;
 	    }

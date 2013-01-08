@@ -157,6 +157,31 @@ ComparisonResult compare (ConstMemory const &left,
     return ComparisonResult::Less;
 }
 
+bool stringHasSuffix (ConstMemory   const str,
+                      ConstMemory   const suffix,
+                      ConstMemory * const ret_str)
+{
+    if (ret_str)
+        *ret_str = str;
+
+    if (suffix.len() == 0)
+        return true;
+
+    if (str.len() == 0)
+        return false;
+
+    if (str.len() < suffix.len())
+        return false;
+
+    if (memcmp (str.mem() + (str.len() - suffix.len()), suffix.mem(), suffix.len()))
+        return false;
+
+    if (ret_str)
+        *ret_str = str.region (0, str.len() - suffix.len());
+
+    return true;
+}
+
 unsigned long strToUlong (ConstMemory const &mem)
 {
     Byte tmp_str [64];
@@ -206,7 +231,7 @@ mt_throws Result strToInt32 (char const  * const cstr,
 			     int           const base)
 {
     if (!cstr || *cstr == 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	exc_throw (NumericConversionException, NumericConversionException::EmptyString);
 	return Result::Failure;
     }
 
@@ -222,8 +247,8 @@ mt_throws Result strToInt32 (char const  * const cstr,
 	// Note that MT-safe errno implies useless overhead of accessing
 	// thread-local storage.
 	if (errno == EINVAL || errno == ERANGE) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    exc_throw (PosixException, errno);
+	    exc_push (NumericConversionException, NumericConversionException::Overflow);
 	    return Result::Failure;
 	}
     }
@@ -231,7 +256,7 @@ mt_throws Result strToInt32 (char const  * const cstr,
     if (long_val < Int32_Min ||
 	long_val > Int32_Max)
     {
-	exc_throw <NumericConversionException> (NumericConversionException::Overflow);
+	exc_throw (NumericConversionException, NumericConversionException::Overflow);
 	return Result::Failure;
     }
 
@@ -245,7 +270,7 @@ mt_throws Result strToInt32_safe (char const * const cstr,
 				  int          const base)
 {
     if (!cstr || *cstr == 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	exc_throw (NumericConversionException, NumericConversionException::EmptyString);
 	return Result::Failure;
     }
 
@@ -253,7 +278,7 @@ mt_throws Result strToInt32_safe (char const * const cstr,
     long long_val = strtol (cstr, &endptr, base);
 
     if (*endptr != 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
@@ -263,8 +288,8 @@ mt_throws Result strToInt32_safe (char const * const cstr,
 	// Note that MT-safe errno implies useless overhead of accessing
 	// thread-local storage.
 	if (errno == EINVAL || errno == ERANGE) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    exc_throw (PosixException, errno);
+	    exc_push (NumericConversionException, NumericConversionException::Overflow);
 	    return Result::Failure;
 	}
     }
@@ -272,7 +297,7 @@ mt_throws Result strToInt32_safe (char const * const cstr,
     if (long_val < Int32_Min ||
 	long_val > Int32_Max)
     {
-	exc_throw <NumericConversionException> (NumericConversionException::Overflow);
+	exc_throw (NumericConversionException, NumericConversionException::Overflow);
 	return Result::Failure;
     }
 
@@ -290,7 +315,7 @@ mt_throws Result strToInt32 (ConstMemory    const mem_,
 
     Byte tmp_str [130];
     if (mem.len() >= sizeof (tmp_str)) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
@@ -315,7 +340,7 @@ mt_throws Result strToInt32_safe (ConstMemory const &mem_,
 
     Byte tmp_str [130];
     if (mem.len() >= sizeof (tmp_str)) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
@@ -331,7 +356,7 @@ mt_throws Result strToInt64 (char const  * const cstr,
 			     int           const base)
 {
     if (!cstr || *cstr == 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	exc_throw (NumericConversionException, NumericConversionException::EmptyString);
 	return Result::Failure;
     }
 
@@ -345,8 +370,8 @@ mt_throws Result strToInt64 (char const  * const cstr,
 	llong_val == LLONG_MAX)
     {
 	if (errno == EINVAL || errno == ERANGE) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    exc_throw (PosixException, errno);
+	    exc_push (NumericConversionException, NumericConversionException::Overflow);
 	    return Result::Failure;
 	}
     }
@@ -354,7 +379,7 @@ mt_throws Result strToInt64 (char const  * const cstr,
     if (llong_val < Int64_Min ||
 	llong_val > Int64_Max)
     {
-	exc_throw <NumericConversionException> (NumericConversionException::Overflow);
+	exc_throw (NumericConversionException, NumericConversionException::Overflow);
 	return Result::Failure;
     }
 
@@ -368,7 +393,7 @@ mt_throws Result strToInt64_safe (char const * const cstr,
 				  int          const base)
 {
     if (!cstr || *cstr == 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	exc_throw (NumericConversionException, NumericConversionException::EmptyString);
 	return Result::Failure;
     }
 
@@ -376,7 +401,7 @@ mt_throws Result strToInt64_safe (char const * const cstr,
     long llong_val = strtoll (cstr, &endptr, base);
 
     if (*endptr != 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
@@ -384,8 +409,8 @@ mt_throws Result strToInt64_safe (char const * const cstr,
 	llong_val == LLONG_MAX)
     {
 	if (errno == EINVAL || errno == ERANGE) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    exc_throw (PosixException, errno);
+	    exc_push (NumericConversionException, NumericConversionException::Overflow);
 	    return Result::Failure;
 	}
     }
@@ -393,7 +418,7 @@ mt_throws Result strToInt64_safe (char const * const cstr,
     if (llong_val < Int64_Min ||
 	llong_val > Int64_Max)
     {
-	exc_throw <NumericConversionException> (NumericConversionException::Overflow);
+	exc_throw (NumericConversionException, NumericConversionException::Overflow);
 	return Result::Failure;
     }
 
@@ -411,7 +436,7 @@ mt_throws Result strToInt64 (ConstMemory    const mem_,
 
     Byte tmp_str [130];
     if (mem.len() >= sizeof (tmp_str)) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
@@ -436,7 +461,7 @@ mt_throws Result strToInt64_safe (ConstMemory const &mem_,
 
     Byte tmp_str [130];
     if (mem.len() >= sizeof (tmp_str)) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
@@ -452,7 +477,7 @@ mt_throws Result strToUint32 (char const  * const cstr,
 			      int           const base)
 {
     if (!cstr || *cstr == 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	exc_throw (NumericConversionException, NumericConversionException::EmptyString);
 	return Result::Failure;
     }
 
@@ -464,14 +489,14 @@ mt_throws Result strToUint32 (char const  * const cstr,
 
     if (ulong_val == ULONG_MAX) {
 	if (errno == EINVAL || errno == ERANGE) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    exc_throw (PosixException, errno);
+	    exc_push (NumericConversionException, NumericConversionException::Overflow);
 	    return Result::Failure;
 	}
     }
 
     if (ulong_val > Uint32_Max) {
-	exc_throw <NumericConversionException> (NumericConversionException::Overflow);
+	exc_throw (NumericConversionException, NumericConversionException::Overflow);
 	return Result::Failure;
     }
 
@@ -485,7 +510,7 @@ mt_throws Result strToUint32_safe (char const * const cstr,
 				   int          const base)
 {
     if (!cstr || *cstr == 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	exc_throw (NumericConversionException, NumericConversionException::EmptyString);
 	return Result::Failure;
     }
 
@@ -493,20 +518,20 @@ mt_throws Result strToUint32_safe (char const * const cstr,
     unsigned long ulong_val = strtoul (cstr, &endptr, base);
 
     if (*endptr != 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
     if (ulong_val == ULONG_MAX) {
 	if (errno == EINVAL || errno == ERANGE) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    exc_throw (PosixException, errno);
+	    exc_push (NumericConversionException, NumericConversionException::Overflow);
 	    return Result::Failure;
 	}
     }
 
     if (ulong_val > Uint32_Max) {
-	exc_throw <NumericConversionException> (NumericConversionException::Overflow);
+	exc_throw (NumericConversionException, NumericConversionException::Overflow);
 	return Result::Failure;
     }
 
@@ -524,7 +549,7 @@ mt_throws Result strToUint32 (ConstMemory    const mem_,
 
     Byte tmp_str [130];
     if (mem.len() >= sizeof (tmp_str)) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
@@ -549,7 +574,7 @@ mt_throws Result strToUint32_safe (ConstMemory const &mem_,
 
     Byte tmp_str [130];
     if (mem.len() >= sizeof (tmp_str)) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
@@ -565,7 +590,7 @@ mt_throws Result strToUint64 (char const  * const cstr,
 			      int           const base)
 {
     if (!cstr || *cstr == 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	exc_throw (NumericConversionException, NumericConversionException::EmptyString);
 	return Result::Failure;
     }
 
@@ -577,14 +602,14 @@ mt_throws Result strToUint64 (char const  * const cstr,
 
     if (ullong_val == ULLONG_MAX) {
 	if (errno == EINVAL || errno == ERANGE) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    exc_throw (PosixException, errno);
+	    exc_push (NumericConversionException, NumericConversionException::Overflow);
 	    return Result::Failure;
 	}
     }
 
     if (ullong_val > Uint64_Max) {
-	exc_throw <NumericConversionException> (NumericConversionException::Overflow);
+	exc_throw (NumericConversionException, NumericConversionException::Overflow);
 	return Result::Failure;
     }
 
@@ -598,7 +623,7 @@ mt_throws Result strToUint64_safe (char const * const cstr,
 				   int          const base)
 {
     if (!cstr || *cstr == 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	exc_throw (NumericConversionException, NumericConversionException::EmptyString);
 	return Result::Failure;
     }
 
@@ -606,20 +631,20 @@ mt_throws Result strToUint64_safe (char const * const cstr,
     unsigned long long ullong_val = strtoull (cstr, &endptr, base);
 
     if (*endptr != 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
     if (ullong_val == ULLONG_MAX) {
 	if (errno == EINVAL || errno == ERANGE) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    exc_throw (PosixException, errno);
+	    exc_push (NumericConversionException, NumericConversionException::Overflow);
 	    return Result::Failure;
 	}
     }
 
     if (ullong_val > Uint64_Max) {
-	exc_throw <NumericConversionException> (NumericConversionException::Overflow);
+	exc_throw (NumericConversionException, NumericConversionException::Overflow);
 	return Result::Failure;
     }
 
@@ -637,7 +662,7 @@ mt_throws Result strToUint64_safe (ConstMemory    const mem_,
 
     Byte tmp_str [130];
     if (mem.len() >= sizeof (tmp_str)) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
@@ -662,7 +687,7 @@ mt_throws Result strToUint64_safe (ConstMemory const &mem_,
 
     Byte tmp_str [130];
     if (mem.len() >= sizeof (tmp_str)) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
@@ -676,7 +701,7 @@ mt_throws Result strToDouble_safe (char const * const cstr,
 				   double * const ret_val)
 {
     if (!cstr || *cstr == 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::EmptyString);
+	exc_throw (NumericConversionException, NumericConversionException::EmptyString);
 	return Result::Failure;
     }
 
@@ -684,7 +709,7 @@ mt_throws Result strToDouble_safe (char const * const cstr,
     double double_val= strtod (cstr, &endptr);
 
     if (*endptr != 0) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
@@ -693,8 +718,8 @@ mt_throws Result strToDouble_safe (char const * const cstr,
 	double_val ==  HUGE_VAL)
     {
 	if (errno == ERANGE) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <NumericConversionException> (NumericConversionException::Overflow);
+	    exc_throw (PosixException, errno);
+	    exc_push (NumericConversionException, NumericConversionException::Overflow);
 	    return Result::Failure;
 	}
     }
@@ -712,7 +737,7 @@ mt_throws Result strToDouble_safe (ConstMemory const &mem_,
     // What's max string length for a double?
     Byte tmp_str [1024];
     if (mem.len() >= sizeof (tmp_str)) {
-	exc_throw <NumericConversionException> (NumericConversionException::NonNumericChars);
+	exc_throw (NumericConversionException, NumericConversionException::NonNumericChars);
 	return Result::Failure;
     }
 
