@@ -21,15 +21,18 @@
 #define __LIBMARY__STRING__H__
 
 
+#include <libmary/types_base.h>
 #include <cstring>
 
+#include <libmary/st_referenced.h>
 #include <libmary/basic_referenced.h>
 #include <libmary/memory.h>
 
 
 namespace M {
 
-class String : public BasicReferenced
+// TODO Complete BasicReferenced -> StReferenced transition for class String.
+class String : public BasicReferenced, public StReferenced
 {
 private:
     Byte *data_buf;
@@ -48,6 +51,17 @@ public:
 	return Memory (data_buf, data_len);
     }
 
+    // mem() plus space for terminating null byte for  makeStringInto().
+    Memory cstrMem () const
+    {
+        return Memory (data_buf, data_len + 1);
+    }
+
+    Size len () const
+    {
+        return data_len;
+    }
+
     char* cstr () const
     {
 	return (char*) data_buf;
@@ -60,7 +74,7 @@ public:
 
 	if (mem.len() != 0) {
 	    data_buf = new Byte [mem.len() + 1];
-	    memcpy (data_buf, mem.mem(), mem.len() + 1);
+	    memcpy (data_buf, mem.mem(), mem.len());
 	    data_buf [mem.len()] = 0;
 	    data_len = mem.len ();
 	} else {
@@ -69,9 +83,21 @@ public:
 	}
     }
 
+    // Use this carefully.
+    void setLength (Size const len)
+    {
+        data_len = len;
+    }
+
+    // Deprecated in favor of isNullString()
     bool isNull () const
     {
 	return data_buf == no_data;
+    }
+
+    bool isNullString () const
+    {
+        return data_buf == no_data;
     }
 
     // Allocates an additional byte for the trailing zero and sets it to 0.
@@ -122,7 +148,7 @@ public:
     {
 	if (mem.len() != 0) {
 	    data_buf = new Byte [mem.len() + 1];
-	    memcpy (data_buf, mem.mem(), mem.len() + 1);
+	    memcpy (data_buf, mem.mem(), mem.len());
 	    data_buf [mem.len()] = 0;
 	    data_len = mem.len ();
 	} else {
