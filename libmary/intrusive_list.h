@@ -21,13 +21,12 @@
 #define __LIBMARY__INTRUSIVE_LIST__H__
 
 
-#include <libmary/types.h>
-#include <libmary/intrusive_list.h>
+#include <libmary/types_base.h>
+
+//#include <cstdio>
 
 
 namespace M {
-
-class Referenced;
 
 class IntrusiveList_name;
 
@@ -98,12 +97,30 @@ public:
 
     void append (Element * const mt_nonnull obj)
     {
-	append (obj, getLast ());
+	append (obj, last);
     }
 
     void append (Element * const mt_nonnull el,
 		 Element * const to_el)
     {
+#if 0
+// Test check
+        {
+            Element *e = first;
+            while (e) {
+                assert (e != el);
+                e = e->next;
+            }
+        }
+        {
+            Element *e = last;
+            while (e) {
+                assert (e != el);
+                e = e->previous;
+            }
+        }
+#endif
+
 	if (mt_likely (to_el)) {
 	    el->next = to_el->next;
 	    el->previous = to_el;
@@ -121,16 +138,41 @@ public:
 	    first = el;
 	    last  = el;
 	}
+
+#if 0
+        fprintf (stderr, "--- list 0x%lx, append 0x%lx to 0x%lx, prv 0x%lx, nex 0x%lx\n",
+                 (unsigned long) this,
+                 (unsigned long) el, (unsigned long) to_el,
+                 (unsigned long) el->previous, (unsigned long) el->next);
+#endif
     }
 
     void prepend (Element * const mt_nonnull el)
     {
-	prepend (el, getFirst ());
+	prepend (el, first);
     }
 
     void prepend (Element * const mt_nonnull el,
 		  Element * const to_el)
     {
+#if 0
+// Test check
+        {
+            Element *e = first;
+            while (e) {
+                assert (e != el);
+                e = e->next;
+            }
+        }
+        {
+            Element *e = last;
+            while (e) {
+                assert (e != el);
+                e = e->previous;
+            }
+        }
+#endif
+
         // TODO likely?
 	if (mt_likely (!to_el)) {
 	    el->next = NULL;
@@ -195,6 +237,13 @@ public:
 	    el->next->previous = el->previous;
 	else
 	    last = el->previous;
+
+#if 0
+        fprintf (stderr, "--- list 0x%lx remove 0x%lx, fir 0x%lx, las 0x%lx\n",
+                 (unsigned long) this,
+                 (unsigned long) el,
+                 (unsigned long) first, (unsigned long) last);
+#endif
 
         RemoveAction::act (static_cast <T*> (el));
     }
@@ -367,7 +416,7 @@ public:
 
     void rev_iter_begin (rev_iter &iter) const
     {
-	iter.cur = getLast();
+	iter.cur = last;
     }
 
     static T* rev_iter_next (rev_iter &iter)
@@ -464,10 +513,7 @@ public:
 
     void prepend (T * const mt_nonnull obj)
     {
-	// TODO Calling getFirst() is probably not very effective, because
-	// it implies an unnecessary objForElement/elementForObj call pair.
-	// The same applies to class IntrusiveList.
-	prepend (obj, getFirst ());
+	prepend (obj, first);
     }
 
     void prepend (T * const mt_nonnull obj,
