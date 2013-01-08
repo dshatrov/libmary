@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__REF__H__
-#define __LIBMARY__REF__H__
+#ifndef LIBMARY__REF__H__
+#define LIBMARY__REF__H__
 
 
 #include <libmary/types_base.h>
@@ -26,11 +26,6 @@
 
 
 namespace M {
-
-template <class T> class RetRef;
-
-// TODO Apply some template metaprogramming to choose between
-// "static_cast <BasicReferenced*>" and "static_cast <Referenced*>".
 
 // Note: don't do static_cast <T*> (ref). Implicit casts should do the necessary
 // conversions.
@@ -48,7 +43,7 @@ class Ref
     template <class C> friend class Ref;
 
 private:
-    // 'obj' is mutable for RetRef, which derives from class Ref.
+    // 'obj' is (used to be) mutable for RetRef, which derives from class Ref.
     // We should be able to do the following:
     //
     //     template <class C>
@@ -58,27 +53,28 @@ private:
     //         ref.obj = NULL;
     //     }
     //
-    // I presume that this has no negative impact on performance (which must be
-    // a very naive assumption). Prove me wrong.
-    //
     // Note that C++0x move semantics references (&&) should allow to avoid
     // using 'mutable' here.
     //
-    // Note also that we could duplicate the functionality of Ref in RetRef
-    // without inheritance, avoiding the need to use 'mutable' in class Ref.
-    T mutable *obj;
+    T *obj;
 
     void do_ref (T* const ref)
     {
         if (obj == ref)
             return;
 
-	if (obj != NULL)
-	    /*static_cast <Referenced*>*/ (obj)->libMary_unref ();
+        T * const old_obj = obj;
 
 	obj = ref;
-	if (obj != NULL)
-	    /*static_cast <Referenced*>*/ (obj)->libMary_ref ();
+	if (ref)
+	    /*static_cast <Referenced*>*/ (ref)->libMary_ref ();
+
+        // Note that unref() may lead to a dtor call, the code for each
+        // may require this Ref to be valid. That's why we change Ref's state
+        // first, and call unref() last. Ths same applies to all other
+        // calls to unref().
+        if (old_obj)
+            /*static_cast <Referenced*>*/ (old_obj)->libMary_unref ();
     }
 
 public:
@@ -113,6 +109,19 @@ public:
     }
 
     template <class C>
+    void setNoRef (C * const ref)
+    {
+        if (obj == ref)
+            return;
+
+        T * const old_obj = obj;
+	obj = ref;
+
+	if (old_obj)
+	    /*static_cast <Referenced*>*/ (old_obj)->libMary_unref ();
+    }
+
+    template <class C>
     void setNoUnref (C * const ref)
     {
         if (obj == ref)
@@ -124,15 +133,9 @@ public:
     }
 
     template <class C>
-    void setNoRef (C * const ref)
+    void setNoRefUnref (C * const ref)
     {
-        if (obj == ref)
-            return;
-
-	if (obj != NULL)
-	    /*static_cast <Referenced*>*/ (obj)->libMary_unref ();
-
-	obj = ref;
+        obj = ref;
     }
 
     template <class C>
@@ -140,6 +143,22 @@ public:
     {
         do_ref (ref.obj);
 	return *this;
+    }
+
+    template <class C>
+    Ref& operator = (Ref<C> &&ref)
+    {
+        if (obj != ref.obj) {
+            T * const old_obj = obj;
+
+            obj = ref.obj;
+            ref.obj = NULL;
+
+            if (old_obj)
+                /* static_cast <Referenced*> */ (old_obj)->libMary_unref ();
+        }
+
+        return *this;
     }
 
     // Note that template <class C> Ref& opreator = (Ref<C> const &ref) does not
@@ -151,6 +170,21 @@ public:
 
 	do_ref (ref.obj);
 	return *this;
+    }
+
+    Ref& operator = (Ref &&ref)
+    {
+        if (obj != ref.obj) {
+            T * const old_obj = obj;
+
+            obj = ref.obj;
+            ref.obj = NULL;
+
+            if (old_obj)
+                /* static_cast <Referenced*> */ (old_obj)->libMary_unref ();
+        }
+
+        return *this;
     }
 
     template <class C>
@@ -169,17 +203,6 @@ public:
 	return *this;
     }
 
-    template <class C>
-    Ref& operator = (RetRef<C> const &ref)
-    {
-	if (obj != NULL)
-	    /*static_cast <Referenced*>*/ (obj)->libMary_unref ();
-
-	obj = ref.obj;
-	ref.obj = NULL;
-	return *this;
-    }
-
     static Ref<T> createNoRef (T* const ref)
     {
 	Ref<T> tmp_ref;
@@ -195,6 +218,13 @@ public:
 	    /*static_cast <Referenced*>*/ (ref.obj)->libMary_ref ();
     }
 
+    template <class C>
+    Ref (Ref<C> &&ref)
+        : obj (ref.obj)
+    {
+        ref.obj = NULL;
+    }
+
     // Note that template <class C> Ref (Ref<C> const &ref) does not cover
     // default copy constructor.
     //
@@ -205,6 +235,12 @@ public:
     {
 	if (ref.obj != NULL)
 	    /*static_cast <Referenced*>*/ (ref.obj)->libMary_ref ();
+    }
+
+    Ref (Ref &&ref)
+        : obj (ref.obj)
+    {
+        ref.obj = NULL;
     }
 
     template <class C>
@@ -224,13 +260,6 @@ public:
 	    /*static_cast <Referenced*>*/ (ref)->libMary_ref ();
     }
 
-    template <class C>
-    Ref (RetRef<C> const &ref)
-	: obj (ref.obj)
-    {
-	ref.obj = NULL;
-    }
-
     Ref ()
 	: obj (NULL)
     {
@@ -238,7 +267,7 @@ public:
 
     ~Ref ()
     {
-	if (obj != NULL)
+	if (obj)
 	    /*static_cast <Referenced*>*/ (obj)->libMary_unref ();
     }
 
@@ -261,16 +290,6 @@ public:
     }
 };
 
-// "Return value reference."
-//
-// Such references should be used only for function return values. Using them
-// allows to avoid one excessive ref/unref pair when assigning retur values
-// to references.
-template <class T>
-class RetRef : public Ref<T>
-{
-};
-
 // "Grabbing" is needed because object's reference count is initiallized to '1'
 // on object creation, which allows to use references freely in constructors.
 template <class T>
@@ -283,5 +302,5 @@ Ref<T> grab (T * const obj)
 }
 
 
-#endif /* __LIBMARY__REF__H__ */
+#endif /* LIBMARY__REF__H__ */
 
