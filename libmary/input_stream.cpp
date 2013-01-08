@@ -21,6 +21,8 @@
 
 #include <libmary/input_stream.h>
 
+//#include <libmary/io.h>
+
 
 namespace M {
 
@@ -34,14 +36,28 @@ InputStream::readFull (Memory   const mem,
     while (bread < mem.len()) {
 	Size last_read;
 	res = read (mem.region (bread, mem.len() - bread), &last_read);
-	if (res != IoResult::Normal)
-	    break;
+        if (res == IoResult::Error)
+            break;
 
+        if (res == IoResult::Eof) {
+//            errs->println (_func, "EOF, bread: ", bread);
+
+            if (bread > 0)
+                res = IoResult::Normal;
+
+            break;
+        }
+
+        assert (res == IoResult::Normal);
+
+//        errs->println (_func, "NORMAL, last_read: ", last_read);
 	bread += last_read;
     }
 
     if (ret_nread)
 	*ret_nread = bread;
+
+//    errs->println (_func, "res: ", (Uint32) res, ", bread: ", bread);
 
     return res;
 }
