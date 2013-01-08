@@ -90,8 +90,8 @@ TcpServer::open ()
 {
     fd = socket (AF_INET, SOCK_STREAM, 0 /* protocol */);
     if (fd == -1) {
-	exc_throw <PosixException> (errno);
-	exc_push <InternalException> (InternalException::BackendError);
+	exc_throw (PosixException, errno);
+	exc_push (InternalException, InternalException::BackendError);
 	logE_ (_this_func, "socket() failed: ", errnoString (errno));
 	return Result::Failure;
     }
@@ -99,8 +99,8 @@ TcpServer::open ()
     {
 	int flags = fcntl (fd, F_GETFL, 0);
 	if (flags == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_this_func, "fcntl() failed (F_GETFL): ", errnoString (errno));
 	    return Result::Failure;
 	}
@@ -108,8 +108,8 @@ TcpServer::open ()
 	flags |= O_NONBLOCK;
 
 	if (fcntl (fd, F_SETFL, flags) == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_this_func, "fcntl() failed (F_SETFL): ", errnoString (errno));
 	    return Result::Failure;
 	}
@@ -119,13 +119,13 @@ TcpServer::open ()
 	int opt_val = 1;
 	int const res = setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof (opt_val));
 	if (res == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_this_func, "setsockopt() failed (SO_REUSEADDR): ", errnoString (errno));
 	    return Result::Failure;
 	} else
 	if (res != 0) {
-	    exc_throw <InternalException> (InternalException::BackendMalfunction);
+	    exc_throw (InternalException, InternalException::BackendMalfunction);
 	    logE_ (_this_func, "setsockopt (SO_REUSEADDR): unexpected return value: ", res);
 	    return Result::Failure;
 	}
@@ -218,8 +218,8 @@ TcpServer::doAccept (TcpConnection * const mt_nonnull tcp_connection,
             continue;
 #endif
 
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 
 	    logE_ (_this_func, "accept() failed: ", errnoString (errno));
 
@@ -235,8 +235,8 @@ TcpServer::doAccept (TcpConnection * const mt_nonnull tcp_connection,
     {
 	int flags = fcntl (conn_fd, F_GETFL, 0);
 	if (flags == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_this_func, "fcntl() failed (F_GETFL): ", errnoString (errno));
 	    goto _failure;
 	}
@@ -244,8 +244,8 @@ TcpServer::doAccept (TcpConnection * const mt_nonnull tcp_connection,
 	flags |= O_NONBLOCK;
 
 	if (fcntl (conn_fd, F_SETFL, flags) == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_this_func, "fcntl() failed (F_SETFL): ", errnoString (errno));
 	    goto _failure;
 	}
@@ -255,13 +255,13 @@ TcpServer::doAccept (TcpConnection * const mt_nonnull tcp_connection,
 	int opt_val = 1;
 	int const res = setsockopt (conn_fd, IPPROTO_TCP, TCP_NODELAY, &opt_val, sizeof (opt_val));
 	if (res == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_this_func, "setsockopt() failed (TCP_NODELAY): ", errnoString (errno));
 	    goto _failure;
 	} else
 	if (res != 0) {
-	    exc_throw <InternalException> (InternalException::BackendMalfunction);
+	    exc_throw (InternalException, InternalException::BackendMalfunction);
 	    logE_ (_this_func, "setsockopt() (TCP_NODELAY): unexpected return value: ", res);
 	    goto _failure;
 	}
@@ -272,13 +272,13 @@ TcpServer::doAccept (TcpConnection * const mt_nonnull tcp_connection,
         int opt_val = 1;
         int const res = setsockopt (conn_fd, IPPROTO_TCP, TCP_QUICKACK, &opt_val, sizeof (opt_val));
         if (res == -1) {
-            exc_throw <PosixException> (errno);
-            exc_push <InternalException> (InternalException::BackendError);
+            exc_throw (PosixException, errno);
+            exc_push (InternalException, InternalException::BackendError);
             logE_ (_this_func, "setsockopt() failed (TCP_QUICKACK): ", errnoString (errno));
             goto _failure;
         } else
         if (res != 0) {
-            exc_throw <InternalException> (InternalException::BackendMalfunction);
+            exc_throw (InternalException, InternalException::BackendMalfunction);
             logE_ (_this_func, "setsockopt() (TCP_QUICKACK): unexpected return value: ", res);
             goto _failure;
         }
@@ -316,13 +316,13 @@ TcpServer::bind (IpAddress const &ip_addr)
 
     int const res = ::bind (fd, (struct sockaddr*) &addr, sizeof (addr));
     if (res == -1) {
-	exc_throw <PosixException> (errno);
-	exc_push <InternalException> (InternalException::BackendError);
+	exc_throw (PosixException, errno);
+	exc_push (InternalException, InternalException::BackendError);
 	logE_ (_this_func, "bind() failed: ", errnoString (errno));
 	return Result::Failure;
     } else
     if (res != 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	logE_ (_this_func, "bind(): unexpected return value: ", res);
 	return Result::Failure;
     }
@@ -335,13 +335,13 @@ TcpServer::listen ()
 {
     int const res = ::listen (fd, SOMAXCONN);
     if (res == -1) {
-	exc_throw <PosixException> (errno);
-	exc_push <InternalException> (InternalException::BackendError);
+	exc_throw (PosixException, errno);
+	exc_push (InternalException, InternalException::BackendError);
 	logE_ (_this_func, "listen() failed: ", errnoString (errno));
 	return Result::Failure;
     } else
     if (res != 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	logE_ (_this_func, "listen(): unexpected return value: ", res);
 	return Result::Failure;
     }
@@ -362,12 +362,12 @@ TcpServer::close ()
 		if (errno == EINTR)
 		    continue;
 
-		exc_throw <PosixException> (errno);
+		exc_throw (PosixException, errno);
 		logE_ (_this_func, "close() failed: ", errnoString (errno));
 		ret_res = Result::Failure;
 	    } else
 	    if (res != 0) {
-		exc_throw <InternalException> (InternalException::BackendMalfunction);
+		exc_throw (InternalException, InternalException::BackendMalfunction);
 		logE_ (_this_func, "close(): unexpected return value: ", res);
 		ret_res = Result::Failure;
 	    }

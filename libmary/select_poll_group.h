@@ -28,6 +28,7 @@
 #include <libmary/intrusive_list.h>
 #include <libmary/active_poll_group.h>
 #include <libmary/code_referenced.h>
+#include <libmary/state_mutex.h>
 
 
 namespace M {

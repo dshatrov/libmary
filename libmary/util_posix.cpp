@@ -35,13 +35,13 @@ mt_throws Result posix_createNonblockingPipe (int (*fd) [2])
     {
 	int const res = pipe (*fd);
 	if (res == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_func, "pipe() failed: ", errnoString (errno));
 	    return Result::Failure;
 	} else
 	if (res != 0) {
-	    exc_throw <InternalException> (InternalException::BackendMalfunction);
+	    exc_throw (InternalException, InternalException::BackendMalfunction);
 	    logE_ (_func, "pipe(): unexpected return value: ", res);
 	    return Result::Failure;
 	}
@@ -50,8 +50,8 @@ mt_throws Result posix_createNonblockingPipe (int (*fd) [2])
     for (int i = 0; i < 2; ++i) {
 	int flags = fcntl ((*fd) [i], F_GETFL, 0);
 	if (flags == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_func, "fcntl() failed (fd[", i, "]): ", errnoString (errno));
 	    return Result::Failure;
 	}
@@ -59,8 +59,8 @@ mt_throws Result posix_createNonblockingPipe (int (*fd) [2])
 	flags |= O_NONBLOCK;
 
 	if (fcntl ((*fd) [i], F_SETFL, flags) == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_func, "fcntl() failed (F_SETFL, fd[", i, "]): ", errnoString (errno));
 	    return Result::Failure;
 	}
@@ -80,13 +80,13 @@ mt_throws Result commonTriggerPipeWrite (int const fd)
 	    if (errno == EAGAIN || errno == EWOULDBLOCK)
 		break;
 
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_func, "write() failed: ", errnoString (errno));
 	    return Result::Failure;
 	} else
 	if (res != 1 && res != 0) {
-	    exc_throw <InternalException> (InternalException::BackendMalfunction);
+	    exc_throw (InternalException, InternalException::BackendMalfunction);
 	    logE_ (_func, "write(): unexpected return value: ", res);
 	    return Result::Failure;
 	}
@@ -113,13 +113,13 @@ mt_throws Result commonTriggerPipeRead (int const fd)
 	    if (errno == EAGAIN || errno == EWOULDBLOCK)
 		break;
 
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_func, "read() failed (trigger pipe): ", errnoString (errno));
 	    return Result::Failure;
 	} else
 	if (res < 0 || (Size) res > sizeof (buf)) {
-	    exc_throw <InternalException> (InternalException::BackendMalfunction);
+	    exc_throw (InternalException, InternalException::BackendMalfunction);
 	    logE_ (_func, "read(): unexpected return value (trigger pipe): ", res);
 	    return Result::Failure;
 	}
@@ -163,7 +163,7 @@ mt_throws Result posix_statToFileStat (struct stat * const mt_nonnull stat_buf,
         logLock ();
 	hexdump (logs, ConstMemory::forObject (stat_buf->st_mode));
         logUnlock ();
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return Result::Failure;
     }
 

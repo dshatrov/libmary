@@ -228,12 +228,12 @@ TcpConnection::read (Memory   const mem,
 	if (errno == EINTR)
 	    return AsyncIoResult::Normal;
 
-	exc_throw <PosixException> (errno);
-	exc_push <IoException> ();
+	exc_throw (PosixException, errno);
+	exc_push_ (IoException);
 	return AsyncIoResult::Error;
     } else
     if (res < 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return AsyncIoResult::Error;
     } else
     if (res == 0) {
@@ -283,12 +283,12 @@ TcpConnection::write (ConstMemory   const mem,
 	if (errno == EPIPE)
 	    return AsyncIoResult::Eof;
 
-	exc_throw <PosixException> (errno);
-	exc_push <IoException> ();
+	exc_throw (PosixException, errno);
+	exc_push_ (IoException);
 	return AsyncIoResult::Error;
     } else
     if (res < 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return AsyncIoResult::Error;
     }
 
@@ -347,8 +347,8 @@ TcpConnection::writev (struct iovec * const iovs,
 	if (errno == EPIPE)
 	    return AsyncIoResult::Eof;
 
-	exc_throw <PosixException> (errno);
-	exc_push <InternalException> (InternalException::BackendError);
+	exc_throw (PosixException, errno);
+	exc_push (InternalException, InternalException::BackendError);
 	logE_ (_func, "writev() failed: ", errnoString (errno));
 
 	logE_ (_func, "num_iovs: ", num_iovs);
@@ -362,7 +362,7 @@ TcpConnection::writev (struct iovec * const iovs,
 	return AsyncIoResult::Error;
     } else
     if (res < 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	logE_ (_func, "writev(): unexpected return value: ", res);
 	return AsyncIoResult::Error;
     }
@@ -387,12 +387,12 @@ TcpConnection::close ()
 	    if (errno == EINTR)
 		continue;
 
-	    exc_throw <PosixException> (errno);
+	    exc_throw (PosixException, errno);
 	    logE_ (_func, "close() failed: ", errnoString (errno));
 	    return Result::Failure;
 	} else
 	if (res != 0) {
-	    exc_throw <InternalException> (InternalException::BackendError);
+	    exc_throw (InternalException, InternalException::BackendError);
 	    logE_ (_func, "close(): unexpected return value: ", res);
 	    return Result::Failure;
 	}
@@ -411,8 +411,8 @@ TcpConnection::connect (IpAddress const &addr)
 
     fd = socket (AF_INET, SOCK_STREAM, 0 /* protocol */);
     if (fd == -1) {
-	exc_throw <PosixException> (errno);
-	exc_push <InternalException> (InternalException::BackendError);
+	exc_throw (PosixException, errno);
+	exc_push (InternalException, InternalException::BackendError);
 	logE_ (_func, "socket() failed: ", errnoString (errno));
         return ConnectResult_Error;
     }
@@ -420,8 +420,8 @@ TcpConnection::connect (IpAddress const &addr)
     {
 	int flags = fcntl (fd, F_GETFL, 0);
 	if (flags == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_func, "fcntl() failed (F_GETFL): ", errnoString (errno));
             return ConnectResult_Error;
 	}
@@ -429,8 +429,8 @@ TcpConnection::connect (IpAddress const &addr)
 	flags |= O_NONBLOCK;
 
 	if (fcntl (fd, F_SETFL, flags) == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_func, "fcntl() failed (F_SETFL): ", errnoString (errno));
             return ConnectResult_Error;
 	}
@@ -440,13 +440,13 @@ TcpConnection::connect (IpAddress const &addr)
 	int opt_val = 1;
 	int const res = setsockopt (fd, IPPROTO_TCP, TCP_NODELAY, &opt_val, sizeof (opt_val));
 	if (res == -1) {
-	    exc_throw <PosixException> (errno);
-	    exc_push <InternalException> (InternalException::BackendError);
+	    exc_throw (PosixException, errno);
+	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_func, "setsockopt() failed (TCP_NODELAY): ", errnoString (errno));
             return ConnectResult_Error;
 	} else
 	if (res != 0) {
-	    exc_throw <InternalException> (InternalException::BackendMalfunction);
+	    exc_throw (InternalException, InternalException::BackendMalfunction);
 	    logE_ (_func, "setsockopt() (TCP_NODELAY): unexpected return value: ", res);
             return ConnectResult_Error;
 	}
@@ -459,13 +459,13 @@ TcpConnection::connect (IpAddress const &addr)
         int opt_val = 1;
         int const res = setsockopt (fd, IPPROTO_TCP, TCP_QUICKACK, &opt_val, sizeof (opt_val));
         if (res == -1) {
-            exc_throw <PosixException> (errno);
-            exc_push <InternalException> (InternalException::BackendError);
+            exc_throw (PosixException, errno);
+            exc_push (InternalException, InternalException::BackendError);
             logE_ (_func, "setsockopt() failed (TCP_QUICKACK): ", errnoString (errno));
             return ConnectResult_Error;
         } else
         if (res != 0) {
-            exc_throw <InternalException> (InternalException::BackendMalfunction);
+            exc_throw (InternalException, InternalException::BackendMalfunction);
             logE_ (_func, "setsockopt() (TCP_QUICKACK): unexpected return value: ", res);
             return ConnectResult_Error;
         }
@@ -487,12 +487,12 @@ TcpConnection::connect (IpAddress const &addr)
 		break;
 	    }
 
-	    exc_throw <PosixException> (errno);
-	    exc_push <IoException> ();
+	    exc_throw (PosixException, errno);
+	    exc_push_ (IoException);
 	    logE_ (_func, "connect() failed: ", errnoString (errno));
             return ConnectResult_Error;
 	} else {
-	    exc_throw <InternalException> (InternalException::BackendMalfunction);
+	    exc_throw (InternalException, InternalException::BackendMalfunction);
 	    logE_ (_func, "connect(): unexpected return value ", res);
             return ConnectResult_Error;
 	}

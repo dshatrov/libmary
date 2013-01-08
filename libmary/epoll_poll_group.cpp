@@ -106,13 +106,13 @@ EpollPollGroup::doActivate (PollableEntry * const mt_nonnull pollable_entry)
     event.data.ptr = pollable_entry;
     int const res = epoll_ctl (efd, EPOLL_CTL_ADD, pollable_entry->fd, &event);
     if (res == -1) {
-	exc_throw <PosixException> (errno);
+	exc_throw (PosixException, errno);
 	logE_ (_func, "epoll_ctl() failed: ", errnoString (errno));
 	return Result::Failure;
     }
 
     if (res != 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	logE_ (_func, "epoll_ctl(): unexpected return value: ", res);
 	return Result::Failure;
     }
@@ -208,7 +208,7 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	    if (errno == EINTR)
 		continue;
 
-	    exc_throw <PosixException> (errno);
+	    exc_throw (PosixException, errno);
 	    logE_ (_func, "epoll_wait() failed: ", errnoString (errno));
 	    return Result::Failure;
 	}
@@ -375,7 +375,7 @@ EpollPollGroup::open ()
 {
     efd =  epoll_create (1 /* size, unused */);
     if (efd == -1) {
-	exc_throw <PosixException> (errno);
+	exc_throw (PosixException, errno);
 	logE_ (_func, "epoll_create() failed: ", errnoString (errno));
 	return Result::Failure;
     }
@@ -390,13 +390,13 @@ EpollPollGroup::open ()
 	event.data.ptr = NULL; // 'NULL' tells that this is trigger pipe.
 	int const res = epoll_ctl (efd, EPOLL_CTL_ADD, trigger_pipe [0], &event);
 	if (res == -1) {
-	    exc_throw <PosixException> (errno);
+	    exc_throw (PosixException, errno);
 	    logE_ (_func, "epoll_ctl() failed: ", errnoString (errno));
 	    return Result::Failure;
 	}
 
 	if (res != 0) {
-	    exc_throw <InternalException> (InternalException::BackendMalfunction);
+	    exc_throw (InternalException, InternalException::BackendMalfunction);
 	    logE_ (_func, "epoll_ctl(): unexpected return value: ", res);
 	    return Result::Failure;
 	}

@@ -41,6 +41,9 @@ namespace M {
 
 class ServerApp : public DependentCodeReferenced
 {
+private:
+    StateMutex mutex;
+
 public:
     struct Events
     {
@@ -48,10 +51,6 @@ public:
     };
 
 private:
-#ifdef LIBMARY_MT_SAFE
-    StateMutex mutex;
-#endif
-
     class SA_ServerContext : public ServerContext
     {
     public:

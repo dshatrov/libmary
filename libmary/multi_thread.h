@@ -24,6 +24,7 @@
 #include <libmary/libmary_config.h>
 
 #include <libmary/list.h>
+#include <libmary/state_mutex.h>
 #include <libmary/thread.h>
 
 
@@ -32,6 +33,8 @@ namespace M {
 class MultiThread : public Object
 {
 private:
+    StateMutex mutex;
+
     // Should be called only once. May be called again after join() completes.
     // Thread callback is reset when the thread exits.
     mt_mutex (mutex) Cb<Thread::ThreadFunc> thread_cb;

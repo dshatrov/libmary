@@ -327,7 +327,7 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
             {
 #ifdef LIBMARY_PLATFORM_WIN32
                 int const wsa_error_code = WSAGetLastError();
-                exc_throw <WSAException> (wsa_error_code);
+                exc_throw (WSAException, wsa_error_code);
                 // TODO Error code to string.
                 logE_ (_func, "select() failed");
 #else
@@ -344,8 +344,8 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 		    continue;
 		}
 
-		exc_throw <PosixException> (errno);
-		exc_push <InternalException> (InternalException::BackendError);
+		exc_throw (PosixException, errno);
+		exc_push (InternalException, InternalException::BackendError);
 		logE_ (_func, "select() failed: ", errnoString (errno));
 #endif
 		ret_res = Result::Failure;
@@ -353,7 +353,7 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	    } else
 	    if (nfds < 0) {
 		logE_ (_func, "unexpected return value from select(): ", nfds);
-		exc_throw <InternalException> (InternalException::BackendMalfunction);
+		exc_throw (InternalException, InternalException::BackendMalfunction);
 		ret_res = Result::Failure;
 		goto _select_interrupted;
 	    }

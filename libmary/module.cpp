@@ -35,7 +35,7 @@ loadModule (ConstMemory const &filename)
     GModule * const module = g_module_open ((gchar const*) filename_str->mem().mem(),
 					    (GModuleFlags) (G_MODULE_BIND_LAZY | G_MODULE_BIND_LOCAL));
     if (!module) {
-	exc_throw <InternalException> (InternalException::BackendError);
+	exc_throw (InternalException, InternalException::BackendError);
 	logE_ (_func, "failed to open module ", filename, ": ",  g_module_error());
 	return Result::Failure;
     }

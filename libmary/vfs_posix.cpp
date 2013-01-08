@@ -83,7 +83,7 @@ VfsPosix::Directory::getNextEntry (Ref<String> &ret_str)
         if (errno == 0)
             return Result::Success;
 
-        exc_throw <PosixException> (errno);
+        exc_throw (PosixException, errno);
         return Result::Failure;
     }
 
@@ -96,7 +96,7 @@ VfsPosix::Directory::getNextEntry (Ref<String> &ret_str)
 
     int res = readdir_r (dir, dirent, &retp);
     if (res != 0) {
-	exc_throw <PosixException> (res);
+	exc_throw (PosixException, res);
 	return Result::Failure;
     }
 
@@ -104,7 +104,7 @@ VfsPosix::Directory::getNextEntry (Ref<String> &ret_str)
 	return Result::Success;
 
     if (retp != dirent) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return Result::Failure;
     }
 
@@ -132,7 +132,7 @@ VfsPosix::Directory::open (ConstMemory const &_dirname)
 
     dir = opendir (dirname);
     if (dir == NULL) {
-	exc_throw <PosixException> (errno);
+	exc_throw (PosixException, errno);
 	return Result::Failure;
     }
 
@@ -175,11 +175,11 @@ VfsPosix::stat (ConstMemory   const _name,
 
     int const res = ::stat ((char const*) name.mem(), &stat_buf);
     if (res == -1) {
-	exc_throw <PosixException> (errno);
+	exc_throw (PosixException, errno);
 	return Result::Failure;
     } else
     if (res != 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
         return Result::Failure;
     }
 

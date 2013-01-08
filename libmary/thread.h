@@ -24,17 +24,20 @@
 #include <libmary/libmary_config.h>
 
 #include <libmary/types.h>
-//#include <glib/gthread.h>
 #include <glib.h>
 
 #include <libmary/exception.h>
 #include <libmary/cb.h>
+#include <libmary/state_mutex.h>
 
 
 namespace M {
 
 class Thread : public Object
 {
+private:
+    StateMutex mutex;
+
 public:
     typedef void ThreadFunc (void *cb_data);
 

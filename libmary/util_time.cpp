@@ -81,13 +81,13 @@ mt_throws Result updateTime ()
     // full syscall overhead (depends on system configuration).
     int const res = clock_gettime (CLOCK_MONOTONIC, &ts);
     if (res == -1) {
-	exc_throw <PosixException> (errno);
-	exc_push <InternalException> (InternalException::BackendError);
+	exc_throw (PosixException, errno);
+	exc_push (InternalException, InternalException::BackendError);
 	logE_ (_func, "clock_gettime() failed: ", errnoString (errno));
 	return Result::Failure;
     } else
     if (res != 0) {
-	exc_throw <InternalException> (InternalException::BackendError);
+	exc_throw (InternalException, InternalException::BackendError);
 	logE_ (_func, "clock_gettime(): unexpected return value: ", res);
 	return Result::Failure;
     }

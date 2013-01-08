@@ -22,6 +22,7 @@
 
 
 #include <libmary/types.h>
+#include <libmary/state_mutex.h>
 #include <libmary/object.h>
 #include <libmary/virt_ref.h>
 #include <libmary/code_ref.h>

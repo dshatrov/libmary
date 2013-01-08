@@ -301,6 +301,8 @@ ServerApp::ServerApp (Object * const coderef_container,
 					this /* cb_data */,
 					getCoderefContainer(),
 					NULL /* ref_data */)));
+#else
+    (void) num_threads;
 #endif
 }
 

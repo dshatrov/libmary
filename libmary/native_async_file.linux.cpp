@@ -121,12 +121,12 @@ NativeAsyncFile::read (Memory   const mem,
 	if (errno == EINTR)
 	    return AsyncIoResult::Normal;
 
-	exc_throw <PosixException> (errno);
-	exc_push <IoException> ();
+	exc_throw (PosixException, errno);
+	exc_push_ (IoException);
 	return AsyncIoResult::Error;
     } else
     if (res < 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return AsyncIoResult::Error;
     } else
     if (res == 0) {
@@ -134,7 +134,7 @@ NativeAsyncFile::read (Memory   const mem,
     }
 
     if ((Size) res > len) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return AsyncIoResult::Error;
     }
 
@@ -176,17 +176,17 @@ NativeAsyncFile::write (ConstMemory   const mem,
 	    return AsyncIoResult::Error;
 	}
 
-	exc_throw <PosixException> (errno);
-	exc_push <IoException> ();
+	exc_throw (PosixException, errno);
+	exc_push_ (IoException);
 	return AsyncIoResult::Error;
     } else
     if (res < 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return AsyncIoResult::Error;
     }
 
     if ((Size) res > len) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return AsyncIoResult::Error;
     }
 
@@ -294,8 +294,8 @@ NativeAsyncFile::open (ConstMemory    const filename,
                 break;
             }
 
-	    exc_throw <PosixException> (errno);
-	    exc_push <IoException> ();
+	    exc_throw (PosixException, errno);
+	    exc_push_ (IoException);
 	    return Result::Failure;
 	}
 

@@ -45,6 +45,9 @@ Thread::wrapperThreadFunc (gpointer const _self)
 
     self->unref ();
 
+    // TODO Release thread-local data, if any
+    // libMary_releaseThreadLocal ();
+
     return (gpointer) 0;
 }
 
@@ -63,7 +66,7 @@ Thread::spawn (bool const joinable)
     mutex.unlock ();
 
     if (tmp_thread == NULL) {
-	exc_throw <InternalException> (InternalException::BackendError);
+	exc_throw (InternalException, InternalException::BackendError);
 	logE_ (_func, "g_thread_create() failed: ",
 	       error->message, error->message ? strlen (error->message) : 0);
 	g_clear_error (&error);
