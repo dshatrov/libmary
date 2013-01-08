@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -30,297 +30,97 @@
 #include <libmary/ref.h>
 #include <libmary/libmary_thread_local.h>
 #include <libmary/util_base.h>
-#include <libmary/util_str_base.h>
 
 
 namespace M {
 
-class Exception
+class _libMary_ExcWrapper
 {
 public:
-    Exception *cause;
-
-    virtual Ref<String> toString ()
+    Exception* operator -> () const
     {
-	return grab (new String);
+        return libMary_getThreadLocal()->exc;
     }
 
-    // TODO toHumanString() ?
-
-    Exception ()
-	: cause (NULL)
-    {
-    }
-
-    // TODO Exception desrtuctors are never called for exceptions stored
-    //      in ExceptionBuffer. Can something be done about it, and is it worth
-    //      it to call destructors?
-    virtual ~Exception () {}
-};
-
-// TODO Use __FILE__, __LINE__ and __func__ with exceptions.
-
-#if defined LIBMARY_MT_SAFE && !defined LIBMARY_TLOCAL // thread-local
-
-class ExcWrapper
-{
-public:
     operator Exception* () const
     {
 	return libMary_getThreadLocal()->exc;
     }
 };
 
-extern ExcWrapper exc;
+// TODO Use exc() to get the last exception.
+extern _libMary_ExcWrapper exc;
+//static inline Exception* exc () { return libMary_getThreadLocal()->exc; }
 
-static inline Ref<ExceptionBuffer> exc_swap ()
-{
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-    Ref<ExceptionBuffer> const prv_exc_buf = tlocal->exc_buffer;
-    tlocal->exc_buffer = grab (new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE));
-    return prv_exc_buf;
-}
+Ref<ExceptionBuffer> exc_swap ();
 
-static inline ExceptionBuffer* exc_swap_nounref ()
-{
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-    ExceptionBuffer * const prv_exc_buf = tlocal->exc_buffer;
-    tlocal->exc_buffer.setNoUnref (grab (new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE)));
-    return prv_exc_buf;
-}
+// Same as exc_swap(), but allows to optimize away refcount increments/decrements.
+ExceptionBuffer* exc_swap_nounref ();
 
-static inline void exc_set (ExceptionBuffer * const exc_buf)
-{
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-    tlocal->exc_buffer = exc_buf;
-}
+void exc_set (ExceptionBuffer *exc_buf);
 
-static inline void exc_set_noref (ExceptionBuffer * const exc_buf)
-{
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-    tlocal->exc_buffer.setNoRef (exc_buf);
-}
+// Same as exc_set(), but allows to optimize away refcount increments/decrements.
+void exc_set_noref (ExceptionBuffer *exc_buf);
 
-static inline void exc_delete (ExceptionBuffer * const exc_buf)
-{
-    delete exc_buf;
-}
+void exc_delete (ExceptionBuffer *exc_buf);
 
-static inline void exc_none ()
-{
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-    if (tlocal->exc_block == 0)	 {
-	tlocal->exc_buffer->reset ();
-	tlocal->exc = NULL;
-    }
-}
+void exc_push_scope ();
 
-static inline Byte* _libMary_exc_push_mem (Size const len)
-{
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-    if (tlocal->exc_block == 0) {
-	Byte * const data = libMary_getThreadLocal()->exc_buffer->push (len);
-        if (!data)
-            return NULL;
+void exc_pop_scope ();
 
-	tlocal->exc = reinterpret_cast <Exception*> (data);
-	return data;
-    }
-    return NULL;
-}
+void exc_none ();
 
-static inline Byte* _libMary_exc_throw_mem (Size const len)
-{
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-    if (tlocal->exc_block == 0) {
-	Byte * const data = tlocal->exc_buffer->throw_ (len);
-	tlocal->exc = reinterpret_cast <Exception*> (data);
-	return data;
-    }
-    return NULL;
-}
-
+// Note: T's constructor should not use exceptions.
+//       We could allow that by wrapping 'new' within exc_push_scope/exc_pop_scope pair.
+//       Consider adding exc_push_safector() which does such wrapping.
 template <class T, class ...Args>
-void exc_push (Args const & ...args)
+void exc_push__ (ConstMemory   const file,
+                 ConstMemory   const func,
+                 unsigned long const line,
+                 Args const & ...args)
 {
     LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-    if (tlocal->exc_block == 0) {
-	Exception * const cause = tlocal->exc;
 
-	Byte * const data = libMary_getThreadLocal()->exc_buffer->push (sizeof (T));
-        if (!data)
-            return;
+    Exception * const cause = tlocal->exc;
+    Exception * const data = tlocal->exc_buffer->push (sizeof (T), alignof (T));
+    (void) static_cast <T*> (data);
 
-	tlocal->exc = reinterpret_cast <Exception*> (data);
+    tlocal->exc = data;
 
-	new (data) T (args...);
-	tlocal->exc->cause = cause;
-    }
+    new (data) T (args...);
+    data->cause = cause;
+    data->file = file;
+    data->func = func;
+    data->line = line;
 }
 
+// See exc_push() for comments.
 template <class T, class ...Args>
-void exc_throw (Args const & ...args)
+void exc_throw__ (ConstMemory   const file,
+                  ConstMemory   const func,
+                  unsigned long const line,
+                  Args const & ...args)
 {
     LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-    if (tlocal->exc_block == 0) {
-	Byte * const data = tlocal->exc_buffer->throw_ (sizeof (T));
-	tlocal->exc = reinterpret_cast <Exception*> (data);
 
-	new (data) T (args...);
-	tlocal->exc->cause = NULL;
-    }
+    Exception * const data = tlocal->exc_buffer->throw_ (sizeof (T), alignof (T));
+    (void) static_cast <T*> (data);
+
+    tlocal->exc = data;
+
+    new (data) T (args...);
+    data->cause = NULL;
+    data->file = file;
+    data->func = func;
+    data->line = line;
 }
 
-static inline void exc_block ()
-{
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-    ++tlocal->exc_block;
-}
+// #define exc_throw(...) exc_throw_ (__FILE__, sizeof (__LINE__), __func__, sizeof (__func__), __LINE__, __VA_ARGS__)
+#define exc_throw( T, ...) exc_throw__ <T> (ConstMemory (__FILE__), ConstMemory (__func__), __LINE__, __VA_ARGS__)
+#define exc_throw_(T)      exc_throw__ <T> (ConstMemory (__FILE__), ConstMemory (__func__), __LINE__)
+#define exc_push(  T, ...) exc_push__  <T> (ConstMemory (__FILE__), ConstMemory (__func__), __LINE__, __VA_ARGS__)
+#define exc_push_( T)      exc_push__  <T> (ConstMemory (__FILE__), ConstMemory (__func__), __LINE__)
 
-static inline void exc_unblock ()
-{
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-    assert (tlocal->exc_block > 0);
-    --tlocal->exc_block;
-}
-
-#else // thread-local
-
-#ifdef LIBMARY_TLOCAL
-// ExceptionBuffer is non-POD, hence we only can store a pointer to it
-// in thread-local storage.
-extern LIBMARY_TLOCAL_SPEC ExceptionBuffer *_libMary_exc_buf;
-
-static inline ExceptionBuffer* _libMary_get_exc_buf ()
-{
-  // TODO A better approach might be to require a call to libMaryInitThread()
-  // for each thread.
-
-    if (_libMary_exc_buf)
-	return _libMary_exc_buf;
-
-    _libMary_exc_buf = new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE);
-    return _libMary_exc_buf;
-}
-#else
-extern ExceptionBuffer *_libMary_exc_buf;
-#endif
-
-static inline Ref<ExceptionBuffer> exc_swap ()
-{
-    Ref<ExceptionBuffer> prv_exc_buf;
-    prv_exc_buf.setNoRef (_libMary_exc_buf);
-    _libMary_exc_buf = new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE);
-    return prv_exc_buf;
-}
-
-static inline ExceptionBuffer* exc_swap_nounref ()
-{
-    ExceptionBuffer * const prv_exc_buf = _libMary_exc_buf;
-    _libMary_exc_buf = new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE);
-    return prv_exc_buf;
-}
-
-static inline void exc_set (ExceptionBuffer * const exc_buf)
-{
-    delete _libMary_exc_buf;
-    _libMary_exc_buf = exc_buf;
-    exc_buf->ref ();
-}
-
-static inline void exc_set_noref (ExceptionBuffer * const exc_buf)
-{
-    delete _libMary_exc_buf;
-    _libMary_exc_buf = exc_buf;
-}
-
-static inline void exc_delete (ExceptionBuffer * const exc_buf)
-{
-    delete exc_buf;
-}
-
-extern LIBMARY_TLOCAL_SPEC Exception *exc;
-// Block counter.
-extern LIBMARY_TLOCAL_SPEC Uint32 _libMary_exc_block;
-
-static inline void exc_none ()
-{
-    if (_libMary_exc_block == 0) {
-#ifdef LIBMARY_TLOCAL
-	_libMary_get_exc_buf()->reset ();
-#else
-	_libMary_exc_buf->reset ();
-#endif
-	exc = NULL;
-    }
-}
-
-static inline Byte* _libMary_exc_push_mem (Size const len)
-{
-    if (_libMary_exc_block == 0) {
-#ifdef LIBMARY_TLOCAL
-	Byte * const data = _libMary_get_exc_buf()->push (len);
-#else
-	Byte * const data = _libMary_exc_buf->push (len);
-#endif
-        if (!data)
-            return NULL;
-
-	exc = reinterpret_cast <Exception*> (data);
-	return data;
-    }
-    return NULL;
-}
-
-static inline Byte* _libMary_exc_throw_mem (Size const len)
-{
-    if (_libMary_exc_block == 0) {
-#ifdef LIBMARY_TLOCAL
-	Byte * const data = _libMary_get_exc_buf()->throw_ (len);
-#else
-	Byte * const data = _libMary_exc_buf->throw_ (len);
-#endif
-	exc = reinterpret_cast <Exception*> (data);
-	return data;
-    }
-    return NULL;
-}
-
-template <class T, class ...Args>
-void exc_push (Args const & ...args)
-{
-    if (_libMary_exc_block == 0) {
-	Exception * const cause = exc;
-        Byte * const data = _libMary_exc_push_mem (sizeof (T));
-        if (!data)
-            return;
-
-	new (data) T (args...);
-	exc->cause = cause;
-    }
-}
-
-template <class T, class ...Args>
-void exc_throw (Args const & ...args)
-{
-    if (_libMary_exc_block == 0) {
-	new (_libMary_exc_throw_mem (sizeof (T))) T (args...);
-	exc->cause = NULL;
-    }
-}
-
-static inline void exc_block ()
-{
-    ++_libMary_exc_block;
-}
-
-static inline void exc_unblock ()
-{
-    assert (_libMary_exc_block > 0);
-    --_libMary_exc_block;
-}
-
-#endif // thread-local
 
 class InternalException : public Exception
 {
@@ -333,6 +133,8 @@ public:
 	BackendError,
 	BackendMalfunction,
 	ProtocolError,
+        IntegerOverflow,
+        OutOfBounds,
 	NotImplemented
     };
 
@@ -345,7 +147,7 @@ public:
 	if (cause)
 	    return catenateStrings ("InternalException: ", cause->toString ()->mem ());
 	else
-	    return grab (new String ("InternalException"));
+	    return grab (new (std::nothrow) String ("InternalException"));
     }
 
     InternalException (Error const error)
@@ -357,45 +159,14 @@ public:
 class IoException : public Exception
 {
 public:
-    // TODO toString() accepting PrintTask_List
     Ref<String> toString ()
     {
 	if (cause)
 	    return catenateStrings ("IoException: ", cause->toString ()->mem ());
 	else
-	    return grab (new String ("IoException"));
-    }
-
-#if 0
-public:
-    enum Error {
-    };
-
-private:
-    Error error;
-
-public:
-    IoException (Error const error)
-	: error (error)
-    {
-    }
-#endif
-};
-
-#if 0
-// Unused
-class BadAddressException : public Exception
-{
-public:
-    Ref<String> toString ()
-    {
-	if (cause)
-	    return catenateStrings ("BadAddressException: ", cause->toString ()->mem ());
-	else
-	    return grab (new String ("BadAddressException"));
+	    return grab (new (std::nothrow) String ("IoException"));
     }
 };
-#endif
 
 // Any error condition represented by an errno value.
 // Not only for POSIX, but for Win32 as well.
@@ -425,7 +196,7 @@ public:
     Ref<String> toString ()
     {
         // TODO Error code to string.
-        return grab (new String ("WSAException"));
+        return grab (new (std::nothrow) String ("WSAException"));
     }
 
     WSAException (int const wsa_error_code)
@@ -449,7 +220,6 @@ public:
     {
     }
 };
-
 #endif
 
 class NumericConversionException : public Exception
@@ -472,11 +242,11 @@ public:
 
 	switch (kind) {
 	    case EmptyString:
-		return grab (new String ("Empty string"));
+		return grab (new (std::nothrow) String ("Empty string"));
 	    case NonNumericChars:
-		return grab (new String ("String contains non-numeric characters"));
+		return grab (new (std::nothrow) String ("String contains non-numeric characters"));
 	    case Overflow:
-		return grab (new String ("Value overflow"));
+		return grab (new (std::nothrow) String ("Value overflow"));
 	}
 
 	unreachable ();

@@ -17,14 +17,16 @@
 */
 
 
-#ifndef __LIBMARY__EXCEPTION_BUFFER__H__
-#define __LIBMARY__EXCEPTION_BUFFER__H__
+#ifndef LIBMARY__EXCEPTION_BUFFER__H__
+#define LIBMARY__EXCEPTION_BUFFER__H__
 
 
 #include <libmary/types.h>
-#include <cstdlib>
-
+#include <libmary/string.h>
 #include <libmary/referenced.h>
+#include <libmary/ref.h>
+#include <libmary/intrusive_list.h>
+#include <libmary/vstack.h>
 
 
 #define LIBMARY__EXCEPTION_BUFFER_SIZE 4096
@@ -32,51 +34,142 @@
 
 namespace M {
 
-class Exception;
+class Exception
+{
+public:
+    Exception *cause;
+    ConstMemory file;
+    ConstMemory func;
+    unsigned long line;
 
-class ExceptionBuffer : public Referenced
+    StRef<String> backtrace () const
+    {
+        StRef<String> const str = st_grab (new (std::nothrow) String);
+
+        Size size = 0;
+
+#define LIBMARY__BACKTRACE_FMT_ e->getName(), " at ", e->file, ":", e->line, ":", e->func, "\n"
+
+        {
+            Exception const *e = this;
+            while (e) {
+                size += measureString (LIBMARY__BACKTRACE_FMT_);
+                e = e->cause;
+            }
+        }
+
+        // 'size' is sure to be > 0.
+        str->allocate (size);
+
+        {
+            Memory const mem = str->cstrMem();
+
+            Size pos = 0;
+            Exception const *e = this;
+            while (e) {
+                pos += makeStringInto (mem.region (pos), LIBMARY__BACKTRACE_FMT_);
+                e = e->cause;
+            }
+        }
+
+#undef LIBMARY__BACKTRACE_FMT_
+
+        return str;
+    }
+
+    virtual Ref<String> toString ()
+    {
+        return grab (new (std::nothrow) String ("Exception"));
+    }
+
+    virtual ConstMemory getName () const
+    {
+        return ConstMemory ("Exception");
+    }
+
+    Exception ()
+	: cause (NULL)
+    {
+    }
+
+    virtual ~Exception () {}
+};
+
+class ExceptionBuffer : public Referenced,
+                        public IntrusiveListElement<>
 {
 private:
-    Byte *data_buf;
-    Size data_len;
-    Size alloc_len;
+    struct ExcHeader
+    {
+        ExcHeader *prv_hdr;
+        Exception *cur_exc;
+    };
+
+    VStack vstack;
+
+    ExcHeader *last_hdr;
 
 public:
     Exception* getException () const
     {
-        return reinterpret_cast <Exception*> (data_buf);
+        if (last_hdr)
+            return last_hdr->cur_exc;
+
+        return NULL;
     }
 
-    Byte* throw_ (Size const len)
+    Exception* throw_ (Size const len,
+                       Size const alignment)
     {
-	data_len = len;
-	return data_buf;
+        reset ();
+        return push (len, alignment);
     }
 
     // Returns NULL when the buffer is full.
-    Byte* push (Size len);
+    Exception* push (Size const len,
+                     Size const alignment)
+    {
+        ExcHeader * const hdr = reinterpret_cast <ExcHeader*> (
+                vstack.push_malign (sizeof (ExcHeader), alignof (ExcHeader)));
+
+        hdr->prv_hdr = last_hdr;
+        last_hdr = hdr;
+
+        Exception * const ptr = reinterpret_cast <Exception*> (
+                vstack.push_malign (len, alignment));
+        hdr->cur_exc = ptr;
+
+        return ptr;
+    }
 
     void reset ()
     {
-	data_len = 0;
+        {
+            ExcHeader *hdr = last_hdr;
+            while (hdr) {
+                hdr->cur_exc->~Exception ();
+                hdr = hdr->prv_hdr;
+            }
+        }
+
+        vstack.clear ();
+        last_hdr = NULL;
     }
 
     ExceptionBuffer (Size const alloc_len)
-	: alloc_len (alloc_len)
+        : vstack (alloc_len, true /* shrinking */),
+          last_hdr (NULL)
     {
-	data_buf = reinterpret_cast <Byte*> (malloc (alloc_len));
-	assert_hard (data_buf);
-	data_len = alloc_len;
     }
 
     ~ExceptionBuffer ()
     {
-	free (data_buf);
+        reset ();
     }
 };
 
 }
 
 
-#endif /* __LIBMARY__EXCEPTION_BUFFER__H__ */
+#endif /* LIBMARY__EXCEPTION_BUFFER__H__ */
 

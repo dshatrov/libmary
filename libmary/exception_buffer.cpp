@@ -24,21 +24,5 @@
 
 namespace M {
 
-Byte*
-ExceptionBuffer::push (Size const len)
-{
-  // We cannot realloc 'data_buf' because doing so would break
-  // 'Exception::cause' pointers.
-
-    while (data_len + len > alloc_len) {
-        logE_ (_func, "exception buffer full, exception lost");
-        return NULL;
-    }
-
-    Byte * const res_buf = data_buf + data_len;
-    data_len += len;
-    return res_buf;
-}
-
 }
 
