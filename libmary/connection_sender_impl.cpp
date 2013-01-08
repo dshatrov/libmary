@@ -1072,6 +1072,7 @@ ConnectionSenderImpl::release ()
 	Sender::MessageEntry * const msg_entry = msg_list.iter_next (iter);
 	Sender::deleteMessageEntry (msg_entry);
     }
+    msg_list.clear ();
 }
 
 }
