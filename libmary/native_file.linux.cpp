@@ -17,6 +17,11 @@
 */
 
 
+#ifdef __linux__
+// For lseek64()
+#define _LARGEFILE64_SOURCE
+#endif
+
 #include <limits.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -55,12 +60,12 @@ NativeFile::read (Memory   const mem,
 	if (errno == EINTR)
 	    return IoResult::Normal;
 
-	exc_throw <PosixException> (errno);
-	exc_push <IoException> ();
+	exc_throw (PosixException, errno);
+	exc_push_ (IoException);
 	return IoResult::Error;
     } else
     if (res < 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return IoResult::Error;
     } else
     if (res == 0) {
@@ -68,7 +73,7 @@ NativeFile::read (Memory   const mem,
     }
 
     if ((Size) res > len) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return IoResult::Error;
     }
 
@@ -105,17 +110,17 @@ NativeFile::write (ConstMemory   const mem,
 	    return Result::Failure;
 	}
 
-	exc_throw <PosixException> (errno);
-	exc_push <IoException> ();
+	exc_throw (PosixException, errno);
+	exc_push_ (IoException);
 	return Result::Failure;
     } else
     if (res < 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return Result::Failure;
     }
 
     if ((Size) res > len) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return Result::Failure;
     }
 
@@ -129,14 +134,65 @@ mt_throws Result
 NativeFile::seek (FileOffset const offset,
 		  SeekOrigin const origin)
 {
-  // TODO
+    int whence = 0;
+
+    switch (origin) {
+    case SeekOrigin::Beg:
+	whence = SEEK_SET;
+	break;
+    case SeekOrigin::Cur:
+	whence = SEEK_CUR;
+	break;
+    case SeekOrigin::End:
+	whence = SEEK_END;
+	break;
+    }
+
+#ifdef __linux__
+    /* NOTE: lseek64() seems to be glibc-specific. */
+    if (lseek64 (fd, (off64_t) offset, whence) == (off64_t) -1) {
+#else
+    if (lseek (fd, (off_t) offset, whence) == (off_t) -1) {
+#endif
+        exc_throw (PosixException, errno);
+        return Result::Failure;
+    }
+
     return Result::Success;
 }
 
 mt_throws Result
 NativeFile::tell (FileSize * const ret_pos)
 {
-  // TODO
+    if (ret_pos)
+        *ret_pos = 0;
+
+    // This doesn't work for really large file offsets.
+    // We're limited by Int64 type, not Uint64.
+    off_t const res = ::lseek (fd, 0, SEEK_CUR);
+
+    if (res == (off_t) -1) {
+        exc_throw (PosixException, errno);
+        return Result::Failure;
+    }
+
+    if (res < 0) {
+        // Unexpected return value from lseek()
+        exc_throw (InternalException, InternalException::BackendMalfunction);
+        return Result::Failure;
+    }
+
+    Uint64 const res64 = (Uint64) res;
+
+    // Uint64 must be able to hold any value of type 'off_t',
+    // or at least the file position should not be too large if one
+    // wants to get it with NativeFile::tell().
+    if ((off_t) res64 != res) {
+        exc_throw (InternalException, InternalException::IntegerOverflow);
+        return Result::Failure;
+    }
+
+    *ret_pos = res64;
     return Result::Success;
 }
 
@@ -150,7 +206,24 @@ NativeFile::flush ()
 mt_throws Result
 NativeFile::sync ()
 {
-  // TODO
+    for (;;) {
+	int const res = fsync (fd);
+	if (res == -1) {
+	    if (errno == EINTR)
+		continue;
+
+            exc_throw (PosixException, errno);
+            return Result::Failure;
+	}
+
+	if (res != 0) {
+            exc_throw (InternalException, InternalException::BackendMalfunction);
+            return Result::Failure;
+	}
+
+	break;
+    }
+
     return Result::Success;
 }
 
@@ -161,11 +234,11 @@ NativeFile::stat (FileStat * const mt_nonnull ret_stat)
 
     int const res = ::fstat (fd, &stat_buf);
     if (res == -1) {
-	exc_throw <PosixException> (errno);
+	exc_throw (PosixException, errno);
 	return Result::Failure;
     } else
     if (res != 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return Result::Failure;
     }
 
@@ -179,11 +252,11 @@ NativeFile::getModificationTime (struct tm * const mt_nonnull ret_tm)
 
     int const res = ::fstat (fd, &stat_buf);
     if (res == -1) {
-	exc_throw <PosixException> (errno);
+	exc_throw (PosixException, errno);
 	return Result::Failure;
     } else
     if (res != 0) {
-	exc_throw <InternalException> (InternalException::BackendMalfunction);
+	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return Result::Failure;
     }
 
@@ -259,8 +332,8 @@ NativeFile::open (ConstMemory const filename,
 	    if (errno == EINTR)
 		continue;
 
-	    exc_throw <PosixException> (errno);
-	    exc_push <IoException> ();
+	    exc_throw (PosixException, errno);
+	    exc_push_ (IoException);
 	    return Result::Failure;
 	}
 
