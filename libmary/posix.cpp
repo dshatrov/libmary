@@ -38,6 +38,19 @@ namespace M {
 
 void libMary_posixInit ()
 {
+    {
+      // Blocking SIGPIPE for write()/writev().
+        struct sigaction act;
+        memset (&act, 0, sizeof (act));
+        act.sa_handler = SIG_IGN;
+        // TODO -1 on error
+        sigemptyset (&act.sa_mask);
+        // TODO -1 on error
+        sigaddset (&act.sa_mask, SIGPIPE);
+        if (sigaction (SIGPIPE, &act, NULL) == -1)
+            fprintf (stderr, "sigaction() failed: %s", errnoString (errno));
+    }
+
     // Calling tzset() for localtime_r() to behave correctly.
     tzset ();
 
@@ -52,24 +65,7 @@ void libMary_posixInit ()
     logs = new BufferedOutputStream (errs, LIBMARY__LOGS_BUFFER_SIZE);
     assert (logs);
 
-    if (!updateTime ())
-	logE_ (_func, exc->toString());
-
-    // Blocking SIGPIPE for write()/writev().
-    {
-//	logD_ (_func, "blocking SIGPIPE");
-
-	struct sigaction act;
-	memset (&act, 0, sizeof (act));
-	act.sa_handler = SIG_IGN;
-	// TODO -1 on error
-	sigemptyset (&act.sa_mask);
-	// TODO -1 on error
-	sigaddset (&act.sa_mask, SIGPIPE);
-	if (sigaction (SIGPIPE, &act, NULL) == -1)
-	    logE_ (_func, "sigaction() failed: ", errnoString (errno));
-    }
-
+// TODO What's this?
 #if 0
     {
 	struct sigaction sa;
