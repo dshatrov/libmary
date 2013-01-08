@@ -93,9 +93,9 @@ public:
     }
 
     template <class T, class ...Args>
-    Result print (Format const &fmt,
-		  T      const &val,
-		  Args   const &...args)
+    mt_throws Result print (Format const &fmt,
+                            T      const &val,
+                            Args   const &...args)
     {
 	if (!do_print_ (val, fmt))
 	    return Result::Failure;
@@ -104,17 +104,29 @@ public:
     }
 
     template <class ...Args>
-    Result print (Format const & /* fmt */,
-		  Format const &new_fmt,
-		  Args   const &...args)
+    mt_throws Result print (Format const & /* fmt */,
+                            Format const &new_fmt,
+                            Args   const &...args)
     {
 	return print (new_fmt, args...);
     }
 
     template <class ...Args>
-    Result print (Args const &...args)
+    mt_throws Result print (Args const &...args)
     {
 	return print (fmt_def, args...);
+    }
+
+    template <class ...Args>
+    mt_throws Result println (Args const &...args)
+    {
+        if (!print (args..., "\n"))
+            return Result::Failure;
+
+        if (!flush ())
+            return Result::Failure;
+
+        return Result::Success;
     }
 
 private:
