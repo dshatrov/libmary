@@ -23,7 +23,6 @@
 
 #include <libmary/intrusive_list.h>
 #include <libmary/atomic.h>
-#include <libmary/state_mutex.h>
 #include <libmary/referenced.h>
 #include <libmary/ref.h>
 #include <libmary/virt_ref.h>
@@ -80,18 +79,6 @@ public:
 	DeletionSubscriptionKey (DeletionSubscription * const del_sbn) : del_sbn (del_sbn) {}
 	DeletionSubscriptionKey () : del_sbn (NULL) {}
     };
-
-// protected:
-public:
-    // TODO This mutex is here because it was supposed to be used as 'deletion_mutex'
-    //      as well, which turned out to be a bad idea. There's no reason to force another 'mutex'
-    //      for every Object. State mutexes should be defined separately by every object which
-    //      actually needs it.
-    //
-    // Beware that size of pthread_mutex_t is 24 bytes on 32-bit platforms and
-    // 40 bytes on 64-bit ones. We definitely do not want more than one mutex
-    // per object, which is already too much overhead.
-    StateMutex mutex;
 
 private:
   // Class WeakRef may access the following private members as a friend.
@@ -198,6 +185,9 @@ private:
 
     IntrusiveCircularList<DeletionSubscription> deletion_subscription_list;
 
+    // Beware that size of pthread_mutex_t is 24 bytes on 32-bit platforms and
+    // 40 bytes on 64-bit ones. We definitely do not want more than one-two mutexes
+    // per object, which is already too much overhead.
     Mutex deletion_mutex;
 
     static void mutualDeletionCallback (void * mt_nonnull _sbn);
