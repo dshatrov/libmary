@@ -1,5 +1,5 @@
 COMMON_CFLAGS =				\
-	-ggdb				\
+        -ggdb                           \
 	-Wno-long-long -Wall            \
 	-include "local_config.h"	\
 	$(THIS_CFLAGS)
@@ -37,6 +37,7 @@ mary_target_headers =			\
 	util_dev.h			\
 	util_common.h			\
         libmary_md5.h                   \
+        cmdline.h                       \
 					\
 	annotations.h			\
 	types_base.h			\
@@ -71,6 +72,7 @@ mary_target_headers =			\
 	mutex.h				\
 	state_mutex.h			\
 					\
+        st_referenced.h                 \
 	basic_referenced.h		\
 	virt_referenced.h		\
 	code_referenced.h		\
@@ -78,6 +80,7 @@ mary_target_headers =			\
 	object.h			\
 					\
 	virt_ref.h			\
+        st_ref.h                        \
 	ref.h				\
 	weak_ref.h			\
 	code_ref.h			\
@@ -92,6 +95,7 @@ mary_target_headers =			\
 	log.h				\
 	file.h				\
         async_file.h                    \
+        memory_file.h                   \
 	native_file.h			\
         native_async_file.h             \
 	input_stream.h			\
@@ -246,6 +250,7 @@ libmary_1_0_la_SOURCES =		\
 	util_time.cpp			\
 	util_net.cpp			\
 	util_dev.cpp			\
+        cmdline.cpp                     \
 					\
 	types.cpp			\
 	string.cpp			\
@@ -254,6 +259,7 @@ libmary_1_0_la_SOURCES =		\
 	informer.cpp			\
 					\
 	page_pool.cpp			\
+        vstack.cpp                      \
 					\
 	state_mutex.cpp			\
 					\
@@ -270,6 +276,7 @@ libmary_1_0_la_SOURCES =		\
 	input_stream.cpp		\
 	output_stream.cpp		\
 	buffered_output_stream.cpp	\
+        memory_file.cpp                 \
 					\
 	vfs.cpp				\
 	vfs_posix.cpp			\
