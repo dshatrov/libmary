@@ -27,5 +27,7 @@
 
 #define LIBMARY_TLOCAL __thread
 
+#define LIBMARY_EXCBUF_POOL_SIZE 128
+
 #endif /* __LIBMARY__LIBMARY_CONFIG__H__ */
 
