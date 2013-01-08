@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__FILE__H__
-#define __LIBMARY__FILE__H__
+#ifndef LIBMARY__FILE__H__
+#define LIBMARY__FILE__H__
 
 
 #include <libmary/libmary_config.h>
@@ -31,7 +31,8 @@
 
 namespace M {
 
-class File : public InputStream, public OutputStream
+class File : public InputStream,
+             public OutputStream
 {
 public:
     typedef M::FileAccessMode AccessMode;
@@ -59,5 +60,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__FILE__H__ */
+#endif /* LIBMARY__FILE__H__ */
 
