@@ -26,6 +26,7 @@
 
 namespace M {
 
+// TODO Get rid of BasicReferenced altogether (in favor of StReferenced+StRef).
 class BasicReferenced
 {
 private:
@@ -69,11 +70,6 @@ public:
     }
 
     virtual ~BasicReferenced () {}
-};
-
-template <class T>
-class BasicReferencedWrap : public BasicReferenced, public T
-{
 };
 
 }
