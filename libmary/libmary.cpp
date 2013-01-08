@@ -67,15 +67,13 @@ void libMaryInit ()
         perror ("WARNING: Could not set LC_NUMERIC environment variable to \"C\"");
 
 #ifdef LIBMARY_MT_SAFE
+  #ifdef LIBMARY__OLD_GTHREAD_API
     if (!g_thread_get_initialized ())
 	g_thread_init (NULL);
+  #endif
 #endif
 
     _libMary_stat = new Stat;
-
-#if !defined LIBMARY_MT_SAFE || defined LIBMARY_TLOCAL
-    _libMary_exc_buf = new ExceptionBuffer (LIBMARY__EXCEPTION_BUFFER_SIZE);
-#endif
 
     libMary_threadLocalInit ();
 
@@ -85,11 +83,23 @@ void libMaryInit ()
     libMary_posixInit ();
 #endif
 
+  // log*() logging is now available.
+
+    if (!updateTime ())
+        logE_ (_func, exc->toString());
+
 #ifdef LIBMARY_ENABLE_MWRITEV
     libMary_mwritevInit ();
 #endif
 
     randomSetSeed ((Uint32) getTime());
+}
+
+void libMaryRelease ()
+{
+  // Release thread-local data here?
+  // This could be done after careful deinitialization is implemented.
+    libMary_releaseThreadLocalForMainThread ();
 }
 
 }

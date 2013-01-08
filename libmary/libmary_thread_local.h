@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -36,9 +36,21 @@
 
 
 #ifdef LIBMARY_TLOCAL
-#define LIBMARY_TLOCAL_SPEC LIBMARY_TLOCAL
+  #define LIBMARY__TLOCAL_SPEC LIBMARY_TLOCAL
 #else
-#define LIBMARY_TLOCAL_SPEC
+  #define LIBMARY__TLOCAL_SPEC
+#endif
+
+#ifdef LIBMARY__OLD_GTHREAD_API
+  #ifndef LIBMARY_TLOCAL
+    #define LIBMARY__TLOCAL_GPRIVATE    _libMary_tlocal_gprivate
+  #endif
+  #define LIBMARY__TLOCAL_GPRIVATE_DTOR _libMary_tlocal_gprivate_dtor
+#else
+  #ifndef LIBMARY_TLOCAL
+   #define LIBMARY__TLOCAL_GPRIVATE      &_libMary_tlocal_gprivate
+  #endif
+  #define LIBMARY__TLOCAL_GPRIVATE_DTOR &_libMary_tlocal_gprivate_dtor
 #endif
 
 
@@ -78,7 +90,9 @@ public:
 
     Ref<ExceptionBuffer> exc_buffer;
     Exception *exc;
-    Uint32 exc_block;
+    IntrusiveList<ExceptionBuffer> exc_block_stack;
+    IntrusiveList<ExceptionBuffer> exc_free_stack;
+    Size exc_free_stack_size;
 
     Object *last_coderef_container;
 
@@ -113,21 +127,58 @@ public:
     ~LibMary_ThreadLocal ();
 };
 
-#ifndef LIBMARY_MT_SAFE
-extern LibMary_ThreadLocal _libMary_tlocal;
+#ifdef LIBMARY_MT_SAFE
+  #ifdef LIBMARY__OLD_GTHREAD_API
+    #ifndef LIBMARY_TLOCAL
+      extern GPrivate *_libMary_tlocal_gprivate;
+    #endif
+    extern GPrivate *_libMary_tlocal_gprivate_dtor;
+  #else
+    #ifndef LIBMARY_TLOCAL
+      extern GPrivate _libMary_tlocal_gprivate;
+    #endif
+    extern GPrivate _libMary_tlocal_gprivate_dtor;
+  #endif
 #endif
 
-#ifdef LIBMARY_MT_SAFE
-// Never returns NULL.
-LibMary_ThreadLocal* libMary_getThreadLocal ();
+#if defined LIBMARY_MT_SAFE && !defined LIBMARY_TLOCAL
+    static inline mt_nonnull LibMary_ThreadLocal* libMary_getThreadLocal ()
+    {
+        LibMary_ThreadLocal *tlocal =
+                static_cast <LibMary_ThreadLocal*> (g_private_get (LIBMARY__TLOCAL_GPRIVATE));
+        if (tlocal)
+            return tlocal;
+
+        tlocal = new (std::nothrow) LibMary_ThreadLocal;
+        assert (tlocal);
+        g_private_set (LIBMARY__TLOCAL_GPRIVATE_DTOR, tlocal);
+        g_private_set (LIBMARY__TLOCAL_GPRIVATE, tlocal);
+        return tlocal;
+    }
 #else
-static inline LibMary_ThreadLocal* libMary_getThreadLocal ()
-{
-    return &_libMary_tlocal;
-}
+    extern LIBMARY__TLOCAL_SPEC LibMary_ThreadLocal *_libMary_tlocal;
+
+  #ifdef LIBMARY_MT_SAFE
+    static inline mt_nonnull LibMary_ThreadLocal* libMary_getThreadLocal ()
+    {
+        LibMary_ThreadLocal *tlocal = _libMary_tlocal;
+        if (tlocal)
+            return tlocal;
+
+        tlocal = new (std::nothrow) LibMary_ThreadLocal;
+        assert (tlocal);
+        _libMary_tlocal = tlocal;
+	g_private_set (LIBMARY__TLOCAL_GPRIVATE_DTOR, tlocal);
+        return tlocal;
+    }
+  #else
+    #define libMary_getThreadLocal() (_libMary_tlocal)
+  #endif
 #endif
 
 void libMary_threadLocalInit ();
+
+void libMary_releaseThreadLocalForMainThread ();
 
 }
 

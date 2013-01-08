@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011, 2012 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -56,12 +56,14 @@
 #include <libmary/multi_thread.h>
 #endif
 
+#include <libmary/st_referenced.h>
 #include <libmary/basic_referenced.h>
 #include <libmary/virt_referenced.h>
 #include <libmary/referenced.h>
 #include <libmary/object.h>
 #include <libmary/code_referenced.h>
 
+#include <libmary/st_ref.h>
 #include <libmary/ref.h>
 #include <libmary/weak_ref.h>
 #include <libmary/code_ref.h>
@@ -73,6 +75,7 @@
 #include <libmary/log.h>
 #include <libmary/file.h>
 #include <libmary/async_file.h>
+#include <libmary/memory_file.h>
 #include <libmary/native_file.h>
 #include <libmary/native_async_file.h>
 #include <libmary/output_stream.h>
@@ -126,6 +129,7 @@
 #include <libmary/util_net.h>
 #include <libmary/util_dev.h>
 #include <libmary/libmary_md5.h>
+#include <libmary/cmdline.h>
 
 #include <libmary/server_context.h>
 #include <libmary/server_thread_pool.h>
@@ -138,6 +142,8 @@
 namespace M {
 
 void libMaryInit ();
+
+void libMaryRelease ();
 
 }
 
