@@ -148,7 +148,7 @@ void _libMary_do_log_unlocked (Format const & /* fmt */, Format const &new_fmt, 
 template <class ...Args>
 void _libMary_log_unlocked (char const * const loglevel_str, Args const &...args)
 {
-    exc_block ();
+    exc_push_scope ();
 
     LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
 
@@ -175,7 +175,7 @@ void _libMary_log_unlocked (char const * const loglevel_str, Args const &...args
     logs->print_ ("\n", fmt_def);
     logs->flush ();
 
-    exc_unblock ();
+    exc_pop_scope ();
 }
 
 template <class ...Args>
