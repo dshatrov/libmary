@@ -335,7 +335,7 @@ public:
         T *cur;
 
     public:
-        iterator (IntrusiveList &list) : cur (list.getFirst()) {}
+        iterator (IntrusiveList const &list) : cur (list.getFirst()) {}
         iterator () {}
 
         bool operator == (iterator const &iter) const { return cur == iter.cur; }
