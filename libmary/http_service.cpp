@@ -196,8 +196,10 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 		"Content-Length: ", reply_body.len(), "\r\n"
 		"\r\n",
 		reply_body);
-	if (self->no_keepalive_conns)
-	  http_conn->conn_sender.closeAfterFlush ();
+
+	if (!req->getKeepalive())
+            http_conn->conn_sender.closeAfterFlush ();
+
 	return;
     }
     HandlerEntry * const handler = handler_key.getDataPtr();
@@ -585,6 +587,16 @@ HttpService::start ()
 	return Result::Failure;
 
     return Result::Success;
+}
+
+void
+HttpService::setConfigParams (Time const keepalive_timeout_microsec,
+                              bool const no_keepalive_conns)
+{
+    mutex.lock ();
+    this->keepalive_timeout_microsec = keepalive_timeout_microsec;
+    this->no_keepalive_conns = no_keepalive_conns;
+    mutex.unlock ();
 }
 
 mt_throws Result

@@ -138,16 +138,15 @@ private:
     mt_const DataDepRef<DeferredProcessor> deferred_processor;
     mt_const DataDepRef<PagePool>          page_pool;
 
-    Time keepalive_timeout_microsec;
-
-    mt_const bool no_keepalive_conns;
+    mt_mutex (mutex) Time keepalive_timeout_microsec;
+    mt_mutex (mutex) bool no_keepalive_conns;
 
     TcpServer tcp_server;
 
     typedef IntrusiveList<HttpConnection> ConnectionList;
-    ConnectionList conn_list;
+    mt_mutex (mutex) ConnectionList conn_list;
 
-    Namespace root_namespace;
+    mt_mutex (mutex) Namespace root_namespace;
 
     mt_mutex (mutex) void releaseHttpConnection (HttpConnection * mt_nonnull http_conn);
     mt_mutex (mutex) void destroyHttpConnection (HttpConnection * mt_nonnull http_conn);
@@ -208,6 +207,9 @@ public:
     mt_throws Result bind (IpAddress const &addr);
 
     mt_throws Result start ();
+
+    void setConfigParams (Time keepalive_timeout_microsec,
+                          bool no_keepalive_conns);
 
     mt_throws Result init (PollGroup         * mt_nonnull poll_group,
 			   Timers            * mt_nonnull timers,
