@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__ANNOTATIONS__H__
-#define __LIBMARY__ANNOTATIONS__H__
+#ifndef LIBMARY__ANNOTATIONS__H__
+#define LIBMARY__ANNOTATIONS__H__
 
 
 // It is preferred not to include this header directly.
@@ -68,5 +68,5 @@
 #define mt_rev(a)
 
 
-#endif /* __LIBMARY__ANNOTATIONS__H__ */
+#endif /* LIBMARY__ANNOTATIONS__H__ */
 
