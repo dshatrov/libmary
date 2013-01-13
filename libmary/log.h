@@ -102,10 +102,13 @@ static inline unsigned getDefaultLogLevel ()
     return libMary_logGroup_default.getLogLevel ();
 }
 
+// TODO Rename to logLevelOn_()
 static inline bool defaultLogLevelOn (unsigned const loglevel)
 {
     return loglevel >= getDefaultLogLevel();
 }
+
+#define logLevelOn_(loglevel) (defaultLogLevelOn (loglevel))
 
 #define logLevelOn(group, loglevel)				\
 	((loglevel) >= (unsigned) libMary_globalLogLevel &&	\
@@ -219,8 +222,8 @@ extern char const _libMary_loglevel_str_N [4];
 	    }										\
 	} while (0)
 
-#define log__(...)         _libMary_log_macro_s (_libMary_log,          default, LogLevel::None, _libMary_loglevel_str_N, __VA_ARGS__)
-#define log__unlocked(...) _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::None, _libMary_loglevel_str_N, __VA_ARGS__)
+#define log__(...)          _libMary_log_macro_s (_libMary_log,          default, LogLevel::None, _libMary_loglevel_str_N, __VA_ARGS__)
+#define log_unlocked__(...) _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::None, _libMary_loglevel_str_N, __VA_ARGS__)
 
 #define log(group, loglevel, ...)          _libMary_log_macro (_libMary_log,          group,   (loglevel), __VA_ARGS__)
 #define log_unlocked(group, loglevel, ...) _libMary_log_macro (_libMary_log_unlocked, group,   (loglevel), __VA_ARGS__)
@@ -266,6 +269,13 @@ extern char const _libMary_loglevel_str_N [4];
 #define logF_unlocked(group, ...) _libMary_log_macro_s (_libMary_log_unlocked, group,   LogLevel::F, _libMary_loglevel_str_F, __VA_ARGS__)
 #define logF_(...)                _libMary_log_macro_s (_libMary_log,          default, LogLevel::F, _libMary_loglevel_str_F, __VA_ARGS__)
 #define logF_unlocked_(...)       _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::F, _libMary_loglevel_str_F, __VA_ARGS__)
+
+typedef void (*LogStreamReleaseCallback) (void *cb_data);
+
+void setLogStream (OutputStream             *new_logs,
+                   LogStreamReleaseCallback  new_logs_release_cb,
+                   void                     *new_logs_release_cb_data,
+                   bool                      add_buffered_stream);
 
 }
 

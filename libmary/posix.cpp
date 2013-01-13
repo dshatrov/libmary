@@ -54,16 +54,21 @@ void libMary_posixInit ()
     // Calling tzset() for localtime_r() to behave correctly.
     tzset ();
 
-    outs = new NativeFile (STDOUT_FILENO);
-    assert (outs);
+    {
+      // Allocating on heap to avoid problems with deinitialization order
+      // of static data.
 
-    errs = new NativeFile (STDERR_FILENO);
-    assert (errs);
+        outs = new (std::nothrow) NativeFile (STDOUT_FILENO);
+        assert (outs);
 
-    // Allocating on heap to avoid problems with deinitialization order
-    // of static data.
-    logs = new BufferedOutputStream (errs, LIBMARY__LOGS_BUFFER_SIZE);
-    assert (logs);
+        errs = new (std::nothrow) NativeFile (STDERR_FILENO);
+        assert (errs);
+
+        setLogStream (errs,
+                      NULL /* new_logs_release_cb */,
+                      NULL /* new_logs_release_cb_data */,
+                      true /* add_buffered_stream */);
+    }
 
 // TODO What's this?
 #if 0

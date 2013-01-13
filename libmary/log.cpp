@@ -17,6 +17,9 @@
 */
 
 
+#include <libmary/buffered_output_stream.h>
+#include <libmary/io.h>
+
 #include <libmary/log.h>
 
 
@@ -117,6 +120,41 @@ LogGroup::LogGroup (ConstMemory const &group_name,
     : loglevel (loglevel)
 {
     // TODO Add the group to global hash.
+}
+
+static LogStreamReleaseCallback  logs_release_cb = NULL;
+static void                     *logs_release_cb_data = NULL;
+static OutputStream             *logs_buffered_stream = NULL;
+
+void setLogStream (OutputStream             * const new_logs,
+                   LogStreamReleaseCallback   const new_logs_release_cb,
+                   void                     * const new_logs_release_cb_data,
+                   bool                       const add_buffered_stream)
+{
+    logLock ();
+
+    LogStreamReleaseCallback   const old_logs_release_cb      = logs_release_cb;
+    void                     * const old_logs_release_cb_data = logs_release_cb_data;
+    OutputStream             * const old_logs_buffered_stream = logs_buffered_stream;
+
+    logs = new_logs;
+    logs_release_cb = new_logs_release_cb;
+    logs_release_cb_data = new_logs_release_cb_data;
+
+    if (add_buffered_stream) {
+        logs_buffered_stream = new (std::nothrow) BufferedOutputStream (new_logs, LIBMARY__LOGS_BUFFER_SIZE);
+        assert (logs_buffered_stream);
+        logs = logs_buffered_stream;
+    } else {
+        logs_buffered_stream = NULL;
+    }
+
+    logUnlock ();
+
+    if (old_logs_release_cb)
+        (*old_logs_release_cb) (old_logs_release_cb_data);
+
+    delete old_logs_buffered_stream;
 }
 
 }
