@@ -61,6 +61,11 @@ Result serviceToPort (ConstMemory  service,
             return (ip_addr == addr.ip_addr) && (port == addr.port);
         }
 
+        bool operator != (IpAddress const &addr) const
+        {
+            return !(*this == addr);
+        }
+
 	void reset ()
 	{
 	    ip_addr = 0;
