@@ -416,7 +416,7 @@ public:
 
     void rev_iter_begin (rev_iter &iter) const
     {
-	iter.cur = last;
+	iter.cur = getLast();
     }
 
     static T* rev_iter_next (rev_iter &iter)
