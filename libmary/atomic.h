@@ -75,6 +75,11 @@ public:
 #endif
     }
 
+    void dec ()
+    {
+        add (-1);
+    }
+
     void add (int const a)
     {
 #ifdef LIBMARY_MT_SAFE
