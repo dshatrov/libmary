@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__TYPES_BASE__H__
-#define __LIBMARY__TYPES_BASE__H__
+#ifndef LIBMARY__TYPES_BASE__H__
+#define LIBMARY__TYPES_BASE__H__
 
 
 #ifdef __GNUC__
@@ -57,6 +57,11 @@
 
 #include <libmary/libmary_config.h>
 #include <libmary/annotations.h>
+
+
+#define LIBMARY_NO_COPY(T) \
+        T (T const &) = delete; \
+        T& operator= (T const &) = delete;
 
 
 namespace M {
@@ -126,7 +131,6 @@ enum {
 
 typedef Uint8 Byte;
 
-// TODO Describe when to use what.
 typedef size_t    Size;
 // Signed offset. Use 'Size' for unsigned offsets.
 typedef ptrdiff_t Offset;
@@ -161,5 +165,5 @@ static inline void* alignPtr (void   * const ptr,
 }
 
 
-#endif /* __LIBMARY__TYPES_BASE__H__ */
+#endif /* LIBMARY__TYPES_BASE__H__ */
 
