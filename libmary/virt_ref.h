@@ -60,6 +60,11 @@ public:
         }
     }
 
+    operator VirtReferenced* () const
+    {
+        return ref;
+    }
+
     VirtRef& operator = (VirtReferenced * const ref)
     {
         if (this->ref == ref)
@@ -94,11 +99,32 @@ public:
 	return *this;
     }
 
+    VirtRef& operator = (VirtRef &&virt_ref)
+    {
+        if (ref != virt_ref.ref) {
+            VirtReferenced * const old_ref = ref;
+
+            ref = virt_ref.ref;
+            virt_ref.ref = NULL;
+
+            if (old_ref)
+                old_ref->virt_unref ();
+        }
+
+        return *this;
+    }
+
     VirtRef (VirtRef const &virt_ref)
         : ref (virt_ref.ref)
     {
 	if (ref)
 	    ref->virt_ref ();
+    }
+
+    VirtRef (VirtRef &&virt_ref)
+        : ref (virt_ref.ref)
+    {
+        virt_ref.ref = NULL;
     }
 
     VirtRef (VirtReferenced * const ref)
