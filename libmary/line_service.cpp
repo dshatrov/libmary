@@ -148,7 +148,7 @@ LineService::init (ServerContext    * const mt_nonnull server_ctx,
                    Size               const  max_line_len)
 
 {
-    this->server_ctx = server_ctx;
+    this->poll_group = server_ctx->getMainThreadContext()->getPollGroup();
     this->frontend = frontend;
     this->max_line_len = max_line_len;
 
@@ -158,7 +158,7 @@ LineService::init (ServerContext    * const mt_nonnull server_ctx,
     tcp_server.init (
             CbDesc<TcpServer::Frontend> (
                     &tcp_server_frontend, this, getCoderefContainer()),
-            server_ctx->getTimers());
+            server_ctx->getMainThreadContext()->getTimers());
 
     return Result::Success;
 }
@@ -178,11 +178,14 @@ LineService::start ()
     if (!tcp_server.listen ())
         return Result::Failure;
 
-    if (!server_ctx->getMainPollGroup()->addPollable (
-                tcp_server.getPollable(), NULL /* ret_reg */))
-    {
+    mutex.lock ();
+    assert (!server_pollable_key);
+    server_pollable_key = poll_group->addPollable (tcp_server.getPollable(), NULL /* ret_reg */);
+    if (!server_pollable_key) {
+        mutex.unlock ();
         return Result::Failure;
     }
+    mutex.unlock ();
 
     return Result::Success;
 }
@@ -190,7 +193,6 @@ LineService::start ()
 LineService::LineService (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
       max_line_len (4096),
-      server_ctx (coderef_container),
       poll_group (coderef_container),
       tcp_server (coderef_container)
 {
@@ -199,6 +201,11 @@ LineService::LineService (Object * const coderef_container)
 LineService::~LineService ()
 {
     mutex.lock ();
+
+    if (server_pollable_key) {
+        poll_group->removePollable (server_pollable_key);
+        server_pollable_key = NULL;
+    }
 
     {
         LineConnectionList::iter iter (conn_list);

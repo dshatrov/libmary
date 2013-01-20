@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__LINE_SERVER__H__
-#define __LIBMARY__LINE_SERVER__H__
+#ifndef LIBMARY__LINE_SERVER__H__
+#define LIBMARY__LINE_SERVER__H__
 
 
 #include <libmary/code_referenced.h>
@@ -46,7 +46,6 @@ private:
     mt_sync (processInput) Size recv_pos;
 
     mt_iface (Receiver::Frontend)
-
       static Receiver::Frontend const receiver_frontend;
 
       static Receiver::ProcessInputResult processInput (Memory   const &mem,
@@ -57,7 +56,6 @@ private:
 
       static void processError (Exception *exc_,
                                 void      *_self);
-
     mt_iface_end
 
 public:
@@ -73,5 +71,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__LINE_SERVER__H__ */
+#endif /* LIBMARY__LINE_SERVER__H__ */
 

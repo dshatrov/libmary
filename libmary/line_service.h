@@ -71,12 +71,12 @@ private:
 
     mt_const Size max_line_len;
 
-    mt_const DataDepRef<ServerContext> server_ctx;
-    mt_const DataDepRef<PollGroup>     poll_group;
+    mt_const DataDepRef<PollGroup> poll_group;
 
     mt_const Cb<Frontend> frontend;
 
     TcpServer tcp_server;
+    mt_mutex (mutex) PollGroup::PollableKey server_pollable_key;
 
     mt_mutex (mutex) LineConnectionList conn_list;
 
