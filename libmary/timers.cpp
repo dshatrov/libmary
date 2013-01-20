@@ -47,7 +47,8 @@ Timers::addTimer_microseconds (CbDesc<TimerCallback> const &cb,
 {
     logD (timers, _func, "time_microseconds: ", time_microseconds);
 
-    Timer * const timer = new Timer (this, cb);
+    Timer * const timer = new (std::nothrow) Timer (this, cb);
+    assert (timer);
     timer->periodical = periodical;
     timer->delete_after_tick = delete_after_tick;
     timer->due_time = getTimeMicroseconds() + time_microseconds;
@@ -71,7 +72,8 @@ Timers::addTimer_microseconds (CbDesc<TimerCallback> const &cb,
 
     TimerChain *chain = interval_tree.lookup (time_microseconds);
     if (!chain) {
-	chain = new TimerChain;
+	chain = new (std::nothrow) TimerChain;
+        assert (chain);
 	chain->interval_microseconds = time_microseconds;
 	chain->nearest_time = timer->due_time;
 
