@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__LIBMARY__H__
-#define __LIBMARY__LIBMARY__H__
+#ifndef LIBMARY__LIBMARY__H__
+#define LIBMARY__LIBMARY__H__
 
 
 #include <libmary/libmary_config.h>
@@ -49,11 +49,12 @@
 
 #include <libmary/atomic.h>
 #include <libmary/mutex.h>
+#include <libmary/fast_mutex.h>
 #include <libmary/state_mutex.h>
 #ifdef LIBMARY_MT_SAFE
-#include <libmary/cond.h>
-#include <libmary/thread.h>
-#include <libmary/multi_thread.h>
+  #include <libmary/cond.h>
+  #include <libmary/thread.h>
+  #include <libmary/multi_thread.h>
 #endif
 
 #include <libmary/st_referenced.h>
@@ -100,20 +101,20 @@
 
 #include <libmary/vfs.h>
 #ifndef LIBMARY_PLATFORM_WIN32
-#include <libmary/vfs_posix.h>
+  #include <libmary/vfs_posix.h>
 #endif
 
 #include <libmary/deferred_processor.h>
 #include <libmary/poll_group.h>
 #include <libmary/active_poll_group.h>
 #ifdef LIBMARY_PLATFORM_WIN32
-#include <libmary/wsa_poll_group.h>
+  #include <libmary/wsa_poll_group.h>
 #else
-#include <libmary/select_poll_group.h>
-#include <libmary/poll_poll_group.h>
+  #include <libmary/select_poll_group.h>
+  #include <libmary/poll_poll_group.h>
 #endif
 #if !defined (LIBMARY_PLATFORM_WIN32) && defined LIBMARY_ENABLE_EPOLL
-#include <libmary/epoll_poll_group.h>
+  #include <libmary/epoll_poll_group.h>
 #endif
 
 #include <libmary/http.h>
@@ -148,5 +149,5 @@ void libMaryRelease ();
 }
 
 
-#endif /* __LIBMARY__LIBMARY__H__ */
+#endif /* LIBMARY__LIBMARY__H__ */
 

@@ -125,7 +125,7 @@ FixedThreadPool::grabThreadContext (ConstMemory const & /* filename */)
 #ifdef LIBMARY_MT_SAFE
     ServerThreadContext *thread_ctx;
 
-  StateMutexLock l (mutex);
+  StateMutexLock l (&mutex);
 
     if (thread_selector) {
 	thread_ctx = &thread_selector->data->thread_ctx;

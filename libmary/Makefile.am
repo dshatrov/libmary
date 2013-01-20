@@ -70,6 +70,7 @@ mary_target_headers =			\
 					\
 	atomic.h			\
 	mutex.h				\
+        fast_mutex.h                    \
 	state_mutex.h			\
 					\
         st_referenced.h                 \
@@ -315,7 +316,6 @@ libmary_1_0_la_SOURCES =		\
 mary_extra_dist = libmary_config.h.in
 
 mary_mtsafe_sources =			\
-	cond.cpp			\
 	thread.cpp			\
 	multi_thread.cpp
 

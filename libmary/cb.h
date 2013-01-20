@@ -535,7 +535,7 @@ public:
     }
 
     // TODO After introduction of coderef containers, copying Cb<>'s around
-    //      became more expensive because of Ref<_Shadow> member. Figure out
+    //      became more expensive because of Ref<Shadow> member. Figure out
     //      what's the most effective way to avoid excessive atomic ref/unref
     //      operations.
     Cb (T const        * const cb,

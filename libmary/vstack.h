@@ -27,7 +27,7 @@
 
 namespace M {
 
-class VStack
+mt_unsafe class VStack
 {
 public:
     typedef Size Level;

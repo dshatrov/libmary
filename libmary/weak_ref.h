@@ -30,16 +30,12 @@
 
 namespace M {
 
-//class Object;
-
 // Note that WeakRef<Type> declarations should be valid for incomplete types.
-//
 template <class T>
 class WeakRef
 {
 private:
-//    Ref<typename T::_Shadow> shadow;
-    Ref<Object::_Shadow> shadow;
+    Ref<Object::Shadow> shadow;
 
     // 'typed_weak_ptr' has been introduced for compatibilty with MyCpp, which
     // uses virtual base classes heavily, like ": public virtual Object".
@@ -55,8 +51,7 @@ public:
 	if (!shadow)
 	    return NULL;
 
-//	Object * const obj = T::_GetRef (shadow);
-	Object * const obj = Object::_GetRef (shadow);
+	Object * const obj = Object::_getRef (shadow);
 	if (!obj)
 	    return NULL;
 
@@ -69,8 +64,7 @@ public:
 	if (!shadow)
 	    return NULL;
 
-//	Object * const obj = T::_GetRef (shadow);
-	Object * const obj = Object::_GetRef (shadow);
+	Object * const obj = Object::_getRef (shadow);
 	if (!obj)
 	    return NULL;
 

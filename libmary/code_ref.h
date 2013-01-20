@@ -55,7 +55,7 @@ private:
     //               valid only when shadow->weak_ptr is non-null.
     Object *weak_obj;
 
-    // This is Ref<Object::_Shadow>, actually.
+    // This is Ref<Object::Shadow>, actually.
     WeakRef<Object> weak_ref;
 
 public:

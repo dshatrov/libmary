@@ -1,5 +1,24 @@
-#ifndef __LIBMARY__VSLAB__H__
-#define __LIBMARY__VSLAB__H__
+/*  LibMary - C++ library for high-performance network servers
+    Copyright (C) 2011-2013 Dmitry Shatrov
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public
+    License as published by the Free Software Foundation; either
+    version 2.1 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Lesser General Public License for more details.
+
+    You should have received a copy of the GNU Lesser General Public
+    License along with this library; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+*/
+
+
+#ifndef LIBMARY__VSLAB__H__
+#define LIBMARY__VSLAB__H__
 
 
 #include <libmary/vstack.h>
@@ -11,6 +30,7 @@ namespace M {
 template <class T> class VSlab;
 template <class T> class VSlabRef;
 
+// TODO Merge VSlabBase into VSlab
 class VSlabBase
 {
     template <class T> friend class VSlabRef;
@@ -29,7 +49,7 @@ public:
 };
 
 template <class T>
-class VSlab : public VSlabBase
+mt_unsafe class VSlab : public VSlabBase
 {
     template <class C> friend class VSlabRef;
 
@@ -390,5 +410,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__VSLAB__H__ */
+#endif /* LIBMARY__VSLAB__H__ */
 
