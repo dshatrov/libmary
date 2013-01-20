@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__OBJECT__H__
-#define __LIBMARY__OBJECT__H__
+#ifndef LIBMARY__OBJECT__H__
+#define LIBMARY__OBJECT__H__
 
 
 #include <libmary/intrusive_list.h>
@@ -27,6 +27,8 @@
 #include <libmary/ref.h>
 #include <libmary/virt_ref.h>
 #include <libmary/code_referenced.h>
+#include <libmary/mutex.h>
+#include <libmary/fast_mutex.h>
 
 
 #ifdef DEBUG
@@ -83,62 +85,53 @@ public:
 private:
   // Class WeakRef may access the following private members as a friend.
 
-    class _Shadow : public Referenced
+    class Shadow : public Referenced
     {
 	friend class Object;
 	template <class T> friend class WeakRef;
 
     private:
-	Mutex shadow_mutex;
+	FastMutex shadow_mutex;
 	Object *weak_ptr;
 
 	// This counter ensures that the object will be deleted sanely when
-	// series of _GetRef()/unref() calls sneak in while last_unref() is
+	// series of _getRef()/unref() calls sneak in while last_unref() is
 	// in progress. In this case, we'll have multiple invocations of
 	// last_unref(), and we should be able to determine which of those
 	// invocations is the last one.
 	Count lastref_cnt;
 
-	void lock ()
-	{
-	    shadow_mutex.lock ();
-	}
-
-	void unlock ()
-	{
-	    shadow_mutex.unlock ();
-	}
-
 	DEBUG (
-	    _Shadow ()
+	    Shadow ()
 	    {
-		static char const * const _func_name = "LibMary.Object._Shadow()";
+		static char const * const _func_name = "LibMary.Object.Shadow()";
 		printf ("0x%lx %s\n", (unsigned long) this, _func_name);
 	    }
 
-	    ~_Shadow ()
+	    ~Shadow ()
 	    {
-		static char const * const _func_name = "LibMary.Object.~_Shadow()";
+		static char const * const _func_name = "LibMary.Object.~Shadow()";
 		printf ("0x%lx %s\n", (unsigned long) this, _func_name);
 	    }
 	)
     };
 
-    // There's no need to return Ref<_Shadow> here:
+    // There's no need to return Ref<Shadow> here:
     //   * We're supposed to have a valid reference to the object for duration
     //     of getShadow() call;
     //   * Once bound to the object, the shadow's life time is not shorter than
     //     object's lifetime.
-    _Shadow* getShadow ()
+    Shadow* getShadow ()
     {
-	_Shadow *shadow = static_cast <_Shadow*> (atomic_shadow.get ());
+	Shadow *shadow = static_cast <Shadow*> (atomic_shadow.get ());
 	if (shadow)
 	    return shadow;
 
-	// TODO Slab cache for Object_Shadow objects: describe the idea.
+	// TODO Slab cache for Object::Shadow objects: describe the idea.
 
 	// Shadow stays referenced until it is unrefed in ~Object().
-	shadow = new _Shadow ();
+	shadow = new (std::nothrow) Shadow ();
+        assert (shadow);
 	shadow->weak_ptr = this;
 	shadow->lastref_cnt = 1;
 
@@ -149,22 +142,23 @@ private:
 	// occasional deletes do not bring much overhead.
 	delete shadow;
 
-	return static_cast <_Shadow*> (atomic_shadow.get ());
+	return static_cast <Shadow*> (atomic_shadow.get ());
     }
 
-    // _GetRef() is specific to WeakRef::getRef(). It is a more complex subcase
+    // _getRef() is specific to WeakRef::getRef(). It is a more complex subcase
     // of ref().
-    static Object* _GetRef (_Shadow * const mt_nonnull shadow)
+    static Object* _getRef (Shadow * const mt_nonnull shadow)
     {
-      MutexLock shadow_l (&shadow->shadow_mutex);
+        shadow->shadow_mutex.lock ();
 
 	Object * const obj = shadow->weak_ptr;
 
 	DEBUG (
-	  fprintf (stderr, "Object::_GetRef: shadow 0x%lx, obj 0x%lx\n", (unsigned long) shadow, (unsigned long) obj);
+	  fprintf (stderr, "Object::_getRef: shadow 0x%lx, obj 0x%lx\n", (unsigned long) shadow, (unsigned long) obj);
 	)
 
         if (!obj) {
+            shadow->shadow_mutex.unlock ();
 	    return NULL;
 	}
 
@@ -176,6 +170,7 @@ private:
 	    obj->traceRef ();
 #endif
 
+        shadow->shadow_mutex.unlock ();
 	return obj;
     }
 
@@ -198,8 +193,7 @@ private:
     void do_delete ();
 
     // We forbid copying until it is shown that it might be convenient in some cases.
-    Object& operator = (Object const &);
-    Object (Object const &);
+    LIBMARY_NO_COPY (Object)
 
 public:
   mt_iface (CodeReferenced)
@@ -291,7 +285,7 @@ inline Object::~Object ()
       // as deletion queue link pointer. In practice, this should work, but we'll
       // be able to count on this 100% only whith C++0x.
 
-	_Shadow * const shadow = static_cast <_Shadow*> (atomic_shadow.get ());
+	Shadow * const shadow = static_cast <Shadow*> (atomic_shadow.get ());
 	if (shadow)
 	    shadow->unref ();
     }
@@ -313,5 +307,5 @@ inline Object::~Object ()
 #endif
 
 
-#endif /* __LIBMARY__OBJECT__H__ */
+#endif /* LIBMARY__OBJECT__H__ */
 

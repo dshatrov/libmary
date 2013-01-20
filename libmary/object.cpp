@@ -42,7 +42,7 @@ Object::last_unref ()
 	printf ("0x%lx %s\n", (unsigned long) this, _func_name);
     )
 
-    _Shadow * const shadow = static_cast <_Shadow*> (atomic_shadow.get ());
+    Shadow * const shadow = static_cast <Shadow*> (atomic_shadow.get ());
     if (!shadow) {
 	DEBUG (
 	    printf ("0x%lx %s: no shadow\n", (unsigned long) this, _func_name);
@@ -53,11 +53,25 @@ Object::last_unref ()
     }
 
     {
-      MutexLock shadow_l (&shadow->shadow_mutex);
+        shadow->shadow_mutex.lock ();
 
+#if 0
+// This check overlaps with lastref_cnt.
 	if (refcount.get () > 0) {
 	  // We've been re-referenced via a weak reference before we have
 	  // locked shadow->shadow_mutex.
+            shadow->shadow_mutex.unlock ();
+	    return;
+	}
+#endif
+
+	assert (shadow->lastref_cnt > 0);
+	--shadow->lastref_cnt;
+	if (shadow->lastref_cnt) {
+	  // There'll be more calls to last_unref() for this object due to
+	  // getRef()/unref() pairs which sneaked before we've locked
+	  // shadow->shadow_mutex. This call to last_unref() is not the last one.
+            shadow->shadow_mutex.unlock ();
 	    return;
 	}
 
@@ -65,11 +79,11 @@ Object::last_unref ()
 
 	// External objects will be unable to call removeDeletionCallback() while
 	// we're in the process of calling deletion callbacks, because there's no
-	// references to the object anymore, and weak_ptr in _Shadow is nullified.
+	// references to the object anymore, and weak_ptr in Shadow is nullified.
 	// Therefore, if a subscriber gets deleted while we're processing deletion
 	// subscriptions, we'll get a stale subscription in the list.
 	// This means that we must prevent subscribers from being deleted by
-	// grabing real references to all guard objects before releasing shadow's
+	// grabbing real references to all guard objects before releasing shadow's
 	// mutex after nullifying weak_ptr.
 	{
 	  MutexLock l (&deletion_mutex);
@@ -97,14 +111,7 @@ Object::last_unref ()
 	    }
 	}
 
-	assert (shadow->lastref_cnt > 0);
-	--shadow->lastref_cnt;
-	if (shadow->lastref_cnt) {
-	  // There'll be more calls to last_unref() for this object due to
-	  // getRef()/unref() pairs which sneaked before we've locked
-	  // shadow->shadow_mutex. This call to last_unref() is not the last one.
-	    return;
-	}
+        shadow->shadow_mutex.unlock ();
     }
 
     // Releasing 'shadow' early so that 'atomic_shadow' field can be used
@@ -137,6 +144,10 @@ Object::do_delete ()
 #if 0
 // Creating references to an object after entering its destructor or after
 // putting it on deletion queue is explicitly forbidden.
+// At this point, the object has no valid shadow and most valid actions
+// with references (like keeping them elsewhere) are invalid.
+// Provided this, allowing to create limited (temporal) references makes
+// no sense: it'd be an unnecessary compilcation for no good reason.
 	    // We do a ref() to allow the destructor to create temporal
 	    // references to this object.
 	    ref ();
@@ -230,7 +241,7 @@ Object::addDeletionCallback (CbDesc<DeletionCallback> const &cb)
 	static char const * const _func_name = "LibMary.Object.addDeletionCallback";
     )
 
-    DeletionSubscription * const sbn = new DeletionSubscription (cb);
+    DeletionSubscription * const sbn = new (std::nothrow) DeletionSubscription (cb);
     assert (sbn);
     DEBUG (
 	printf ("0x%lx %s: sbn: 0x%lx, guard_obj: 0x%lx\n",
@@ -260,7 +271,7 @@ Object::addDeletionCallbackNonmutual (CbDesc<DeletionCallback> const &cb)
 	static char const * const _func_name = "LibMary.Object.addDeletionCallbackNonmutual";
     )
 
-    DeletionSubscription * const sbn = new DeletionSubscription (cb);
+    DeletionSubscription * const sbn = new (std::nothrow) DeletionSubscription (cb);
     assert (sbn);
     DEBUG (
 	printf ("0x%lx %s: sbn: 0x%lx, guard_obj: 0x%lx\n",
