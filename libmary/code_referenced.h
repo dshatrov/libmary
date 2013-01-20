@@ -51,12 +51,6 @@ public:
 	return coderef_container;
     }
 
-    // One may call setCoderefContainer() only as part of early initialization.
-    mt_const void setCoderefContainer (Object * const coderef_container)
-    {
-	this->coderef_container = coderef_container;
-    }
-
     DependentCodeReferenced (Object * const coderef_container)
 	: coderef_container (coderef_container)
     {
