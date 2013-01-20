@@ -42,7 +42,7 @@ ServerApp::SA_ServerContext::selectThreadContext ()
 #ifdef LIBMARY_MT_SAFE
     ServerThreadContext *thread_ctx;
 
-  StateMutexLock l (server_app->mutex);
+  StateMutexLock l (&server_app->mutex);
 
     if (server_app->thread_selector) {
 	thread_ctx = &server_app->thread_selector->data->thread_ctx;
@@ -60,6 +60,12 @@ ServerApp::SA_ServerContext::selectThreadContext ()
 #else
     return &server_app->main_thread_ctx;
 #endif // LIBMARY_MT_SAFE
+}
+
+CodeDepRef<ServerThreadContext>
+ServerApp::SA_ServerContext::getMainThreadContext ()
+{
+    return &server_app->main_thread_ctx;
 }
 
 void
@@ -122,8 +128,6 @@ ServerApp::init ()
 	return Result::Failure;
 
     dcs_queue.setDeferredProcessor (&deferred_processor);
-
-    server_ctx.init (&timers, &poll_group);
 
     main_thread_ctx.init (&timers,
 			  &poll_group,
@@ -251,6 +255,9 @@ ServerApp::stop ()
 #ifdef LIBMARY_MT_SAFE
     mutex.lock ();
 
+    // FIXME If stop() is called before all thread funcs have added corresponding
+    //       entries to 'thread_data_list', then we'll loose a thread and then
+    //       fail to join() it afterwards, causing hangup.
     {
 	ThreadDataList::iter iter (thread_data_list);
 	while (!thread_data_list.iter_done (iter)) {

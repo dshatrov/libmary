@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__SERVER_APP__H__
-#define __LIBMARY__SERVER_APP__H__
+#ifndef LIBMARY__SERVER_APP__H__
+#define LIBMARY__SERVER_APP__H__
 
 
 #include <libmary/libmary_config.h>
@@ -33,7 +33,7 @@
 #include <libmary/server_context.h>
 
 #ifdef LIBMARY_MT_SAFE
-#include <libmary/multi_thread.h>
+  #include <libmary/multi_thread.h>
 #endif
 
 
@@ -53,10 +53,16 @@ public:
 private:
     class SA_ServerContext : public ServerContext
     {
-    public:
+    private:
 	ServerApp * const server_app;
 
-	CodeDepRef<ServerThreadContext> selectThreadContext ();
+    public:
+      mt_iface (ServerContext)
+
+	CodeDepRef<ServerThreadContext> selectThreadContext  ();
+        CodeDepRef<ServerThreadContext> getMainThreadContext ();
+
+      mt_iface_end
 
 	SA_ServerContext (Object    * const coderef_container,
                           ServerApp * const server_app)
@@ -134,14 +140,9 @@ public:
         return &event_informer;
     }
 
-    CodeDepRef<ServerContext> getServerContext ()
+    ServerContext* getServerContext ()
     {
 	return &server_ctx;
-    }
-
-    CodeDepRef<ServerThreadContext> getMainThreadContext ()
-    {
-	return &main_thread_ctx;
     }
 
     mt_throws Result init ();
@@ -171,5 +172,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__SERVER_APP__H__ */
+#endif /* LIBMARY__SERVER_APP__H__ */
 

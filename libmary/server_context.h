@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__SERVER_CONTEXT__H__
-#define __LIBMARY__SERVER_CONTEXT__H__
+#ifndef LIBMARY__SERVER_CONTEXT__H__
+#define LIBMARY__SERVER_CONTEXT__H__
 
 
 #include <libmary/timers.h>
@@ -81,40 +81,21 @@ public:
 
 class ServerContext : public DependentCodeReferenced
 {
-private:
-    mt_const DataDepRef<Timers>    timers;
-    mt_const DataDepRef<PollGroup> poll_group;
-
 public:
     virtual CodeDepRef<ServerThreadContext> selectThreadContext () = 0;
 
-    Timers* getTimers () const
-    {
-	return timers;
-    }
-
-    PollGroup* getMainPollGroup () const
-    {
-	return poll_group;
-    }
-
-    mt_const void init (Timers    * const timers,
-			PollGroup * const main_poll_group)
-    {
-	this->timers = timers;
-	this->poll_group = main_poll_group;
-    }
+    virtual CodeDepRef<ServerThreadContext> getMainThreadContext () = 0;
 
     ServerContext (Object * const coderef_container)
-	: DependentCodeReferenced (coderef_container),
-          timers                  (coderef_container),
-          poll_group              (coderef_container)
+	: DependentCodeReferenced (coderef_container)
     {
     }
+
+    virtual ~ServerContext () {}
 };
 
 }
 
 
-#endif /* __LIBMARY__SERVER_CONTEXT__H__ */
+#endif /* LIBMARY__SERVER_CONTEXT__H__ */
 
