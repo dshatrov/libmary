@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,11 +17,13 @@
 */
 
 
-#ifndef __LIBMARY__COND__H__
-#define __LIBMARY__COND__H__
+#ifndef LIBMARY__COND__H__
+#define LIBMARY__COND__H__
 
 
-#include <libmary/types.h>
+// Condition variables can only be sanely used in multithreaded code.
+#ifdef LIBMARY_MT_SAFE
+
 #include <libmary/mutex.h>
 #include <libmary/state_mutex.h>
 
@@ -30,24 +32,31 @@ namespace M {
 
 class Cond
 {
+#ifdef __linux__
 private:
-    /* GCond* */
-    void *cond;
-
+    pthread_cond_t cond;
 public:
-    void signal ();
-
-    void wait (Mutex &mutex);
-
-    void wait (StateMutex &mutex);
-
-    Cond ();
-
-    ~Cond ();
+    void signal () { pthread_cond_signal (&cond); }
+    void wait (Mutex      &mutex) { pthread_cond_wait (&cond, mutex.get_pthread_mutex()); }
+    void wait (StateMutex &mutex) { pthread_cond_wait (&cond, mutex.get_pthread_mutex()); }
+    Cond  () { pthread_cond_init (&cond, NULL /* cond_attr */); }
+    ~Cond () { pthread_cond_destroy (&cond); }
+#else
+private:
+    GCond *cond;
+public:
+    void signal () { g_cond_signal (cond); }
+    void wait (Mutex      &mutex) { g_cond_wait (cond, mutex.get_glib_mutex()); }
+    void wait (StateMutex &mutex) { g_cond_wait (cond, mutex.get_glib_mutex()); }
+    Cond  () { cond = g_cond_new (); }
+    ~Cond () { g_cond_free (cond); }
+#endif
 };
 
 }
 
+#endif // LIBMARY_MT_SAFE
 
-#endif /* __LIBMARY__COND__H__ */
+
+#endif /* LIBMARY__COND__H__ */
 

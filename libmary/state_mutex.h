@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,11 +17,10 @@
 */
 
 
-#ifndef __LIBMARY__STATE_MUTEX__H__
-#define __LIBMARY__STATE_MUTEX__H__
+#ifndef LIBMARY__STATE_MUTEX__H__
+#define LIBMARY__STATE_MUTEX__H__
 
 
-#include <libmary/libmary_config.h>
 #include <libmary/mutex.h>
 
 
@@ -29,59 +28,47 @@ namespace M {
 
 class StateMutex
 {
+#ifdef LIBMARY_MT_SAFE
 private:
-#ifdef LIBMARY_MT_SAFE
     Mutex mutex;
-#endif
-
 public:
-    void lock ();
-
-    void unlock ();
-
-#ifdef LIBMARY_MT_SAFE
-    /* For internal use only:
-     * should not be expected to be present in future versions. */
-    GMutex* get_glib_mutex ()
-    {
-	return mutex.get_glib_mutex();
-    }
+  #ifdef __linux__
+    pthread_mutex_t* get_pthread_mutex () { return mutex.get_pthread_mutex(); }
+  #else
+    /* For internal use only: should not be expected to be present in future versions. */
+    GMutex* get_glib_mutex () { return mutex.get_glib_mutex(); }
+  #endif
 #endif
+public:
+    void lock   ();
+    void unlock ();
 };
 
 class StateMutexLock
 {
 private:
-#ifdef LIBMARY_MT_SAFE
-    StateMutex * const mutex;
-#endif
-
     StateMutexLock& operator = (StateMutexLock const &);
     StateMutexLock (StateMutexLock const &);
 
-public:
 #ifdef LIBMARY_MT_SAFE
-    StateMutexLock (StateMutex * const mutex)
+private:
+    StateMutex * const mutex;
+
+public:
+    StateMutexLock (StateMutex * const mt_nonnull mutex)
 	: mutex (mutex)
     {
 	mutex->lock ();
     }
 
-    StateMutexLock (StateMutex &mutex)
-	: mutex (&mutex)
-    {
-	mutex.lock ();
-    }
-#else
-    StateMutexLock (StateMutex * const /* mutex */)
-    {
-    }
-#endif
-
-#ifdef LIBMARY_MT_SAFE
     ~StateMutexLock ()
     {
 	mutex->unlock ();
+    }
+#else
+public:
+    StateMutexLock (StateMutex * const /* mutex */)
+    {
     }
 #endif
 };
@@ -89,36 +76,28 @@ public:
 class StateMutexUnlock
 {
 private:
-#ifdef LIBMARY_MT_SAFE
-    StateMutex * const mutex;
-#endif
-
     StateMutexUnlock& operator = (StateMutexUnlock const &);
     StateMutexUnlock (StateMutexUnlock const &);
 
-public:
 #ifdef LIBMARY_MT_SAFE
-    StateMutexUnlock (StateMutex * const mutex)
+private:
+    StateMutex * const mutex;
+
+public:
+    StateMutexUnlock (StateMutex * const mt_nonnull mutex)
 	: mutex (mutex)
     {
 	mutex->unlock ();
     }
 
-    StateMutexUnlock (StateMutex &mutex)
-	: mutex (&mutex)
-    {
-	mutex.unlock ();
-    }
-#else
-    StateMutexUnlock (StateMutex * const /* mutex */)
-    {
-    }
-#endif
-
-#ifdef LIBMARY_MT_SAFE
     ~StateMutexUnlock ()
     {
 	mutex->lock ();
+    }
+#else
+punlic:
+    StateMutexUnlock (StateMutex * const mt_nonnull /* mutex */)
+    {
     }
 #endif
 };
@@ -126,5 +105,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__STATE_MUTEX__H__ */
+#endif /* LIBMARY__STATE_MUTEX__H__ */
 

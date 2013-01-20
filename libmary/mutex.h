@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,16 +17,18 @@
 */
 
 
-#ifndef __LIBMARY__MUTEX__H__
-#define __LIBMARY__MUTEX__H__
+#ifndef LIBMARY__MUTEX__H__
+#define LIBMARY__MUTEX__H__
 
-
-#include <libmary/libmary_config.h>
 
 #include <libmary/types.h>
+
 #ifdef LIBMARY_MT_SAFE
-//#include <glib/gthread.h>
-#include <glib.h>
+  #ifdef __linux__
+    #include <pthread.h>
+  #else
+    #include <glib.h>
+  #endif
 #endif
 
 
@@ -36,128 +38,96 @@ namespace M {
 // TODO Rename to RawMutex to prevent accidential use of Mutex instead of StateMutex.
 class Mutex
 {
-private:
 #ifdef LIBMARY_MT_SAFE
+  #ifdef __linux__
+    // Glib's mutexes and conds are crappy when it comes to performance,
+    // especially after API change in 2.31. Every mutex is malloced
+    // (even deprecated GStaticMutex), and actual pthread calls are several
+    // layers deep.
+private:
+    pthread_mutex_t mutex;
+public:
+    void lock   () { pthread_mutex_lock   (&mutex); }
+    void unlock () { pthread_mutex_unlock (&mutex); }
+    pthread_mutex_t* get_pthread_mutex () { return &mutex; }
+    Mutex  () { pthread_mutex_init (&mutex, NULL /* mutexattr */); }
+    ~Mutex () { pthread_mutex_destroy (&mutex); }
+  #else
+private:
     GStaticMutex mutex;
-#endif
-
 public:
     /*m Locks the mutex. */
-    void lock ()
-    {
-#ifdef LIBMARY_MT_SAFE
-	g_static_mutex_lock (&mutex);
-#endif
-    }
-
+    void lock () { g_static_mutex_lock (&mutex); }
     /*m Unlocks the mutex. */
-    void unlock ()
-    {
-#ifdef LIBMARY_MT_SAFE
-	g_static_mutex_unlock (&mutex);
-#endif
-    }
-
-#ifdef LIBMARY_MT_SAFE
-    /* For internal use only:
-     * should not be expected to be present in future versions. */
-    GMutex* get_glib_mutex ()
-    {
-	return g_static_mutex_get_mutex (&mutex);
-    }
-#endif
-
-#ifdef LIBMARY_MT_SAFE
-    Mutex ()
-    {
-	g_static_mutex_init (&mutex);
-    }
-#endif
-
-#ifdef LIBMARY_MT_SAFE
-    ~Mutex ()
-    {
-	g_static_mutex_free (&mutex);
-    }
+    void unlock () { g_static_mutex_unlock (&mutex); }
+    /* For internal use only: should not be expected to be present in future versions. */
+    GMutex* get_glib_mutex () { return g_static_mutex_get_mutex (&mutex); }
+    Mutex  () { g_static_mutex_init (&mutex); }
+    ~Mutex () { g_static_mutex_free (&mutex); }
+  #endif
+#else
+public:
+    void lock   () {}
+    void unlock () {}
 #endif
 };
 
 class MutexLock
 {
 private:
-#ifdef LIBMARY_MT_SAFE
-    Mutex * const mutex;
-#endif
-
     MutexLock& operator = (MutexLock const &);
     MutexLock (MutexLock const &);
 
-public:
 #ifdef LIBMARY_MT_SAFE
-    MutexLock (Mutex * const mutex)
+private:
+    Mutex * const mutex;
+
+public:
+    MutexLock (Mutex * const mt_nonnull mutex)
 	: mutex (mutex)
     {
-	mutex->lock ();
+        mutex->lock ();
     }
 
-    MutexLock (Mutex &mutex)
-	: mutex (&mutex)
-    {
-	mutex.lock ();
-    }
-#else
-    MutexLock (Mutex * const /* mutex */)
-    {
-    }
-#endif
-
-#ifdef LIBMARY_MT_SAFE
     ~MutexLock ()
     {
 	mutex->unlock ();
     }
+#else
+public:
+    MutexLock (Mutex * const mt_nonnull /* mutex */) {}
 #endif
 };
 
 class MutexUnlock
 {
 private:
-#ifdef LIBMARY_MT_SAFE
-    Mutex * const mutex;
-#endif
-
     MutexUnlock& operator = (MutexUnlock const &);
     MutexUnlock (MutexUnlock const &);
 
-public:
 #ifdef LIBMARY_MT_SAFE
-    MutexUnlock (Mutex * const mutex)
+private:
+    Mutex * const mutex;
+
+public:
+    MutexUnlock (Mutex * const mt_nonnull mutex)
 	: mutex (mutex)
     {
 	mutex->unlock ();
     }
 
-    MutexUnlock (Mutex &mutex)
-	: mutex (&mutex)
-    {
-	mutex.unlock ();
-    }
-#else
-    MutexUnlock (Mutex * const /* mutex */)
-    {
-    }
-#endif
-
-#ifdef LIBMARY_MT_SAFE
     ~MutexUnlock ()
     {
 	mutex->lock ();
     }
+#else
+public:
+    MutexUnlock (Mutex * const mt_nonnull /* mutex */) {}
 #endif
 };
 
 }
 
 
-#endif /* __LIBMARY__MUTEX__H__ */
+#endif /* LIBMARY__MUTEX__H__ */
 
