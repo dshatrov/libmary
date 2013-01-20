@@ -145,7 +145,12 @@ struct iovec {
 #endif
 
 class Object;
-class VirtReferenced;
+
+}
+
+#include <libmary/virt_ref.h>
+
+namespace M {
 
 template <class T>
 class CbDesc
@@ -154,7 +159,12 @@ public:
     T const        * const cb;
     void           * const cb_data;
     Object         * const coderef_container;
-    VirtReferenced * const ref_data;
+
+// Using VirtRef instead of a pointer to avoid loosing reference to 'ref_data'
+// when using CbDesc<> as function's return value. There has been no real
+// problems because of this so far, but this still looks dangerous.
+//    VirtReferenced * const ref_data;
+    VirtRef          const ref_data;
 
     T const * operator -> () const
     {
