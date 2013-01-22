@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__CONNECTION_RECEIVER__H__
-#define __LIBMARY__CONNECTION_RECEIVER__H__
+#ifndef LIBMARY__CONNECTION_RECEIVER__H__
+#define LIBMARY__CONNECTION_RECEIVER__H__
 
 
 #include <libmary/receiver.h>
@@ -31,42 +31,52 @@ namespace M {
 
 // TODO Rename to AsyncReceiver. It now depends on AsyncInputStream, not on Connection.
 
-// Synchronized externally by the associated Connection object.
+// Synchronized externally by the associated AsyncInputStream object.
 class ConnectionReceiver : public Receiver,
 			   public DependentCodeReferenced
 {
 private:
-    AsyncInputStream *conn;
+    DeferredProcessor::Task unblock_input_task;
+    DeferredProcessor::Registration deferred_reg;
 
-    Byte *recv_buf;
-    Size const recv_buf_len;
+    mt_const AsyncInputStream *conn;
 
-    Size recv_buf_pos;
-    Size recv_accepted_pos;
+    mt_const Byte *recv_buf;
+    mt_const Size const recv_buf_len;
 
-    bool error_reported;
+    mt_sync_domain (conn_input_frontend) Size recv_buf_pos;
+    mt_sync_domain (conn_input_frontend) Size recv_accepted_pos;
 
-    void doProcessInput ();
+    mt_sync_domain (conn_input_frontend) bool error_reported;
 
+    mt_sync_domain (conn_input_frontend) void doProcessInput ();
+
+  mt_iface (AsyncInputStream::InputFrontend)
     static AsyncInputStream::InputFrontend const conn_input_frontend;
 
     static void processInput (void *_self);
 
     static void processError (Exception *exc_,
 			      void      *_self);
+  mt_iface_end
+
+    static bool unblockInputTask (void *_self);
 
 public:
-    void setConnection (AsyncInputStream * const conn)
+  mt_iface (Receiver)
+    void unblockInput ();
+  mt_iface_end
+
+    mt_const void init (AsyncInputStream  * const mt_nonnull conn,
+                        DeferredProcessor * const mt_nonnull deferred_processor)
     {
+        deferred_reg.setDeferredProcessor (deferred_processor);
+
 	this->conn = conn;
 	conn->setInputFrontend (
                 Cb<AsyncInputStream::InputFrontend> (
                         &conn_input_frontend, this, getCoderefContainer()));
     }
-
-    // TODO Deprecated constructor. Delete it.
-    ConnectionReceiver (Object           * const coderef_container,
-			AsyncInputStream * const mt_nonnull conn);
 
     ConnectionReceiver (Object * const coderef_container);
 
@@ -76,5 +86,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__CONNECTION_RECEIVER__H__ */
+#endif /* LIBMARY__CONNECTION_RECEIVER__H__ */
 

@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -24,16 +24,14 @@
 
 namespace M {
 
-namespace {
-LogGroup libMary_logGroup_msg ("msg", LogLevel::N);
-}
+static LogGroup libMary_logGroup_msg ("msg", LogLevel::N);
 
 AsyncInputStream::InputFrontend const ConnectionReceiver::conn_input_frontend = {
     processInput,
     processError
 };
 
-void
+mt_sync_domain (conn_input_frontend) void
 ConnectionReceiver::doProcessInput ()
 {
     logD (msg, _func_);
@@ -94,7 +92,6 @@ ConnectionReceiver::doProcessInput ()
 		     &num_accepted /*)*/))
 	{
 	    num_accepted = 0;
-	    // TODO In MomentVideo, this does nothing.
 	    res = ProcessInputResult::Error;
 	}
 	assert (num_accepted <= toprocess);
@@ -136,10 +133,9 @@ ConnectionReceiver::doProcessInput ()
 		    unreachable ();
 		}
 		break;
-	    case ProcessInputResult::InputBlocked:
-		recv_accepted_pos += num_accepted;
-		// TODO block input
-		return;
+            case ProcessInputResult::InputBlocked:
+                recv_accepted_pos += num_accepted;
+                return;
 	    default:
 		unreachable ();
 	}
@@ -178,22 +174,18 @@ ConnectionReceiver::processError (Exception * const exc_,
 	self->frontend.call (self->frontend->processError, /*(*/ exc_ /*)*/);
 }
 
-// TODO Deprecated constructor.
-ConnectionReceiver::ConnectionReceiver (Object           * const coderef_container,
-                                        AsyncInputStream * const mt_nonnull conn)
-    : DependentCodeReferenced (coderef_container),
-      conn (conn),
-      recv_buf_len (1 << 16 /* 64 Kb */),
-      recv_buf_pos (0),
-      recv_accepted_pos (0),
-      error_reported (false)
+bool
+ConnectionReceiver::unblockInputTask (void * const _self)
 {
-    recv_buf = new Byte [recv_buf_len];
-    assert (recv_buf);
+    ConnectionReceiver * const self = static_cast <ConnectionReceiver*> (_self);
+    self->doProcessInput ();
+    return false;
+}
 
-    conn->setInputFrontend (
-            Cb<AsyncInputStream::InputFrontend> (
-                    &conn_input_frontend, this, getCoderefContainer()));
+void
+ConnectionReceiver::unblockInput ()
+{
+    deferred_reg.scheduleTask (&unblock_input_task, false /* permanent */);
 }
 
 ConnectionReceiver::ConnectionReceiver (Object * const coderef_container)
@@ -203,8 +195,12 @@ ConnectionReceiver::ConnectionReceiver (Object * const coderef_container)
       recv_accepted_pos (0),
       error_reported (false)
 {
-    recv_buf = new Byte [recv_buf_len];
+    recv_buf = new (std::nothrow) Byte [recv_buf_len];
     assert (recv_buf);
+
+    unblock_input_task.cb =
+            CbDesc<DeferredProcessor::TaskCallback> (
+                    unblockInputTask, this, coderef_container);
 }
 
 ConnectionReceiver::~ConnectionReceiver ()

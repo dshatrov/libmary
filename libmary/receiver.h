@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,25 +17,26 @@
 */
 
 
-#ifndef __LIBMARY__RECEIVER_H__
-#define __LIBMARY__RECEIVER_H__
+#ifndef LIBMARY__RECEIVER_H__
+#define LIBMARY__RECEIVER_H__
 
 
 #include <libmary/types.h>
+#include <libmary/code_referenced.h>
 #include <libmary/cb.h>
 #include <libmary/exception.h>
 
 
 namespace M {
 
-class Receiver
+class Receiver : public virtual CodeReferenced
 {
 public:
     class ProcessInputResult
     {
     public:
 	enum Value {
-	    // TODO "Normal" is equal to "Again" + rt_accepted = mem.len().
+	    // TODO "Normal" is equal to "Again" + ret_accepted = mem.len().
 	    //      Rename "Again" to "Normal.
 	    Normal,
 	    Error,
@@ -46,7 +47,7 @@ public:
 	    // The buffer contains data which has not been analyzed yet.
 	    // Does not require read buffer contents to be moved
 	    // to the beginning of the buffer.
-	    InputBlocked
+            InputBlocked
 	};
 	operator Value () const { return value; }
 	ProcessInputResult (Value const value) : value (value) {}
@@ -71,18 +72,18 @@ protected:
     mt_const Cb<Frontend> frontend;
 
 public:
-    // TODO void setInputEnabled (bool enable);
-    //      ConstMemory peekInput ();
-    //      void RtmpConnection::setReceiver ();
+    virtual void unblockInput () = 0;
 
     mt_const void setFrontend (Cb<Frontend> const frontend)
     {
 	this->frontend = frontend;
     }
+
+    virtual ~Receiver () {}
 };
 
 }
 
 
-#endif /* __LIBMARY__RECEIVER_H__ */
+#endif /* LIBMARY__RECEIVER_H__ */
 
