@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -48,18 +48,12 @@ EpollPollGroup::processPollableDeletionQueue ()
     pollable_deletion_queue.clear ();
 }
 
-mt_throws Result
-EpollPollGroup::triggerPipeWrite ()
-{
-    return commonTriggerPipeWrite (trigger_pipe [1]);
-}
-
 mt_throws PollGroup::PollableKey
 EpollPollGroup::addPollable (CbDesc<Pollable> const &pollable,
-			     DeferredProcessor::Registration * const ret_reg,
 			     bool const activate)
 {
-    PollableEntry * const pollable_entry = new PollableEntry;
+    PollableEntry * const pollable_entry = new (std::nothrow) PollableEntry;
+    assert (pollable_entry);
 
     logD (epoll, _func, "0x", fmt_hex, (UintPtr) this, ": "
 	  "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry, ", "
@@ -79,9 +73,6 @@ EpollPollGroup::addPollable (CbDesc<Pollable> const &pollable,
 	if (!doActivate (pollable_entry))
 	    goto _failure;
     }
-
-    if (ret_reg)
-	ret_reg->setDeferredProcessor (&deferred_processor);
 
     return pollable_entry;
 
@@ -175,12 +166,15 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 
 //	logD_ (_func, "start: ", start_microsec, ", cur: ", cur_microsec, ", elapsed: ", elapsed_microsec);
 
-        // FIXME Uint64 timeout;
 	int timeout;
 	if (!got_deferred_tasks) {
 	    if (timeout_microsec != (Uint64) -1) {
 		if (timeout_microsec > elapsed_microsec) {
-		    timeout = (timeout_microsec - elapsed_microsec) / 1000;
+		    Uint64 const tmp_timeout = (timeout_microsec - elapsed_microsec) / 1000;
+                    timeout = (int) tmp_timeout;
+                    if ((Uint64) timeout != tmp_timeout)
+                        timeout = Int_Max;
+
 		    if (timeout == 0)
 			timeout = 1;
 		} else {
@@ -193,6 +187,16 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	    // We've got deferred tasks to process, hence we shouldn't block.
 	    timeout = 0;
 	}
+
+        mutex.lock ();
+        if (triggered) {
+            block_trigger_pipe = true;
+            timeout = 0;
+            mutex.unlock ();
+        } else {
+            block_trigger_pipe = false;
+            mutex.unlock ();
+        }
 
 #ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
         logD_ (_this_func, "calling epoll_wait()");
@@ -218,19 +222,19 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	    return Result::Failure;
 	}
 
+        // This lock() acts as a memory barrier which ensures that we see
+        // valid contents of PollableEntry objects.
+        mutex.lock ();
+        block_trigger_pipe = true;
+        mutex.unlock ();
+
 	got_deferred_tasks = false;
 
 	if (frontend)
 	    frontend.call (frontend->pollIterationBegin);
 
 	bool trigger_pipe_ready = false;
-
-	mutex.lock ();
-	block_trigger_pipe = true;
-
         assert (nfds >= 0);
-        // We keep the mutex locked to ensure that we see valid contents
-        // of PollableEntry objects.
         for (int i = 0; i < nfds; ++i) {
             PollableEntry * const pollable_entry = static_cast <PollableEntry*> (events [i].data.ptr);
             uint32_t const epoll_event_flags = events [i].events;
@@ -254,63 +258,34 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
                 continue;
             }
 
-            // This check is not really necessary, but we have 'mutex' locked anyway.
-            if (pollable_entry->valid) {
-                if (epoll_event_flags & EPOLLIN)
-                    event_flags |= PollGroup::Input;
+            if (epoll_event_flags & EPOLLIN)
+                event_flags |= PollGroup::Input;
 
-                if (epoll_event_flags & EPOLLOUT)
-                    event_flags |= PollGroup::Output;
+            if (epoll_event_flags & EPOLLOUT)
+                event_flags |= PollGroup::Output;
 
-                if (epoll_event_flags & EPOLLHUP ||
-                    epoll_event_flags & EPOLLRDHUP)
-                {
-                    event_flags |= PollGroup::Hup;
-                }
+            if (epoll_event_flags & EPOLLHUP ||
+                epoll_event_flags & EPOLLRDHUP)
+            {
+                event_flags |= PollGroup::Hup;
+            }
 
-                if (epoll_event_flags & EPOLLERR)
-                    event_flags |= PollGroup::Error;
+            if (epoll_event_flags & EPOLLERR)
+                event_flags |= PollGroup::Error;
 
-                if (event_flags) {
+            if (event_flags) {
 #ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
-                    logD_ (_this_func, "calling pollable->processEvents()");
+                logD_ (_this_func, "calling pollable->processEvents()");
 #endif
 
-                    pollable_entry->pollable.call_mutex (
-                            pollable_entry->pollable->processEvents, mutex, /* ( */ event_flags /* ) */);
+                pollable_entry->pollable.call (
+                        pollable_entry->pollable->processEvents, /*(*/ event_flags /*)*/);
 
 #ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
-                    logD_ (_this_func, "pollable->processEvents() returned");
+                logD_ (_this_func, "pollable->processEvents() returned");
 #endif
-                }
             }
         } // for (;;) - for all fds.
-
-	processPollableDeletionQueue ();
-	mutex.unlock ();
-
-	bool trigger_break = false;
-	{
-	  // Dealing with trigger() logics.
-	  // It is important to allow re-triggering the PollGroup before calling
-	  // frontend->pollIterationEnd(), so that no trigger requests get lost.
-
-	    if (trigger_pipe_ready) {
-		if (!commonTriggerPipeRead (trigger_pipe [0]))
-		    return Result::Failure;
-	    }
-
-	    mutex.lock ();
-	    // TODO We can keep 'block_trigger_pipe' set till the next call to epoll_wait().
-	    block_trigger_pipe = false;
-	    if (triggered) {
-		triggered = false;
-		mutex.unlock ();
-		trigger_break = true;
-	    } else {
-		mutex.unlock ();
-	    }
-	}
 
 	if (frontend) {
 	    bool extra_iteration_needed = false;
@@ -319,21 +294,32 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 		got_deferred_tasks = true;
 	}
 
-#ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
-        logD_ (_this_func, "calling deferred_processor.process()");
-#endif
+        // TODO mutex lock/unlock for triggering can be optimized further
+        mutex.lock ();
+	processPollableDeletionQueue ();
 
-	if (deferred_processor.process ())
-	    got_deferred_tasks = true;
+        if (trigger_pipe_ready) {
+            triggered = false;
+            mutex.unlock ();
 
-#ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
-        logD_ (_this_func, "deferred_processor.process() returned");
-#endif
+	    logD (epoll, _func, "trigger pipe break");
 
-	if (trigger_break) {
-	    logD (epoll, _func, "trigger_break");
-	    break;
-	}
+            if (!commonTriggerPipeRead (trigger_pipe [0])) {
+                logE_ (_func, "commonTriggerPipeRead() failed: ", exc->toString());
+                return Result::Failure;
+            }
+
+            break;
+        }
+
+        if (triggered) {
+            triggered = false;
+            mutex.unlock ();
+
+	    logD (epoll, _func, "trigger break");
+            break;
+        }
+        mutex.unlock ();
 
 	if (elapsed_microsec >= timeout_microsec) {
 	  // Timeout expired.
@@ -367,7 +353,7 @@ EpollPollGroup::trigger ()
     }
     mutex.unlock ();
 
-    return triggerPipeWrite ();
+    return commonTriggerPipeWrite (trigger_pipe [1]);
 }
 
 mt_throws Result
@@ -405,18 +391,6 @@ EpollPollGroup::open ()
     return Result::Success;
 }
 
-namespace {
-void deferred_processor_trigger (void * const active_poll_group_)
-{
-    ActivePollGroup * const active_poll_group = static_cast <ActivePollGroup*> (active_poll_group_);
-    active_poll_group->trigger ();
-}
-
-DeferredProcessor::Backend deferred_processor_backend = {
-    deferred_processor_trigger
-};
-}
-
 EpollPollGroup::EpollPollGroup (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
       efd (-1),
@@ -425,16 +399,10 @@ EpollPollGroup::EpollPollGroup (Object * const coderef_container)
       // Initializing to 'true' to process deferred tasks scheduled before we
       // enter poll() the first time.
       got_deferred_tasks (true),
-      deferred_processor (coderef_container),
       poll_tlocal (NULL)
 {
     trigger_pipe [0] = -1;
     trigger_pipe [1] = -1;
-
-    deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
-	    &deferred_processor_backend,
-	    static_cast <ActivePollGroup*> (this) /* cb_data */,
-	    NULL /* coderef_container */));
 }
 
 EpollPollGroup::~EpollPollGroup ()

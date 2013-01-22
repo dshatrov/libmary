@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__EPOLL_POLL_GROUP__H__
-#define __LIBMARY__EPOLL_POLL_GROUP__H__
+#ifndef LIBMARY__EPOLL_POLL_GROUP__H__
+#define LIBMARY__EPOLL_POLL_GROUP__H__
 
 
 #include <libmary/types.h>
@@ -68,21 +68,16 @@ private:
     mt_mutex (mutex) PollableList pollable_list;
     mt_mutex (mutex) PollableDeletionQueue pollable_deletion_queue;
 
-    DeferredProcessor deferred_processor;
-
     mt_const LibMary_ThreadLocal *poll_tlocal;
 
     mt_throws Result doActivate (PollableEntry * mt_nonnull pollable_entry);
 
     mt_mutex (mutex) void processPollableDeletionQueue ();
 
-    mt_throws Result triggerPipeWrite ();
-
 public:
   mt_iface (ActivePollgroup)
     mt_iface (PollGroup)
       mt_throws PollableKey addPollable (CbDesc<Pollable> const &pollable,
-					 DeferredProcessor::Registration *ret_reg,
 					 bool activate = true);
 
       mt_throws Result activatePollable (PollableKey mt_nonnull key);
@@ -110,5 +105,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__EPOLL_POLL_GROUP__H__ */
+#endif /* LIBMARY__EPOLL_POLL_GROUP__H__ */
 
