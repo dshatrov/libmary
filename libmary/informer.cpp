@@ -96,17 +96,17 @@ GenericInformer::informAll_unlocked (ProxyInformCallback   const mt_nonnull prox
 	CodeRef code_ref;
 	if (sbn->weak_code_ref.isValid()) {
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-	    if (sbn->weak_code_ref.getWeakObject() != tlocal->last_coderef_container) {
+	    if (sbn->weak_code_ref.getShadowPtr() != tlocal->last_coderef_container_shadow) {
 		code_ref = sbn->weak_code_ref;
 		if (code_ref) {
 		    mutex->unlock ();
 
-		    Object * const prv_coderef_container = tlocal->last_coderef_container;
-		    tlocal->last_coderef_container = sbn->weak_code_ref.getWeakObject();
+                    Object::Shadow * const prv_coderef_container_shadow = tlocal->last_coderef_container_shadow;
+		    tlocal->last_coderef_container_shadow = sbn->weak_code_ref.getShadowPtr();
 
 		    proxy_inform_cb (sbn->cb_ptr, sbn->cb_data, inform_cb, inform_cb_data);
 
-		    tlocal->last_coderef_container = prv_coderef_container;
+		    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 
 		    mutex->lock ();
 		    sbn = sbn_list.getNext (sbn);

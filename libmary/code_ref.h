@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__CODE_REF__H__
-#define __LIBMARY__CODE_REF__H__
+#ifndef LIBMARY__CODE_REF__H__
+#define LIBMARY__CODE_REF__H__
 
 
 #include <libmary/types_base.h>
@@ -47,14 +47,6 @@ class WeakCodeRef
     friend class CodeRef;
 
 private:
-    // We store container pointer to optimize away consequent reference grabs
-    // for the same container in runtime. That decreases number of atomic ops
-    // performed when processing async events with chains of handler objects.
-    //
-    // TODO 11.11.09 WeakRef::typed_weak_ptr could be used instead, but it is
-    //               valid only when shadow->weak_ptr is non-null.
-    Object *weak_obj;
-
     // This is Ref<Object::Shadow>, actually.
     WeakRef<Object> weak_ref;
 
@@ -64,32 +56,28 @@ public:
 	return weak_ref.isValid();
     }
 
-    Object* getWeakObject () const
+    Object::Shadow* getShadowPtr () const
     {
-	return weak_obj;
+        return weak_ref.getShadowPtr();
     }
 
     WeakCodeRef& operator = (CodeReferenced * const obj)
     {
 	Object * const container = obj ? obj->getCoderefContainer() : NULL;
 	weak_ref = container;
-	weak_obj = container;
 	return *this;
     }
 
     WeakCodeRef (CodeReferenced * const obj)
-	: weak_obj (obj ? obj->getCoderefContainer() : NULL),
-	  // We had to trick with initialization order here to avoid calling
-	  // obj->getCoderefContainer() twice.
-	  weak_ref (weak_obj)
+        : weak_ref (obj ? obj->getCoderefContainer() : NULL)
     {
     }
 
     WeakCodeRef ()
-	: weak_obj (NULL)
     {
     }
 };
+
 
 // TODO Ref<X> ref = weak_ref;
 //      if (ref) { ... }
@@ -99,7 +87,6 @@ public:
 class CodeRef
 {
 private:
-//    CodeReferenced * const obj;
     Ref<Object> ref;
 
 public:
@@ -150,40 +137,6 @@ public:
   )
 };
 
-// TODO Refine this (see docs/informer.txt).
-template <class T, class CB, class ...Args>
-void
-CodeReferenced::async_call (T *self, CB tocall, Args const &...args)
-{
-    if (!self || !tocall)
-	return;
-
-    Object* const coderef_container = getCoderefContainer();
-
-    // TODO Почему бы не делать эти действия в CodeRef?
-    //      Касается также класса Cb<>.
-    //      Если бы за проверку tlocal отвечал CodeRef, то async_call
-    //      выродился бы до:
-    //          {
-    //              CodeRef ref = obj;
-    //              obj->method ();
-    //          }
-    //      И потребность в async_call() пропала бы полностью.
-    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();
-    if (coderef_container == tlocal->last_coderef_container) {
-	self->*tocall (args...);
-	return;
-    }
-
-    CodeRef const code_ref = coderef_container;
-    Object * const prv_coderef_container = tlocal->last_coderef_container;
-    tlocal->last_coderef_container = coderef_container;
-
-    self->*tocall (args...);
-
-    tlocal->last_coderef_container = prv_coderef_container;
-}
-
 }
 
 
@@ -192,5 +145,5 @@ CodeReferenced::async_call (T *self, CB tocall, Args const &...args)
 #endif
 
 
-#endif /* __LIBMARY__CODE_REF__H__ */
+#endif /* LIBMARY__CODE_REF__H__ */
 

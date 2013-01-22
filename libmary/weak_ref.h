@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__WEAK_REF__H__
-#define __LIBMARY__WEAK_REF__H__
+#ifndef LIBMARY__WEAK_REF__H__
+#define LIBMARY__WEAK_REF__H__
 
 
 //#include <cstdio> // DEBUG
@@ -76,6 +76,11 @@ public:
 	return typed_weak_ptr;
     }
 
+    Object::Shadow* getShadowPtr () const
+    {
+        return shadow;
+    }
+
     bool isValid () const
     {
 	return shadow;
@@ -118,5 +123,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__WEAK_REF__H__ */
+#endif /* LIBMARY__WEAK_REF__H__ */
 

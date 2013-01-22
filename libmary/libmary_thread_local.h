@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__LIBMARY_THREAD_LOCAL__H__
-#define __LIBMARY__LIBMARY_THREAD_LOCAL__H__
+#ifndef LIBMARY__LIBMARY_THREAD_LOCAL__H__
+#define LIBMARY__LIBMARY_THREAD_LOCAL__H__
 
 
 #include <libmary/types.h>
@@ -52,6 +52,9 @@
   #endif
   #define LIBMARY__TLOCAL_GPRIVATE_DTOR &_libMary_tlocal_gprivate_dtor
 #endif
+
+
+#include <libmary/object.h>
 
 
 namespace M {
@@ -94,7 +97,7 @@ public:
     IntrusiveList<ExceptionBuffer> exc_free_stack;
     Size exc_free_stack_size;
 
-    Object *last_coderef_container;
+    Object::Shadow *last_coderef_container_shadow;
 
     char *strerr_buf;
     Size strerr_buf_size;
@@ -183,8 +186,5 @@ void libMary_releaseThreadLocalForMainThread ();
 }
 
 
-#include <libmary/object.h>
-
-
-#endif /* __LIBMARY__LIBMARY_THREAD_LOCAL__H__ */
+#endif /* LIBMARY__LIBMARY_THREAD_LOCAL__H__ */
 

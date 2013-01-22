@@ -60,7 +60,7 @@ LibMary_ThreadLocal::LibMary_ThreadLocal ()
       exc (NULL),
       exc_free_stack_size (0),
 
-      last_coderef_container (NULL),
+      last_coderef_container_shadow (NULL),
 
       time_seconds (0),
       time_microseconds (0),

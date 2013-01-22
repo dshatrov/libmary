@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__CODE_REFERENCED__H__
-#define __LIBMARY__CODE_REFERENCED__H__
+#ifndef LIBMARY__CODE_REFERENCED__H__
+#define LIBMARY__CODE_REFERENCED__H__
 
 
 #include <libmary/annotations.h>
@@ -32,10 +32,6 @@ class CodeReferenced
 {
 public:
     virtual Object* getCoderefContainer () = 0;
-
-    // Implemented in code_ref.h to resolve header dependencies.
-    template <class T, class CB, class ...Args>
-    void async_call (T *self, CB tocall, Args const &...args);
 
     virtual ~CodeReferenced () {}
 };
@@ -63,5 +59,5 @@ public:
 #include <libmary/object.h>
 
 
-#endif /* __LIBMARY__CODE_REFERENCED__H__ */
+#endif /* LIBMARY__CODE_REFERENCED__H__ */
 

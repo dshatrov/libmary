@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__CB__H__
-#define __LIBMARY__CB__H__
+#ifndef LIBMARY__CB__H__
+#define LIBMARY__CB__H__
 
 
 #include <libmary/types.h>
@@ -68,7 +68,7 @@ public:
 	  // code reference first.
 
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
-	    if (weak_code_ref.getWeakObject() == tlocal->last_coderef_container) {
+	    if (weak_code_ref.getShadowPtr() == tlocal->last_coderef_container_shadow) {
 	      // The container has already been code-referenced in the current
 	      // execution path. There's no need to duplicate the reference.
 	      //
@@ -90,13 +90,13 @@ public:
 	      fprintf (stderr, "Cb::call_ret: refed obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
 	    )
 
-	    Object * const prv_coderef_container = tlocal->last_coderef_container;
-	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
+	    Object::Shadow * const prv_coderef_container_shadow = tlocal->last_coderef_container_shadow;
+	    tlocal->last_coderef_container_shadow = weak_code_ref.getShadowPtr();
 
 	    // This probably won't be optimized by the compiler, which is a bit sad.
 	    *ret = tocall (args..., cb_data);
 
-	    tlocal->last_coderef_container = prv_coderef_container;
+	    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 	    return true;
 	} else {
 	    DEBUG (
@@ -140,7 +140,7 @@ public:
 	  // code reference first.
 
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
-	    if (weak_code_ref.getWeakObject() == tlocal->last_coderef_container) {
+	    if (weak_code_ref.getShadowPtr() == tlocal->last_coderef_container_shadow) {
 	      // The container has already been code-referenced in the current
 	      // execution path. There's no need to duplicate the reference.
 	      //
@@ -162,8 +162,8 @@ public:
 	      fprintf (stderr, "Cb::call_ret_mutex: refed obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
 	    )
 
-	    Object * const prv_coderef_container = tlocal->last_coderef_container;
-	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
+	    Object::Shadow * const prv_coderef_container_shadow = tlocal->last_coderef_container_shadow;
+	    tlocal->last_coderef_container_shadow = weak_code_ref.getShadowPtr ();
 
             // With 'tmp_cb_data', we avoid accessing 'cb_data', since it is a member of Cb,
             // which is not guaranteed to stay available after we unlock the mutex.
@@ -175,7 +175,7 @@ public:
 	    // This probably won't be optimized by the compiler, which is a bit sad.
 	    *ret = tocall (args..., tmp_cb_data);
 
-	    tlocal->last_coderef_container = prv_coderef_container;
+	    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 	    mutex.lock ();
 	    return true;
 	} else {
@@ -225,7 +225,7 @@ public:
 
 	if (weak_code_ref.isValid ()) {
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
-	    if (weak_code_ref.getWeakObject() == tlocal->last_coderef_container)
+	    if (weak_code_ref.getShadowPtr() == tlocal->last_coderef_container_shadow)
 		goto _simple_path;
 
 	    CodeRef const code_ref = weak_code_ref;
@@ -239,12 +239,12 @@ public:
 	      fprintf (stderr, "Cb::call: refed obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
 	    )
 
-	    Object * const prv_coderef_container = tlocal->last_coderef_container;
-	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
+	    Object::Shadow * const prv_coderef_container_shadow = tlocal->last_coderef_container_shadow;
+	    tlocal->last_coderef_container_shadow = weak_code_ref.getShadowPtr();
 
 	    tocall (args..., cb_data);
 
-	    tlocal->last_coderef_container = prv_coderef_container;
+	    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 	    return true;
 	} else {
 	    DEBUG (
@@ -285,7 +285,7 @@ public:
 
 	if (weak_code_ref.isValid ()) {
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
-	    if (weak_code_ref.getWeakObject() == tlocal->last_coderef_container)
+	    if (weak_code_ref.getShadowPtr() == tlocal->last_coderef_container_shadow)
 		goto _simple_path;
 
 	    CodeRef const code_ref = weak_code_ref;
@@ -299,8 +299,8 @@ public:
 	      fprintf (stderr, "Cb::call_mutex: refed obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
 	    )
 
-	    Object * const prv_coderef_container = tlocal->last_coderef_container;
-	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
+	    Object::Shadow * const prv_coderef_container_shadow = tlocal->last_coderef_container_shadow;
+	    tlocal->last_coderef_container_shadow = weak_code_ref.getShadowPtr ();
 
             // With 'tmp_cb_data', we avoid accessing 'cb_data', since it is a member of Cb,
             // which is not guaranteed to stay available after we unlock the mutex.
@@ -310,7 +310,7 @@ public:
 	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 	    tocall (args..., tmp_cb_data);
 
-	    tlocal->last_coderef_container = prv_coderef_container;
+	    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 	    mutex.lock ();
 	    return true;
 	} else {
@@ -351,7 +351,7 @@ public:
 
 	if (weak_code_ref.isValid ()) {
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
-	    if (weak_code_ref.getWeakObject() == tlocal->last_coderef_container)
+	    if (weak_code_ref.getShadowPtr() == tlocal->last_coderef_container_shadow)
 		goto _simple_path;
 
 	    CodeRef const code_ref = weak_code_ref;
@@ -366,8 +366,8 @@ public:
 	      fprintf (stderr, "Cb::call_unlocks_mutex: refed obj 0x%lx\n", (unsigned long) weak_code_ref.getWeakObject());
 	    )
 
-	    Object * const prv_coderef_container = tlocal->last_coderef_container;
-	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
+	    Object::Shadow * const prv_coderef_container_shadow = tlocal->last_coderef_container_shadow;
+	    tlocal->last_coderef_container_shadow = weak_code_ref.getShadowPtr();
 
             // With 'tmp_cb_data', we avoid accessing 'cb_data', since it is a member of Cb,
             // which is not guaranteed to stay available after we unlock the mutex.
@@ -377,7 +377,7 @@ public:
 	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 	    tocall (args..., tmp_cb_data);
 
-	    tlocal->last_coderef_container = prv_coderef_container;
+	    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 	    return true;
 	} else {
 	    DEBUG (
@@ -412,15 +412,15 @@ public:
 
 	if (weak_code_ref.isValid ()) {
 	    LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal ();
-	    if (weak_code_ref.getWeakObject() == tlocal->last_coderef_container)
+	    if (weak_code_ref.getShadowPtr() == tlocal->last_coderef_container_shadow)
 		goto _simple_path;
 
 	    CodeRef const code_ref = weak_code_ref;
 	    if (!code_ref)
 		return false;
 
-	    Object * const prv_coderef_container = tlocal->last_coderef_container;
-	    tlocal->last_coderef_container = weak_code_ref.getWeakObject ();
+            Object::Shadow * const prv_coderef_container_shadow = tlocal->last_coderef_container_shadow;
+	    tlocal->last_coderef_container_shadow = weak_code_ref.getShadowPtr();
 
             // With 'tmp_cb_data', we avoid accessing 'cb_data', since it is a member of Cb,
             // which is not guaranteed to stay available after we unlock the mutex.
@@ -430,7 +430,7 @@ public:
 	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 	    tocall (args..., tmp_cb_data);
 
-	    tlocal->last_coderef_container = prv_coderef_container;
+	    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 	    return true;
 	}
 
@@ -495,11 +495,13 @@ public:
 	return weak_code_ref;
     }
 
+#if 0
     // For debugging only.
     Object* getWeakObject () const
     {
 	return weak_code_ref.getWeakObject ();
     }
+#endif
 
     void* getCbData () const
     {
@@ -586,5 +588,5 @@ public:
 #include <libmary/deferred_processor.h> // for cb_deferred.h
 
 
-#endif /* __LIBMARY__CB__H__ */
+#endif /* LIBMARY__CB__H__ */
 
