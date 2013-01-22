@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__ATOMIC__H__
-#define __LIBMARY__ATOMIC__H__
+#ifndef LIBMARY__ATOMIC__H__
+#define LIBMARY__ATOMIC__H__
 
 
 #include <libmary/libmary_config.h>
@@ -218,8 +218,22 @@ public:
     }
 };
 
+#ifdef LIBMARY_MT_SAFE
+extern volatile gint _libMary_dummy_mb_int;
+
+static inline void full_memory_barrier ()
+{
+    // g_atomic_int_get() acts as a full compiler and hardware memory barrier.
+    g_atomic_int_get (&_libMary_dummy_mb_int);
+}
+#else
+static inline void full_memory_barrier ()
+{
+}
+#endif
+
 }
 
 
-#endif /* __LIBMARY__ATOMIC__H__ */
+#endif /* LIBMARY__ATOMIC__H__ */
 
