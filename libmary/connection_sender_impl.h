@@ -113,6 +113,11 @@ public:
 	return sending_message || !msg_list.isEmpty ();
     }
 
+    Sender::SendState getSendState () const
+    {
+        return send_state;
+    }
+
     mt_const void setConnection (Connection * const conn)
     {
 	this->conn = conn;
