@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,15 +17,15 @@
 */
 
 
-#ifndef __LIBMARY__HTTP_H__
-#define __LIBMARY__HTTP_H__
+#ifndef LIBMARY__HTTP_SERVER__H__
+#define LIBMARY__HTTP_SERVER__H__
 
 
 #include <libmary/types.h>
 #include <libmary/list.h>
 #include <libmary/hash.h>
 #include <libmary/exception.h>
-#include <libmary/basic_referenced.h>
+#include <libmary/st_referenced.h>
 #include <libmary/sender.h>
 #include <libmary/receiver.h>
 #include <libmary/code_referenced.h>
@@ -42,13 +42,7 @@ class HttpServer;
 // Server - и принимает, и отправляет данные (Input+Output);
 // Service - принимает соединения и сам строит вокруг них цепочки обработки.
 
-// Connection vs Server - ?
-// Connection работает ближе к транспортному уровню.
-// Server - ближе к бизнес-логике.
-// Поэтому RtmpConnection.
-// RtmptServer - потому что его нельзя назвать "Connection".
-
-class HttpRequest : public BasicReferenced
+class HttpRequest : public StReferenced
 {
     friend class HttpServer;
 
@@ -74,7 +68,8 @@ private:
     ConstMemory *path;
     Count num_path_elems;
 
-    Uint64 content_length;
+    IpAddress   client_addr;
+    Uint64      content_length;
     Ref<String> accept_language;
     Ref<String> if_modified_since;
     Ref<String> if_none_match;
@@ -83,25 +78,19 @@ private:
 
     bool keepalive;
 
-    IpAddress client_addr;
-
-    // TODO Map of get params + iterator over get params, ordered (intrusive list).
-
 public:
-    ConstMemory getRequestLine () const
-    {
-	return request_line->mem();
-    }
+    ConstMemory getRequestLine     () const { return request_line ? request_line->mem() : ConstMemory(); }
+    ConstMemory getMethod          () const { return method; }
+    ConstMemory getFullPath        () const { return full_path; }
+    Count       getNumPathElems    () const { return num_path_elems; }
+    IpAddress   getClientAddress   () const { return client_addr; }
+    Uint64      getContentLength   () const { return content_length; }
+    ConstMemory getAcceptLanguage  () const { return accept_language ? accept_language->mem()   : ConstMemory(); }
+    ConstMemory getIfModifiedSince () const { return if_modified_since ? if_modified_since->mem() : ConstMemory(); }
+    ConstMemory getIfNoneMatch     () const { return if_none_match   ? if_none_match->mem()     : ConstMemory(); }
 
-    ConstMemory getMethod () const
-    {
-	return method;
-    }
-
-    ConstMemory getFullPath () const
-    {
-	return full_path;
-    }
+    void setKeepalive (bool const keepalive) { this->keepalive = keepalive; }
+    bool getKeepalive () const { return keepalive; }
 
     ConstMemory getPath (Count const index) const
     {
@@ -109,40 +98,6 @@ public:
 	    return ConstMemory();
 
 	return path [index];
-    }
-
-    Count getNumPathElems () const
-    {
-	return num_path_elems;
-    }
-
-    Uint64 getContentLength () const
-    {
-	return content_length;
-    }
-
-    ConstMemory getAcceptLanguage () const
-    {
-        if (!accept_language)
-            return ConstMemory ();
-
-        return accept_language->mem();
-    }
-
-    ConstMemory getIfModifiedSince () const
-    {
-        if (!if_modified_since)
-            return ConstMemory ();
-
-        return if_modified_since->mem();
-    }
-
-    ConstMemory getIfNoneMatch () const
-    {
-        if (!if_none_match)
-            return ConstMemory ();
-
-        return if_none_match->mem();
     }
 
     // If ret.mem() == NULL, then the parameter is not set.
@@ -154,21 +109,6 @@ public:
 	    return ConstMemory();
 
 	return param->value;
-    }
-
-    void setKeepalive (bool const keepalive)
-    {
-	this->keepalive = keepalive;
-    }
-
-    bool getKeepalive() const
-    {
-	return keepalive;
-    }
-
-    IpAddress getClientAddress () const
-    {
-	return client_addr;
     }
 
     void parseParameters (Memory mem);
@@ -238,14 +178,17 @@ private:
 	Value value;
     };
 
-    Cb<Frontend> frontend;
+    mt_const Cb<Frontend> frontend;
 
-    DataDepRef<Sender> sender;
-    DataDepRef<PagePool> page_pool;
+    mt_const DataDepRef<Receiver> receiver;
+    mt_const DataDepRef<Sender> sender;
+    mt_const DataDepRef<PagePool> page_pool;
 
-    IpAddress client_addr;
+    mt_const IpAddress client_addr;
 
-    Ref<HttpRequest> cur_req;
+    AtomicInt input_blocked;
+
+    StRef<HttpRequest> cur_req;
 
     RequestState req_state;
     // Number of bytes received for message body / request line / header field.
@@ -264,7 +207,6 @@ private:
     void resetRequestState ();
 
   mt_iface (Receiver::Frontend)
-
     static Receiver::Frontend const receiver_frontend;
 
     static Receiver::ProcessInputResult processInput (Memory const &mem,
@@ -275,37 +217,43 @@ private:
 
     static void processError (Exception *exc_,
 			      void      *_self);
+  mt_iface_end
 
+  mt_iface (Sender::Frontend)
+    static Sender::Frontend const sender_frontend;
+
+    static void sendStateChanged (Sender::SendState   send_state,
+                                  void              *_self);
+
+    static void senderClosed (Exception *exc_,
+                              void      *_self);
   mt_iface_end
 
 public:
-    // TODO setReceiver
-
-    Cb<Receiver::Frontend> getReceiverFrontend ()
+    void init (CbDesc<Frontend> const &frontend,
+               Receiver               * const mt_nonnull receiver,
+               Sender                 * const sender    /* may be NULL for client mode */,
+               PagePool               * const page_pool /* may be NULL for client mode */,
+               IpAddress const        &client_addr)
     {
-	return Cb<Receiver::Frontend> (&receiver_frontend, this, getCoderefContainer());
-    }
-
-    void setFrontend (CbDesc<Frontend> const &frontend)
-    {
-	this->frontend = frontend;
-    }
-
-    // Not necessary for client mode.
-    void setSender (Sender   * const sender,
-		    PagePool * const page_pool)
-    {
-	this->sender = sender;
-	this->page_pool = page_pool;
-    }
-
-    void init (IpAddress const &client_addr)
-    {
+        this->frontend = frontend;
+        this->receiver = receiver;
+        this->sender = sender;
+        this->page_pool = page_pool;
 	this->client_addr = client_addr;
+
+        receiver->setFrontend (
+                CbDesc<Receiver::Frontend> (&receiver_frontend, this, getCoderefContainer()));
+
+        if (sender) {
+            sender->setFrontend (
+                    CbDesc<Sender::Frontend> (&sender_frontend, this, getCoderefContainer()));
+        }
     }
 
     HttpServer (Object * const coderef_container)
 	: DependentCodeReferenced (coderef_container),
+          receiver  (coderef_container),
 	  sender    (coderef_container),
           page_pool (coderef_container),
 	  req_state (RequestState::RequestLine),
@@ -318,5 +266,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__HTTP_H__ */
+#endif /* LIBMARY__HTTP_SERVER__H__ */
 

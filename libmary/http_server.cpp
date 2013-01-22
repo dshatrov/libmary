@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -25,7 +25,7 @@
 #include <libmary/util_str.h>
 #include <libmary/util_dev.h> // Debugging
 
-#include <libmary/http.h>
+#include <libmary/http_server.h>
 
 
 namespace M {
@@ -38,6 +38,11 @@ Receiver::Frontend const HttpServer::receiver_frontend = {
     processInput,
     processEof,
     processError
+};
+
+Sender::Frontend const HttpServer::sender_frontend = {
+    sendStateChanged,
+    senderClosed
 };
 
 void
@@ -76,7 +81,8 @@ HttpRequest::parseParameters (Memory const mem)
 //	logD_ (_func, "parameter: ", name, " = ", value);
 
 	{
-	    HttpRequest::Parameter * const param = new HttpRequest::Parameter;
+	    HttpRequest::Parameter * const param = new (std::nothrow) HttpRequest::Parameter;
+            assert (param);
 	    param->name = name;
 	    param->value = value;
 	    parameter_hash.add (param);
@@ -234,7 +240,7 @@ HttpRequest::parseAcceptLanguage (ConstMemory              const mem,
             if (lang.len() > 0) {
                 res_list->appendEmpty ();
                 AcceptedLanguage * const alang = &res_list->getLast();
-                alang->lang = grab (new String (lang));
+                alang->lang = grab (new (std::nothrow) String (lang));
                 alang->weight = weight;
             }
 
@@ -290,7 +296,7 @@ static Ref<String> parseQuotedString (ConstMemory   const mem,
             }
 
             if (i == 0) {
-                unescaped_str = grab (new String (unescaped_len));
+                unescaped_str = grab (new (std::nothrow) String (unescaped_len));
                 pos = tag_begin;
             }
         }
@@ -389,7 +395,7 @@ HttpServer::processRequestLine (Memory const _mem)
 {
     logD (http, _func, "mem: ", _mem);
 
-    cur_req->request_line = grab (new String (_mem));
+    cur_req->request_line = grab (new (std::nothrow) String (_mem));
     ConstMemory const mem = cur_req->request_line->mem();
 
     Byte const *path_beg = (Byte const *) memchr (mem.mem(), 32 /* SP */, mem.len());
@@ -459,7 +465,8 @@ HttpServer::processRequestLine (Memory const _mem)
     if (cur_req->num_path_elems > 0) {
       // Filling path elements.
 
-	cur_req->path = new ConstMemory [cur_req->num_path_elems];
+	cur_req->path = new (std::nothrow) ConstMemory [cur_req->num_path_elems];
+        assert (cur_req->path);
 
 	Size path_pos = path_offs;
 	Count index = 0;
@@ -566,13 +573,13 @@ HttpServer::processHeaderField (ConstMemory const &mem)
 	}
     } else
     if (!compare (header_name, "accept-language")) {
-        cur_req->accept_language = grab (new String (header_value));
+        cur_req->accept_language = grab (new (std::nothrow) String (header_value));
     } else
     if (!compare (header_name, "if-modified-since")) {
-        cur_req->if_modified_since = grab (new String (header_value));
+        cur_req->if_modified_since = grab (new (std::nothrow) String (header_value));
     } else
     if (!compare (header_name, "if-none-match")) {
-        cur_req->if_none_match = grab (new String (header_value));
+        cur_req->if_none_match = grab (new (std::nothrow) String (header_value));
     }
 }
 
@@ -691,14 +698,16 @@ HttpServer::processInput (Memory const &_mem,
     *ret_accepted = 0;
 
     Memory mem = _mem;
-
     for (;;) {
+        if (self->input_blocked.get() == 1)
+            return Receiver::ProcessInputResult::InputBlocked;
+
 	switch (self->req_state) {
 	    case RequestState::RequestLine:
 		logD (http, _func, "RequestState::RequestLine");
 	    case RequestState::HeaderField: {
 		if (!self->cur_req) {
-		    self->cur_req = grab (new HttpRequest);
+		    self->cur_req = st_grab (new (std::nothrow) HttpRequest);
 		    self->cur_req->client_addr = self->client_addr;
 		}
 
@@ -765,6 +774,7 @@ HttpServer::processInput (Memory const &_mem,
 		unreachable ();
 	}
     }
+    unreachable ();
 }
 
 void
@@ -781,6 +791,36 @@ HttpServer::processEof (void * const _self)
 void
 HttpServer::processError (Exception * const exc_,
 			  void      * const _self)
+{
+    HttpServer * const self = static_cast <HttpServer*> (_self);
+
+    logD (http, _func_);
+
+    if (self->frontend && self->frontend->closed)
+	self->frontend.call (self->frontend->closed, /*(*/ exc_ /*)*/);
+}
+
+void
+HttpServer::sendStateChanged (Sender::SendState   const send_state,
+                              void              * const _self)
+{
+    HttpServer * const self = static_cast <HttpServer*> (_self);
+
+    logD (http, _func_);
+
+    if (send_state == Sender::SendState::ConnectionReady) {
+//        logD_ (_func, "--- blocking input");
+        self->input_blocked.set (0);
+        self->receiver->unblockInput ();
+    } else {
+//        logD_ (_func, "--- unblocking input");
+        self->input_blocked.set (1);
+    }
+}
+
+void
+HttpServer::senderClosed (Exception * const exc_,
+                          void      * const _self)
 {
     HttpServer * const self = static_cast <HttpServer*> (_self);
 

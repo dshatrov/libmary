@@ -117,7 +117,7 @@
   #include <libmary/epoll_poll_group.h>
 #endif
 
-#include <libmary/http.h>
+#include <libmary/http_server.h>
 #include <libmary/http_client.h>
 #include <libmary/http_service.h>
 
