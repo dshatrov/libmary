@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2012 Dmitry Shatrov
+    Copyright (C) 2012-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__HTTP_CLIENT__H__
-#define __LIBMARY__HTTP_CLIENT__H__
+#ifndef LIBMARY__HTTP_CLIENT__H__
+#define LIBMARY__HTTP_CLIENT__H__
 
 
 #include <libmary/types.h>
@@ -27,7 +27,7 @@
 #include <libmary/tcp_connection.h>
 #include <libmary/deferred_connection_sender.h>
 #include <libmary/connection_receiver.h>
-#include <libmary/http.h>
+#include <libmary/http_server.h>
 #include <libmary/server_context.h>
 
 
@@ -85,9 +85,7 @@ private:
 
         mt_sync (HttpClientConnection::http_server)
         mt_begin
-
           bool discarded;
-
         mt_end
 
         void releaseRequestData ();
@@ -107,11 +105,9 @@ private:
 
         mt_sync (http_server)
         mt_begin
-
           Byte *preassembly_buf;
           Size  preassembly_buf_size;
           Size  preassembled_len;
-
         mt_end
 
         TcpConnection tcp_conn;
@@ -140,16 +136,13 @@ private:
     mt_mutex (mutex) List< Ref<HttpClientConnection> > http_conns;
 
   mt_iface (TcpConnection::Frontend)
-
     static TcpConnection::Frontend const tcp_conn_frontend;
 
     static void connected (Exception *exc_,
                            void      *_http_conn);
-
   mt_iface_end
 
   mt_iface (Sender::Frontend)
-
     static Sender::Frontend const sender_frontend;
 
     static void senderStateChanged (Sender::SendState  send_state,
@@ -157,11 +150,9 @@ private:
 
     static void senderClosed (Exception *exc_,
                               void      *_http_conn);
-
   mt_iface_end
 
   mt_iface (HttpServer::Frontend)
-
     static HttpServer::Frontend const http_server_frontend;
 
     static void httpReply (HttpRequest * mt_nonnull reply,
@@ -175,7 +166,6 @@ private:
 
     static void httpClosed (Exception *exc_,
                             void      *_http_conn);
-
   mt_iface_end
 
     mt_mutex (mutex) void destroyHttpClientConnection (HttpClientConnection *http_conn);
@@ -225,5 +215,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__HTTP_CLIENT__H__ */
+#endif /* LIBMARY__HTTP_CLIENT__H__ */
 

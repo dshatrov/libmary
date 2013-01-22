@@ -91,6 +91,7 @@ HttpClient::senderStateChanged (Sender::SendState   const /* send_state */,
 
 /*
 // TODO This will be covered by reply timeouts.
+//      ^^^ Reacting to QueueHardLimit is still a good idea.
 
     if (send_state == Sender::SendState::QueueHardLimit) {
         self->mutex.lock ();
@@ -108,7 +109,7 @@ HttpClient::senderClosed (Exception * const exc_,
     HttpClient * const self = http_conn->http_client;
 
     if (exc_)
-        logE_ (_func, exc_->toString());
+        logE_ (_func, "exception: ", exc_->toString());
 
     self->mutex.lock ();
     mt_unlocks_locks (mutex) self->destroyHttpClientConnection (http_conn);
@@ -434,7 +435,7 @@ HttpClient::connect (bool * const ret_connected)
 {
     *ret_connected = false;
 
-    Ref<HttpClientConnection> const http_conn = grab (new HttpClientConnection);
+    Ref<HttpClientConnection> const http_conn = grab (new (std::nothrow) HttpClientConnection);
     http_conn->http_client = this;
     http_conn->server_addr = next_server_addr;
     http_conn->valid = true;
@@ -447,21 +448,23 @@ HttpClient::connect (bool * const ret_connected)
     CodeDepRef<ServerThreadContext> const thread_ctx = server_ctx->selectThreadContext ();
     http_conn->weak_thread_ctx = thread_ctx;
 
-    http_conn->tcp_conn.setFrontend (CbDesc<TcpConnection::Frontend> (&tcp_conn_frontend, http_conn, getCoderefContainer(), http_conn));
-
-    {
-        IpAddress client_addr;
-        http_conn->http_server.init (client_addr);
-    }
-    http_conn->http_server.setFrontend (CbDesc<HttpServer::Frontend> (&http_server_frontend, http_conn, getCoderefContainer(), http_conn));
-    // Not calling http_conn->http_server.setSender() since we need client mode only.
+    http_conn->tcp_conn.setFrontend (
+            CbDesc<TcpConnection::Frontend> (&tcp_conn_frontend, http_conn, getCoderefContainer()));
 
     http_conn->sender.setConnection (&http_conn->tcp_conn);
     http_conn->sender.setQueue (thread_ctx->getDeferredConnectionSenderQueue());
-    http_conn->sender.setFrontend (CbDesc<Sender::Frontend> (&sender_frontend, http_conn, getCoderefContainer(), http_conn));
+    http_conn->sender.setFrontend (
+            CbDesc<Sender::Frontend> (&sender_frontend, http_conn, getCoderefContainer()));
 
     http_conn->receiver.setConnection (&http_conn->tcp_conn);
-    http_conn->receiver.setFrontend (http_conn->http_server.getReceiverFrontend());
+
+    http_conn->http_server.init (
+            CbDesc<HttpServer::Frontend> (
+                    &http_server_frontend, http_conn, getCoderefContainer()),
+            &http_conn->receiver,
+            NULL /* sender */,
+            NULL /* page_pool */,
+            IpAddress());
 
     // TODO FIXME There's a racy nasty problem here: TcpConnection::connected field updates
     // are not synchronized, and we probably want to add pollable before calling connect () - test for this.
@@ -475,7 +478,7 @@ HttpClient::connect (bool * const ret_connected)
 
     http_conn->pollable_key =
             thread_ctx->getPollGroup()->addPollable (http_conn->tcp_conn.getPollable(),
-                                                     NULL /* ret_reg */,
+                                                     NULL  /* ret_reg */,
                                                      false /* activate */);
 
     if (!http_conn->pollable_key) {
@@ -551,10 +554,10 @@ HttpClient::queueRequest (HttpRequestType const req_type,
     if (!http_conn)
         return Result::Failure;
 
-    Ref<HttpClientRequest> const http_req = grab (new HttpClientRequest);
+    Ref<HttpClientRequest> const http_req = grab (new (std::nothrow) HttpClientRequest);
     http_req->req_type = req_type;
     // TODO No need to allocate when 'connected' is true.
-    http_req->req_path = grab (new String (req_path));
+    http_req->req_path = grab (new (std::nothrow) String (req_path));
     http_req->response_cb = response_cb;
 
     http_req->preassembly = preassembly;

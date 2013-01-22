@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__ASYNC_INPUT_STREAM__H__
-#define __LIBMARY__ASYNC_INPUT_STREAM__H__
+#ifndef LIBMARY__ASYNC_INPUT_STREAM__H__
+#define LIBMARY__ASYNC_INPUT_STREAM__H__
 
 
 #include <libmary/types.h>
@@ -56,5 +56,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__ASYNC_INPUT_STREAM__H__ */
+#endif /* LIBMARY__ASYNC_INPUT_STREAM__H__ */
 

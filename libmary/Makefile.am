@@ -129,7 +129,7 @@ mary_target_headers =			\
 	active_poll_group.h		\
 	select_poll_group.h		\
 					\
-	http.h				\
+	http_server.h			\
         http_client.h                   \
 	http_service.h			\
 					\
@@ -297,7 +297,7 @@ libmary_1_0_la_SOURCES =		\
 					\
 	deferred_processor.cpp		\
 					\
-	http.cpp			\
+	http_server.cpp			\
         http_client.cpp                 \
 	http_service.cpp		\
 					\

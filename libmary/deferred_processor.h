@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__DEFERRED_PROCESSOR__H__
-#define __LIBMARY__DEFERRED_PROCESSOR__H__
+#ifndef LIBMARY__DEFERRED_PROCESSOR__H__
+#define LIBMARY__DEFERRED_PROCESSOR__H__
 
 
 #include <libmary/types.h>
@@ -171,5 +171,5 @@ public:
 #include <libmary/cb_deferred.h>
 
 
-#endif /* __LIBMARY__DEFERRED_PROCESSOR__H__ */
+#endif /* LIBMARY__DEFERRED_PROCESSOR__H__ */
 

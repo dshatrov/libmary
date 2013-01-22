@@ -109,17 +109,15 @@ ServerApp::pollIterationEnd (void * const _thread_ctx)
     return thread_ctx->getDeferredProcessor()->process ();
 }
 
-namespace {
-void deferred_processor_trigger (void * const _active_poll_group)
+static void deferred_processor_trigger (void * const _active_poll_group)
 {
     ActivePollGroup * const active_poll_group = static_cast <ActivePollGroup*> (_active_poll_group);
     active_poll_group->trigger ();
 }
 
-DeferredProcessor::Backend deferred_processor_backend = {
+static DeferredProcessor::Backend deferred_processor_backend = {
     deferred_processor_trigger
 };
-}
 
 mt_throws Result
 ServerApp::init ()

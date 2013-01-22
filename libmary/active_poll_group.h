@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__ACTIVE_POLL_GROUP__H__
-#define __LIBMARY__ACTIVE_POLL_GROUP__H__
+#ifndef LIBMARY__ACTIVE_POLL_GROUP__H__
+#define LIBMARY__ACTIVE_POLL_GROUP__H__
 
 
 #include <libmary/poll_group.h>
@@ -69,5 +69,5 @@ public:
 #endif
 
 
-#endif /* __LIBMARY__ACTIVE_POLL_GROUP__H__ */
+#endif /* LIBMARY__ACTIVE_POLL_GROUP__H__ */
 

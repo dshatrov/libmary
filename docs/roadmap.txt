@@ -27,23 +27,23 @@ Legend:
     [v] Strings
     [ ] Asynchronous branches of execution
 [*] Basic utility functions
-    [M] Command line parsing
-    [*] String to number conversion
+    [v] Command line parsing
+    [v] String to number conversion
     [ ] Unicode, UTF-8
 [v] Basic containers
     [v] List                   // For cases when Intrusive* can't be used.
     [v] IntrusiveList          // The most common choice.
     [v] IntrusiveCircularList  // Lightweight list head.
-    [M] AvlTree
-    [M] IntrusiveAvlTree
-    [M] Map
-    [M] IdMap
-    [M] Hash
-    [M] VStack
-    [M] VSlab
+    [v] AvlTree
+    [v] IntrusiveAvlTree
+    [v] Map
+    [N] IdMap
+    [v] Hash
+    [v] VStack
+    [v] VSlab
     [v] Iterators (LibMary style + MyCpp)
-[*] Multithreading
-    [*] Thread-local data
+[v] Multithreading
+    [v] Thread-local data
     [v] Atomic operations
     [v] Mutex
     [v] StateMutex
@@ -51,15 +51,15 @@ Legend:
 [*] I/O
     [*] File
         [*] Posix file backend
-	[ ] Win32 file backend
+	[*] Win32 file backend
     [*] CachedFile - Implemented basic BufferedOutputStream.
-    [*] Streams
+    [v] Streams
     [v] Printing
     [*] Event notification
         [v] epoll backend
 	[v] select backend
 	[v] poll packend
-	[ ] Win32 backend
+	[*] Win32 backend
 	[*] Threaded pollers
     [v] Logging
 [v] Networking
@@ -68,7 +68,7 @@ Legend:
 [v] Timers
 [*] File system
 [M] Message passing library (libmrelay/myrelay)
-[ ] Parsing utility (libmlang)
+[v] Parsing utility (libmlang)
 [M] IDL compiler for message passing (relic)
 [M] Documentation generator
 [ ] Static source code analysis tool
