@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -117,7 +117,6 @@ PollGroup::Feedback const SelectPollGroup::pollable_feedback = {
 // The pollable should be available for unsafe callbacks while this method is called.
 mt_throws PollGroup::PollableKey
 SelectPollGroup::addPollable (CbDesc<Pollable> const &pollable,
-			      DeferredProcessor::Registration * const ret_reg,
 			      bool const activate)
 {
     PollableEntry * const pollable_entry = new PollableEntry;
@@ -142,9 +141,6 @@ SelectPollGroup::addPollable (CbDesc<Pollable> const &pollable,
     pollable->setFeedback (
 	    Cb<Feedback> (&pollable_feedback, pollable_entry, NULL /* coderef_container */),
 	    pollable.cb_data);
-
-    if (ret_reg)
-	ret_reg->setDeferredProcessor (&deferred_processor);
 
     mutex.lock ();
     if (activate) {
@@ -392,17 +388,17 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 
 		    if (FD_ISSET (pollable_entry->fd, &efds)) {
 			event_flags |= PollGroup::Error;
-			logE (connerr, _func, "Error, weak object: 0x", fmt_hex, (UintPtr) pollable_entry->pollable.getWeakObject());
+//			logE (connerr, _func, "Error, weak object: 0x", fmt_hex, (UintPtr) pollable_entry->pollable.getWeakObject());
 		    }
 
 		    if (event_flags) {
-			logD (iters, _func, "notifying pollable_entry 0x", fmt_hex, (UintPtr) pollable_entry, ", "
-			      "pollable 0x", fmt_hex, (UintPtr) pollable_entry->pollable.getWeakObject());
+//			logD (iters, _func, "notifying pollable_entry 0x", fmt_hex, (UintPtr) pollable_entry, ", "
+//			      "pollable 0x", fmt_hex, (UintPtr) pollable_entry->pollable.getWeakObject());
 			mutex.unlock ();
 			pollable_entry->pollable.call (pollable_entry->pollable->processEvents, /*(*/ event_flags /*)*/);
 			mutex.lock ();
-			logD (iters, _func, "notified pollable_entry 0x", fmt_hex, (UintPtr) pollable_entry, ", "
-			      "pollable 0x", fmt_hex, (UintPtr) pollable_entry->pollable.getWeakObject());
+//			logD (iters, _func, "notified pollable_entry 0x", fmt_hex, (UintPtr) pollable_entry, ", "
+//			      "pollable 0x", fmt_hex, (UintPtr) pollable_entry->pollable.getWeakObject());
 		    }
 		}
 
@@ -435,9 +431,6 @@ SelectPollGroup::poll (Uint64 const timeout_microsec)
 	    if (extra_iteration_needed)
 		got_deferred_tasks = true;
 	}
-
-	if (deferred_processor.process ())
-	    got_deferred_tasks = true;
 
 	if (trigger_break)
 	    break;
@@ -502,32 +495,16 @@ SelectPollGroup::open ()
     return Result::Success;
 }
 
-static void deferred_processor_trigger (void * const active_poll_group_)
-{
-    ActivePollGroup * const active_poll_group = static_cast <ActivePollGroup*> (active_poll_group_);
-    active_poll_group->trigger ();
-}
-
-static DeferredProcessor::Backend const deferred_processor_backend = {
-    deferred_processor_trigger
-};
-
 SelectPollGroup::SelectPollGroup (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
       triggered (false),
       // Initializing to 'true' to process deferred tasks scheduled before we
       // enter poll() the first time.
       got_deferred_tasks (true),
-      deferred_processor (coderef_container),
       poll_tlocal (NULL)
 {
     trigger_pipe [0] = -1;
     trigger_pipe [1] = -1;
-
-    deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
-	    &deferred_processor_backend,
-	    static_cast <ActivePollGroup*> (this) /* cb_data */,
-	    NULL /* coderef_container */));
 }
 
 SelectPollGroup::~SelectPollGroup ()

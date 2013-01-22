@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__POLL_GROUP__H__
-#define __LIBMARY__POLL_GROUP__H__
+#ifndef LIBMARY__POLL_GROUP__H__
+#define LIBMARY__POLL_GROUP__H__
 
 
 #include <libmary/types.h>
@@ -91,7 +91,6 @@ public:
     // Every successful call to addPollable() must be matched with a call
     // to removePollable().
     virtual mt_throws PollableKey addPollable (CbDesc<Pollable> const &pollable,
-					       DeferredProcessor::Registration *ret_reg,
 					       bool activate = true) = 0;
 
     virtual mt_throws Result activatePollable (PollableKey mt_nonnull key) = 0;
@@ -136,5 +135,5 @@ namespace M {
 #include <libmary/active_poll_group.h>
 
 
-#endif /* __LIBMARY__POLL_GROUP__H__ */
+#endif /* LIBMARY__POLL_GROUP__H__ */
 

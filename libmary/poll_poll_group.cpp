@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -90,7 +90,6 @@ PollGroup::Feedback const PollPollGroup::pollable_feedback = {
 // The pollable should be available for unsafe callbacks while this method is called.
 mt_throws PollGroup::PollableKey
 PollPollGroup::addPollable (CbDesc<Pollable> const &pollable,
-			    DeferredProcessor::Registration * const ret_reg,
 			    bool activate)
 {
     PollableEntry * const pollable_entry = new PollableEntry;
@@ -112,9 +111,6 @@ PollPollGroup::addPollable (CbDesc<Pollable> const &pollable,
     pollable->setFeedback (
 	    Cb<Feedback> (&pollable_feedback, pollable_entry, NULL /* coderef_container */),
 	    pollable.cb_data);
-
-    if (ret_reg)
-	ret_reg->setDeferredProcessor (&deferred_processor);
 
     unsigned long tmp_num_pollables;
     mutex.lock ();
@@ -365,9 +361,6 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 		got_deferred_tasks = true;
 	}
 
-	if (deferred_processor.process ())
-	    got_deferred_tasks = true;
-
 	if (trigger_break)
 	    break;
 
@@ -429,18 +422,6 @@ PollPollGroup::open ()
     return Result::Success;
 }
 
-namespace {
-void deferred_processor_trigger (void * const active_poll_group_)
-{
-    ActivePollGroup * const active_poll_group = static_cast <ActivePollGroup*> (active_poll_group_);
-    active_poll_group->trigger ();
-}
-
-DeferredProcessor::Backend deferred_processor_backend = {
-    deferred_processor_trigger
-};
-}
-
 PollPollGroup::PollPollGroup (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
       num_pollables (0),
@@ -448,16 +429,10 @@ PollPollGroup::PollPollGroup (Object * const coderef_container)
       // Initializing to 'true' to process deferred tasks scheduled before we
       // enter poll() the first time.
       got_deferred_tasks (true),
-      deferred_processor (coderef_container),
       poll_tlocal (NULL)
 {
     trigger_pipe [0] = -1;
     trigger_pipe [1] = -1;
-
-    deferred_processor.setBackend (CbDesc<DeferredProcessor::Backend> (
-	    &deferred_processor_backend,
-	    static_cast <ActivePollGroup*> (this) /* cb_data */,
-	    NULL /* coderef_container */));
 }
 
 PollPollGroup::~PollPollGroup ()
