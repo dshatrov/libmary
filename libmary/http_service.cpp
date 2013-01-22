@@ -35,11 +35,6 @@ HttpServer::Frontend const HttpService::http_frontend = {
     httpClosed
 };
 
-Sender::Frontend const HttpService::sender_frontend = {
-    NULL, // sendStateChanged
-    senderClosed
-};
-
 TcpServer::Frontend const HttpService::tcp_server_frontend = {
     accepted
 };
@@ -51,7 +46,6 @@ HttpService::HttpConnection::HttpConnection ()
       conn_receiver (this),
       http_server   (this),
       pollable_key  (NULL),
-      conn_keepalive_timer (NULL),
       preassembly_buf (NULL)
 {
     logD (http_service, _func, "0x", fmt_hex, (UintPtr) this);
@@ -120,7 +114,7 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 {
     HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
 
-    logD (http_service, _func, req->getRequestLine());
+    logD_ (_func, "http_conn 0x", fmt_hex, (UintPtr) http_conn, ": ", req->getRequestLine());
 
     CodeRef http_service_ref;
     if (http_conn->weak_http_service.isValid()) {
@@ -140,6 +134,7 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 	req->setKeepalive (false);
 
     if (http_conn->conn_keepalive_timer) {
+#warning fix race
         // FIXME Race condition: the timer might have just expired
         //       and an assertion in Timers::restartTimer() will be hit.
         self->timers->restartTimer (http_conn->conn_keepalive_timer);
@@ -255,7 +250,8 @@ HttpService::httpMessageBody (HttpRequest  * const mt_nonnull req,
 	}
 
 	if (alloc_new) {
-	    http_conn->preassembly_buf = new Byte [size];
+	    http_conn->preassembly_buf = new (std::nothrow) Byte [size];
+            assert (http_conn->preassembly_buf);
 	    http_conn->preassembly_buf_size = size;
 	}
 
@@ -397,6 +393,8 @@ HttpService::httpClosed (Exception * const exc_,
 {
     HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
 
+    logD_ (_func, "closed, http_conn 0x", fmt_hex, (UintPtr) http_conn);
+
     if (exc_)
 	logE_ (_func, exc_->toString());
 
@@ -407,22 +405,10 @@ HttpService::httpClosed (Exception * const exc_,
     doCloseHttpConnection (http_conn);
 }
 
-void
-HttpService::senderClosed (Exception * const exc_,
-			   void      * const _http_conn)
-{
-    HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
-
-    if (exc_)
-	logE_ (_func, exc_->toString());
-
-    doCloseHttpConnection (http_conn);
-}
-
 bool
 HttpService::acceptOneConnection ()
 {
-    HttpConnection * const http_conn = new HttpConnection;
+    HttpConnection * const http_conn = new (std::nothrow) HttpConnection;
     assert (http_conn);
 
     IpAddress client_addr;
@@ -443,6 +429,8 @@ HttpService::acceptOneConnection ()
 	assert (res == TcpServer::AcceptResult::Accepted);
     }
 
+    logD_ (_func, "accepted, http_conn 0x", fmt_hex, (UintPtr) http_conn);
+
     http_conn->weak_http_service = this;
     http_conn->unsafe_http_service = this;
 
@@ -454,16 +442,18 @@ HttpService::acceptOneConnection ()
 
     http_conn->conn_sender.init (deferred_processor);
     http_conn->conn_sender.setConnection (&http_conn->tcp_conn);
-    http_conn->conn_sender.setFrontend (CbDesc<Sender::Frontend> (&sender_frontend, http_conn, http_conn));
-    http_conn->conn_receiver.setConnection (&http_conn->tcp_conn);
-    http_conn->conn_receiver.setFrontend (http_conn->http_server.getReceiverFrontend());
+    http_conn->conn_receiver.init (&http_conn->tcp_conn,
+                                   deferred_processor);
 
-    http_conn->http_server.init (client_addr);
-    http_conn->http_server.setSender (&http_conn->conn_sender, page_pool);
-    http_conn->http_server.setFrontend (CbDesc<HttpServer::Frontend> (&http_frontend, http_conn, http_conn));
+    http_conn->http_server.init (
+            CbDesc<HttpServer::Frontend> (&http_frontend, http_conn, http_conn),
+            &http_conn->conn_receiver,
+            &http_conn->conn_sender,
+            page_pool,
+            client_addr);
 
     mutex.lock ();
-    http_conn->pollable_key = poll_group->addPollable (http_conn->tcp_conn.getPollable(), NULL /* ret_reg */);
+    http_conn->pollable_key = poll_group->addPollable (http_conn->tcp_conn.getPollable());
     if (!http_conn->pollable_key) {
 	mutex.unlock ();
 
@@ -484,8 +474,6 @@ HttpService::acceptOneConnection ()
                                                keepalive_timeout_microsec,
                                                false /* periodical */,
                                                false /* auto_delete */);
-    } else {
-	http_conn->conn_keepalive_timer = NULL;
     }
 
     conn_list.append (http_conn);
@@ -536,7 +524,7 @@ HttpService::addHttpHandler_rec (CbDesc<HttpHandler> const &cb,
     if (next_nsp_key) {
 	next_nsp = next_nsp_key.getData();
     } else {
-	Ref<Namespace> const new_nsp = grab (new Namespace);
+	Ref<Namespace> const new_nsp = grab (new (std::nothrow) Namespace);
 	nsp->namespace_hash.add (next_nsp_name, new_nsp);
 	next_nsp = new_nsp;
     }
@@ -583,7 +571,7 @@ HttpService::start ()
     if (!tcp_server.listen ())
 	return Result::Failure;
 
-    if (!poll_group->addPollable (tcp_server.getPollable(), NULL /* ret_reg */))
+    if (!poll_group->addPollable (tcp_server.getPollable()))
 	return Result::Failure;
 
     return Result::Success;

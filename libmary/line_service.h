@@ -71,7 +71,7 @@ private:
 
     mt_const Size max_line_len;
 
-    mt_const DataDepRef<PollGroup> poll_group;
+    mt_const DataDepRef<ServerThreadContext> thread_ctx;
 
     mt_const Cb<Frontend> frontend;
 
@@ -85,22 +85,18 @@ private:
     bool acceptOneConnection ();
 
   mt_iface (TcpServer::Frontend)
-
     static TcpServer::Frontend const tcp_server_frontend;
 
     static void accepted (void *_self);
-
   mt_iface_end
 
   mt_iface (LineServer::Frontend)
-
     static LineServer::Frontend const line_server_frontend;
 
     static void line (ConstMemory  line,
                       void        *_self);
 
     static void closed (void *_self);
-
   mt_iface_end
 
 public:

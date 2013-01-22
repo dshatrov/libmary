@@ -456,7 +456,8 @@ HttpClient::connect (bool * const ret_connected)
     http_conn->sender.setFrontend (
             CbDesc<Sender::Frontend> (&sender_frontend, http_conn, getCoderefContainer()));
 
-    http_conn->receiver.setConnection (&http_conn->tcp_conn);
+    http_conn->receiver.init (&http_conn->tcp_conn,
+                              thread_ctx->getDeferredProcessor());
 
     http_conn->http_server.init (
             CbDesc<HttpServer::Frontend> (
@@ -478,7 +479,6 @@ HttpClient::connect (bool * const ret_connected)
 
     http_conn->pollable_key =
             thread_ctx->getPollGroup()->addPollable (http_conn->tcp_conn.getPollable(),
-                                                     NULL  /* ret_reg */,
                                                      false /* activate */);
 
     if (!http_conn->pollable_key) {

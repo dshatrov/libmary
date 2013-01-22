@@ -122,7 +122,7 @@ mt_mutex (mutex) mt_throws Result
 LinePipe::openPipeSession ()
 {
     assert (!pipe_session);
-    pipe_session = grab (new PipeSession);
+    pipe_session = grab (new (std::nothrow) PipeSession);
     pipe_session->weak_line_pipe = this;
 
     bool opened = false;
@@ -132,12 +132,12 @@ LinePipe::openPipeSession ()
     opened = true;
 
     pipe_session->pollable_key = poll_group->addPollable (pipe_session->line_file.getPollable(),
-                                                          NULL  /* ret_reg */,
                                                           false /* activate */);
     if (!pipe_session->pollable_key)
         goto _close;
 
-    pipe_session->line_receiver.setConnection (&pipe_session->line_file);
+    pipe_session->line_receiver.init (&pipe_session->line_file,
+                                      deferred_processor);
     pipe_session->line_server.init (&pipe_session->line_receiver,
                                     CbDesc<LineServer::Frontend> (&line_frontend, pipe_session, pipe_session),
                                     max_line_len);
@@ -175,16 +175,18 @@ _close:
 }
 
 mt_throws Result
-LinePipe::init (ConstMemory        const filename,
-                CbDesc<Frontend>   const &frontend,
-                PollGroup        * const mt_nonnull poll_group,
-                Timers           * const timers,
-                Time               const reopen_timeout_millisec,
-                Size               const max_line_len)
+LinePipe::init (ConstMemory         const filename,
+                CbDesc<Frontend>    const &frontend,
+                PollGroup         * const mt_nonnull poll_group,
+                DeferredProcessor * const mt_nonnull deferred_processor,
+                Timers            * const timers,
+                Time                const reopen_timeout_millisec,
+                Size                const max_line_len)
 {
-    this->filename = grab (new String (filename));
+    this->filename = grab (new (std::nothrow) String (filename));
 
     this->poll_group = poll_group;
+    this->deferred_processor = deferred_processor;
     this->timers = timers;
     this->reopen_timeout_millisec = reopen_timeout_millisec;
     this->max_line_len = max_line_len;
@@ -203,9 +205,10 @@ LinePipe::init (ConstMemory        const filename,
 LinePipe::LinePipe (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
       reopen_timeout_millisec (0),
-      max_line_len  (4096),
-      poll_group    (coderef_container),
-      timers        (coderef_container)
+      max_line_len       (4096),
+      poll_group         (coderef_container),
+      deferred_processor (coderef_container),
+      timers             (coderef_container)
 {
 }
 

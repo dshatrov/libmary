@@ -49,6 +49,7 @@ private:
     mt_const Cb<Frontend> frontend;
 
     mt_const DataDepRef<PollGroup> poll_group;
+    mt_const DataDepRef<DeferredProcessor> deferred_processor;
     mt_const DataDepRef<Timers> timers;
 
     class PipeSession : public Object
@@ -90,6 +91,7 @@ public:
     mt_throws Result init (ConstMemory             filename,
                            CbDesc<Frontend> const &frontend,
                            PollGroup              * mt_nonnull poll_group,
+                           DeferredProcessor      * mt_nonnull deferred_processor,
                            Timers                 *timers,
                            Time                    reopen_timeout_millisec,
                            Size                    max_line_len = 4096);

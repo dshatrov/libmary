@@ -37,7 +37,7 @@ LineService::LineConnection::~LineConnection ()
 void
 LineService::releaseLineConnection (LineConnection * const mt_nonnull line_conn)
 {
-    poll_group->removePollable (line_conn->pollable_key);
+    thread_ctx->getPollGroup()->removePollable (line_conn->pollable_key);
 }
 
 bool
@@ -62,7 +62,8 @@ LineService::acceptOneConnection ()
 	assert (res == TcpServer::AcceptResult::Accepted);
     }
 
-    line_conn->conn_receiver.setConnection (&line_conn->tcp_conn);
+    line_conn->conn_receiver.init (&line_conn->tcp_conn,
+                                   thread_ctx->getDeferredProcessor());
     line_conn->line_server.init (&line_conn->conn_receiver,
                                  CbDesc<LineServer::Frontend> (&line_server_frontend,
                                                                this,
@@ -72,7 +73,7 @@ LineService::acceptOneConnection ()
     mutex.lock ();
 
     line_conn->pollable_key =
-            poll_group->addPollable (line_conn->tcp_conn.getPollable(), NULL /* ret_reg */);
+            thread_ctx->getPollGroup()->addPollable (line_conn->tcp_conn.getPollable());
     if (!line_conn->pollable_key) {
 	mutex.unlock ();
 	logE_ (_func, exc->toString());
@@ -148,7 +149,7 @@ LineService::init (ServerContext    * const mt_nonnull server_ctx,
                    Size               const  max_line_len)
 
 {
-    this->poll_group = server_ctx->getMainThreadContext()->getPollGroup();
+    this->thread_ctx = server_ctx->getMainThreadContext();
     this->frontend = frontend;
     this->max_line_len = max_line_len;
 
@@ -180,7 +181,7 @@ LineService::start ()
 
     mutex.lock ();
     assert (!server_pollable_key);
-    server_pollable_key = poll_group->addPollable (tcp_server.getPollable(), NULL /* ret_reg */);
+    server_pollable_key = thread_ctx->getPollGroup()->addPollable (tcp_server.getPollable());
     if (!server_pollable_key) {
         mutex.unlock ();
         return Result::Failure;
@@ -193,7 +194,7 @@ LineService::start ()
 LineService::LineService (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
       max_line_len (4096),
-      poll_group (coderef_container),
+      thread_ctx (coderef_container),
       tcp_server (coderef_container)
 {
 }
@@ -203,7 +204,7 @@ LineService::~LineService ()
     mutex.lock ();
 
     if (server_pollable_key) {
-        poll_group->removePollable (server_pollable_key);
+        thread_ctx->getPollGroup()->removePollable (server_pollable_key);
         server_pollable_key = NULL;
     }
 

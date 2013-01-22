@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__HTTP_SERVICE__H__
-#define __LIBMARY__HTTP_SERVICE__H__
+#ifndef LIBMARY__HTTP_SERVICE__H__
+#define LIBMARY__HTTP_SERVICE__H__
 
 
 #include <libmary/types.h>
@@ -29,7 +29,7 @@
 #include <libmary/poll_group.h>
 #include <libmary/immediate_connection_sender.h>
 #include <libmary/connection_receiver.h>
-#include <libmary/http.h>
+#include <libmary/http_server.h>
 
 
 namespace M {
@@ -171,17 +171,6 @@ private:
 			    void      *cb_data);
   mt_iface_end
 
-  mt_iface (Sender::Frontend)
-    static Sender::Frontend const sender_frontend;
-
-// TODO
-//    void senderStateChanged (Sender::SendState  send_state,
-//			     void              *_http_conn);
-
-    static void senderClosed (Exception *exc_,
-			      void      *_http_conn);
-  mt_iface_end
-
     bool acceptOneConnection ();
 
   mt_iface (TcpServer::Frontend)
@@ -226,5 +215,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__HTTP_SERVICE__H__ */
+#endif /* LIBMARY__HTTP_SERVICE__H__ */
 
