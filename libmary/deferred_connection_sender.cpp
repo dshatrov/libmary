@@ -227,6 +227,12 @@ DeferredConnectionSender::isClosed_unlocked ()
     return closed;
 }
 
+mt_mutex (mutex) Sender::SendState
+DeferredConnectionSender::getSendState_unlocked ()
+{
+    return conn_sender_impl.getSendState();
+}
+
 void
 DeferredConnectionSender::lock ()
 {

@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__SENDER__H__
-#define __LIBMARY__SENDER__H__
+#ifndef LIBMARY__SENDER__H__
+#define LIBMARY__SENDER__H__
 
 
 #include <libmary/types.h>
@@ -27,6 +27,7 @@
 
 #include <libmary/libmary_config.h>
 #include <libmary/intrusive_list.h>
+#include <libmary/code_referenced.h>
 #include <libmary/cb.h>
 #include <libmary/informer.h>
 #include <libmary/exception.h>
@@ -69,8 +70,8 @@ public:
     struct Frontend {
 	// This callback is called with Sender::mutex held, which means that
 	// it is forbidden to call any methods of Sender from the callback.
-	void (*sendStateChanged) (SendState  send_state,
-				  void      *cb_data);
+	void (*sendStateChanged) (Sender::SendState  send_state,
+				  void              *cb_data);
 
 	void (*closed) (Exception *exc_,
 			void      *cb_data);
@@ -102,9 +103,9 @@ public:
 
 	msg_pages->page_pool->msgUnref (msg_pages->first_page);
 	if (msg_pages->vslab_key) {
-#ifdef LIBMARY_MT_SAFE
+  #ifdef LIBMARY_MT_SAFE
 	  MutexLock msg_vslab_l (&msg_vslab_mutex);
-#endif
+  #endif
 	    msg_vslab.free (msg_pages->vslab_key);
 	} else {
 	    delete[] (Byte*) msg_pages;
@@ -167,20 +168,25 @@ public:
 		VSlab<MessageEntry_Pages>::AllocKey vslab_key;
 		MessageEntry_Pages *msg_pages;
 		{
-#ifdef LIBMARY_MT_SAFE
+  #ifdef LIBMARY_MT_SAFE
 		  MutexLock msg_vslab_l (&msg_vslab_mutex);
-#endif
+  #endif
 		    msg_pages = msg_vslab.alloc (sizeof (MessageEntry_Pages) + vslab_header_len, &vslab_key);
+                    new (msg_pages) MessageEntry_Pages;
 		}
 		msg_pages->vslab_key = vslab_key;
 		return msg_pages;
 	    } else {
-		MessageEntry_Pages * const msg_pages = new (new Byte [sizeof (MessageEntry_Pages) + vslab_header_len]) MessageEntry_Pages;
+                Byte * const buf = new (std::nothrow) Byte [sizeof (MessageEntry_Pages) + vslab_header_len];
+                assert (buf);
+		MessageEntry_Pages * const msg_pages = new (buf) MessageEntry_Pages;
 		msg_pages->vslab_key = NULL;
 		return msg_pages;
 	    }
 #else
-	    return new (new Byte [sizeof (MessageEntry_Pages) + max_header_len]) MessageEntry_Pages;
+            Byte * const buf = new (std::nothrow) Byte [sizeof (MessageEntry_Pages) + max_header_len];
+            assert (buf);
+	    return new (buf) MessageEntry_Pages;
 #endif
 	}
     };
@@ -188,9 +194,10 @@ public:
 #ifdef LIBMARY_SENDER_VSLAB
     typedef VSlab<MessageEntry_Pages> MsgVSlab;
     static MsgVSlab msg_vslab;
-#ifdef LIBMARY_MT_SAFE
+  #ifdef LIBMARY_MT_SAFE
+    // TODO thread-local msg_vslabs
     static Mutex msg_vslab_mutex;
-#endif
+  #endif
 #endif
 
 protected:
@@ -231,9 +238,13 @@ public:
     void fireSendStateChanged_deferred (DeferredProcessor::Registration *def_reg,
                                         SendState send_state);
 
+    // TODO sendMessage_unlocked() would allow to send series of messages
+    //      without repeatedly acquiring Sender::mutex. The same applies to
+    //      flush_unlocked().
+    //
     // Takes ownership of msg_entry.
     virtual void sendMessage (MessageEntry * mt_nonnull msg_entry,
-			      bool do_flush = false) = 0;
+			      bool          do_flush = false) = 0;
 
     virtual void flush () = 0;
 
@@ -243,7 +254,10 @@ public:
     // Frontend::closed() will be called (deferred callback invocation).
     virtual void close () = 0;
 
-    virtual bool isClosed_unlocked () = 0;
+    virtual mt_mutex (mutex) bool isClosed_unlocked () = 0;
+
+    // Note: This is currently unused.
+    virtual mt_mutex (mutex) SendState getSendState_unlocked () = 0;
 
     virtual void lock () = 0;
 
@@ -312,5 +326,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__SENDER__H__ */
+#endif /* LIBMARY__SENDER__H__ */
 

@@ -227,6 +227,12 @@ ImmediateConnectionSender::isClosed_unlocked ()
     return closed;
 }
 
+mt_mutex (mutex) Sender::SendState
+ImmediateConnectionSender::getSendState_unlocked ()
+{
+    return conn_sender_impl.getSendState();
+}
+
 void
 ImmediateConnectionSender::lock ()
 {

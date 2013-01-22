@@ -66,6 +66,8 @@ public:
 
     mt_mutex (mutex) bool isClosed_unlocked ();
 
+    mt_mutex (mutex) SendState getSendState_unlocked ();
+
     void lock ();
 
     void unlock ();
