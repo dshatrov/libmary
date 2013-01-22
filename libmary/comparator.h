@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__COMPARATOR__H__
-#define __LIBMARY__COMPARATOR__H__
+#ifndef LIBMARY__COMPARATOR__H__
+#define LIBMARY__COMPARATOR__H__
 
 
 #include <libmary/types.h>
@@ -51,26 +51,6 @@ public:
     }
 };
 
-#if 0
-// Deprecated
-template < class T = ConstMemoryDesc const &,
-	   class LeftExtractor = DirectExtractor<T>,
-	   class RightExtractor = LeftExtractor >
-class MemoryComparator
-{
-public:
-    static bool greater (T left, T right)
-    {
-	return compareByteArrays (LeftExtractor::getValue (left), RightExtractor::getValue (right)) == ComparisonGreater;
-    }
-
-    static bool equals (T left, T right)
-    {
-	return compareByteArrays (LeftExtractor::getValue (left), RightExtractor::getValue (right)) == ComparisonEqual;
-    }
-};
-#endif
-
 template < class T = ConstMemory const & >
 class MemoryComparator
 {
@@ -89,5 +69,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__COMPARATOR__H__ */
+#endif /* LIBMARY__COMPARATOR__H__ */
 
