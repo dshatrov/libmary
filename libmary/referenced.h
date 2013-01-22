@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__REFERENCED__H__
-#define __LIBMARY__REFERENCED__H__
+#ifndef LIBMARY__REFERENCED__H__
+#define LIBMARY__REFERENCED__H__
 
 
 #include <libmary/types.h>
@@ -27,6 +27,8 @@
 #include <libmary/avl_tree.h>
 #include <libmary/util_base.h>
 #include <libmary/debug.h>
+
+//#include <atomic>
 
 
 namespace M {
@@ -39,6 +41,7 @@ class Referenced : public virtual VirtReferenced
 
 private:
     AtomicInt refcount;
+//    std::atomic<Size> refcount;
 
 protected:
 #ifdef LIBMARY_REF_TRACING
@@ -63,6 +66,7 @@ public:
 
     void libMary_ref ()
     {
+//	refcount.fetch_add (1, std::memory_order_relaxed);
 	refcount.inc ();
 
 #ifdef LIBMARY_REF_TRACING
@@ -77,6 +81,13 @@ public:
 	if (traced)
 	    traceUnref ();
 #endif
+#if 0
+	if (refcount.fetch_sub (1, std::memory_order_release) != 1)
+	    return;
+
+	std::atomic_thread_fence (std::memory_order_acquire);
+#endif
+
 	if (refcount.decAndTest ())
 	    last_unref ();
     }
@@ -105,6 +116,7 @@ public:
     Count getRefCount () const
     {
 	return refcount.get ();
+//	return refcount.load ();
     }
 
     // Copying is allowed for MyCpp::Exception cloning mechanism to work.
@@ -149,5 +161,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__REFERENCED__H__ */
+#endif /* LIBMARY__REFERENCED__H__ */
 

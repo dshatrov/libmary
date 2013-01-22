@@ -85,6 +85,7 @@ public:
 private:
   // Class WeakRef may access the following private members as a friend.
 
+public:
     class Shadow : public Referenced
     {
 	friend class Object;
@@ -116,6 +117,7 @@ private:
 	)
     };
 
+private:
     // There's no need to return Ref<Shadow> here:
     //   * We're supposed to have a valid reference to the object for duration
     //     of getShadow() call;
@@ -163,6 +165,7 @@ private:
 	}
 
 	if (obj->refcount.fetchAdd (1) == 0)
+//	if (obj->refcount.fetch_add (1, std::memory_order_relaxed) == 0)
 	    ++shadow->lastref_cnt;
 
 #ifdef LIBMARY_REF_TRACING

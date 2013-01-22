@@ -44,7 +44,7 @@ public:
 
     void unref ()
     {
-	if (x->refcount.fetch_sub (1, std::memory_order_release) != 1)
+	if (refcount.fetch_sub (1, std::memory_order_release) != 1)
 	    return;
 
 	std::atomic_thread_fence (std::memory_order_acquire);
