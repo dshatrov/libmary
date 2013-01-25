@@ -826,6 +826,7 @@ HttpServer::senderClosed (Exception * const exc_,
 
     logD (http, _func_);
 
+#warning Verify that the connection is not closed prematurely when we've already sent the reply but have not processed input data yet.
     if (self->frontend && self->frontend->closed)
 	self->frontend.call (self->frontend->closed, /*(*/ exc_ /*)*/);
 }

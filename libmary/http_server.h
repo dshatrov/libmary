@@ -68,6 +68,7 @@ private:
     ConstMemory *path;
     Count num_path_elems;
 
+    // TODO Support X-Real-IP and alikes.
     IpAddress   client_addr;
     Uint64      content_length;
     Ref<String> accept_language;
