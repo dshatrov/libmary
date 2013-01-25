@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -81,6 +81,11 @@ void
 TcpServer::acceptRetryTimerTick (void * const _self)
 {
     TcpServer * const self = static_cast <TcpServer*> (_self);
+
+    self->accept_retry_mutex.lock ();
+    self->accept_retry_timer_set = false;
+    self->accept_retry_mutex.unlock ();
+
     if (self->frontend)
         self->frontend.call (self->frontend->accepted);
 }
@@ -135,177 +140,158 @@ TcpServer::open ()
 }
 
 mt_throws TcpServer::AcceptResult
-TcpServer::accept (TcpConnection * const mt_nonnull tcp_conn,
+TcpServer::accept (TcpConnection * const mt_nonnull tcp_connection,
 		   IpAddress     * const ret_addr)
 {
-    // Eating all errors to avoid missing incoming connection events,
-    // which would lead to not accepting any more connections (DoS).
-    AcceptResult res;
-    for (;;) {
-        res = doAccept (tcp_conn, ret_addr);
-        if (res == AcceptResult::Error)
-            continue;
-
-        break;
-    }
-
-    // DEBUG
-    if (res == AcceptResult::Accepted)
-        logD_ (_this_func, "ACCEPTED");
-    else
-    if (res == AcceptResult::NotAccepted)
-        logD_ (_this_func, "NOT ACCEPTED");
-    else
-        unreachable ();
-
-    return res;
-}
-
-mt_throws TcpServer::AcceptResult
-TcpServer::doAccept (TcpConnection * const mt_nonnull tcp_connection,
-		     IpAddress     * const ret_addr)
-{
-    if (ret_addr)
-	ret_addr->reset ();
-
     int conn_fd;
     for (;;) {
+        conn_fd = -1;
+        if (ret_addr)
+            ret_addr->reset ();
+
 	struct sockaddr_in client_addr;
 	socklen_t client_addr_len = sizeof (client_addr);
 
 	conn_fd = ::accept (fd, (struct sockaddr*) &client_addr, &client_addr_len);
 	if (conn_fd == -1) {
-	    if (errno == EINTR  ||
-		errno == EPROTO ||
-		errno == ECONNABORTED)
+	    if (   errno == EINTR /* || errno == ERESTARTSYS */
+		|| errno == EPROTO
+		|| errno == ECONNABORTED
+                || errno == EPERM)
 	    {
 	      // Note that we shouldn't return until we're sure that there's
 	      // no pending client connections on the server socket (this method
 	      // can be though of as it was named "acceptFull" to reflect this).
 	      // Otherwise we would loose level-triggered socket state.
+                logW_ (_this_func, "accept(): ", errnoString (errno));
 		continue;
 	    }
 
 	    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-		logD_ (_this_func, "AGAIN");
 		requestInput ();
 		return AcceptResult::NotAccepted;
 	    }
 
-            if (errno == EMFILE || errno == ENFILE) {
-                logE_ (_this_func, "accept() failed (",
-                       (errno == EMFILE ? "EMFILE" : "ENFILE"), "): ",
-                       errnoString (errno));
-
-                if (timers) {
-                    timers->addTimer_microseconds (
-                            CbDesc<Timers::TimerCallback> (acceptRetryTimerTick,
-                                                           this,
-                                                           getCoderefContainer()),
-                            accept_retry_timeout_millisec * 1000,
-                            false /* periodical */,
-                            true  /* auto_delete */,
-                            true  /* delete_after_tick */);
+            if (   errno == EMFILE
+                || errno == ENFILE
+                || errno == ENOBUFS
+                || errno == ENOMEM)
+            {
+                ConstMemory err_str = "Unknown";
+                switch (errno) {
+                    case EMFILE:  err_str = "EMFILE"; break;
+                    case ENFILE:  err_str = "ENFILE"; break;
+                    case ENOBUFS: err_str = "ENOBUFS"; break;
+                    case ENOMEM:  err_str = "ENOMEM"; break;
                 }
-
-                requestInput ();
-                return AcceptResult::NotAccepted;
+                logE_ (_this_func, "accept() failed: ", err_str, ": ", errnoString (errno));
+            } else {
+                logE_ (_this_func, "accept() failed: ", errnoString (errno));
             }
 
-#if 0
-            // It is safer to loop here to avoid missing incoming connections
-            // due to other legitimate error kinds.
-            continue;
-#endif
+            // For EMFILE and friends, we just wait for better times, which is 
+            // the right thing to do.
+            // For other (unknown) errors, we wait just for extra safety,
+            // to avoid busy-looping. We don't stop the server on accept() errors
+            // because there's no fixed list of errors for accept() to rely on
+            // for strict semantics.
+            accept_retry_mutex.lock ();
+            if (!accept_retry_timer_set) {
+                accept_retry_timer_set = true;
+                timers->addTimer_microseconds (
+                        CbDesc<Timers::TimerCallback> (acceptRetryTimerTick,
+                                                       this,
+                                                       getCoderefContainer()),
+                        accept_retry_timeout_millisec * 1000,
+                        false /* periodical */,
+                        true  /* auto_delete */,
+                        true  /* delete_after_tick */);
+            }
+            accept_retry_mutex.unlock ();
 
-	    exc_throw (PosixException, errno);
-	    exc_push (InternalException, InternalException::BackendError);
-
-	    logE_ (_this_func, "accept() failed: ", errnoString (errno));
-
-	    return AcceptResult::Error;
+            return AcceptResult::NotAccepted;
 	}
 
 	if (ret_addr)
 	    setIpAddress (&client_addr, ret_addr);
 
-	break;
-    }
+        {
+            int flags = fcntl (conn_fd, F_GETFL, 0);
+            if (flags == -1) {
+                exc_throw (PosixException, errno);
+                exc_push (InternalException, InternalException::BackendError);
+                logE_ (_this_func, "fcntl() failed (F_GETFL): ", errnoString (errno));
+                goto _failure;
+            }
 
-    {
-	int flags = fcntl (conn_fd, F_GETFL, 0);
-	if (flags == -1) {
-	    exc_throw (PosixException, errno);
-	    exc_push (InternalException, InternalException::BackendError);
-	    logE_ (_this_func, "fcntl() failed (F_GETFL): ", errnoString (errno));
-	    goto _failure;
-	}
+            flags |= O_NONBLOCK;
 
-	flags |= O_NONBLOCK;
+            if (fcntl (conn_fd, F_SETFL, flags) == -1) {
+                exc_throw (PosixException, errno);
+                exc_push (InternalException, InternalException::BackendError);
+                logE_ (_this_func, "fcntl() failed (F_SETFL): ", errnoString (errno));
+                goto _failure;
+            }
+        }
 
-	if (fcntl (conn_fd, F_SETFL, flags) == -1) {
-	    exc_throw (PosixException, errno);
-	    exc_push (InternalException, InternalException::BackendError);
-	    logE_ (_this_func, "fcntl() failed (F_SETFL): ", errnoString (errno));
-	    goto _failure;
-	}
-    }
-
-    {
-	int opt_val = 1;
-	int const res = setsockopt (conn_fd, IPPROTO_TCP, TCP_NODELAY, &opt_val, sizeof (opt_val));
-	if (res == -1) {
-	    exc_throw (PosixException, errno);
-	    exc_push (InternalException, InternalException::BackendError);
-	    logE_ (_this_func, "setsockopt() failed (TCP_NODELAY): ", errnoString (errno));
-	    goto _failure;
-	} else
-	if (res != 0) {
-	    exc_throw (InternalException, InternalException::BackendMalfunction);
-	    logE_ (_this_func, "setsockopt() (TCP_NODELAY): unexpected return value: ", res);
-	    goto _failure;
-	}
-    }
+        {
+            int opt_val = 1;
+            int const res = setsockopt (conn_fd, IPPROTO_TCP, TCP_NODELAY, &opt_val, sizeof (opt_val));
+            if (res == -1) {
+                exc_throw (PosixException, errno);
+                exc_push (InternalException, InternalException::BackendError);
+                logE_ (_this_func, "setsockopt() failed (TCP_NODELAY): ", errnoString (errno));
+                goto _failure;
+            } else
+            if (res != 0) {
+                exc_throw (InternalException, InternalException::BackendMalfunction);
+                logE_ (_this_func, "setsockopt() (TCP_NODELAY): unexpected return value: ", res);
+                goto _failure;
+            }
+        }
 
 #ifdef __linux__
-    {
-        int opt_val = 1;
-        int const res = setsockopt (conn_fd, IPPROTO_TCP, TCP_QUICKACK, &opt_val, sizeof (opt_val));
-        if (res == -1) {
-            exc_throw (PosixException, errno);
-            exc_push (InternalException, InternalException::BackendError);
-            logE_ (_this_func, "setsockopt() failed (TCP_QUICKACK): ", errnoString (errno));
-            goto _failure;
-        } else
-        if (res != 0) {
-            exc_throw (InternalException, InternalException::BackendMalfunction);
-            logE_ (_this_func, "setsockopt() (TCP_QUICKACK): unexpected return value: ", res);
-            goto _failure;
+        {
+            int opt_val = 1;
+            int const res = setsockopt (conn_fd, IPPROTO_TCP, TCP_QUICKACK, &opt_val, sizeof (opt_val));
+            if (res == -1) {
+                exc_throw (PosixException, errno);
+                exc_push (InternalException, InternalException::BackendError);
+                logE_ (_this_func, "setsockopt() failed (TCP_QUICKACK): ", errnoString (errno));
+                goto _failure;
+            } else
+            if (res != 0) {
+                exc_throw (InternalException, InternalException::BackendMalfunction);
+                logE_ (_this_func, "setsockopt() (TCP_QUICKACK): unexpected return value: ", res);
+                goto _failure;
+            }
         }
-    }
 #endif /* __linux__ */
 
-    tcp_connection->setFd (conn_fd);
-
-    return AcceptResult::Accepted;
+        tcp_connection->setFd (conn_fd);
+        return AcceptResult::Accepted;
 
 _failure:
-    for (;;) {
-	int const res = ::close (conn_fd);
-	if (res == -1) {
-	    if (errno == EINTR)
-		continue;
+        for (;;) {
+            int const res = ::close (conn_fd);
+            if (res == -1) {
+                if (errno == EINTR)
+                    continue;
 
-	    logE_ (_this_func, "close() failed: ", errnoString (errno));
-	} else
-	if (res != 0) {
-	    logE_ (_this_func, "close(): unexpected return value: ", res);
-	}
+                logE_ (_this_func, "close() failed: ", errnoString (errno));
+            } else
+            if (res != 0) {
+                logE_ (_this_func, "close(): unexpected return value: ", res);
+            }
 
-	break;
+            break;
+        }
+
+      // Eating all errors to avoid missing incoming connection events,
+      // which would lead to not accepting any more connections (DoS).
     }
 
-    return AcceptResult::Error;
+    unreachable ();
 }
 
 mt_throws Result
@@ -385,10 +371,12 @@ TcpServer::close ()
 #endif
 
 void
-TcpServer::init (CbDesc<Frontend>   const &frontend,
-                 Timers           * const  timers,
-                 Time               const  accept_retry_timeout_millisec)
+TcpServer::init (CbDesc<Frontend> const &frontend,
+                 Timers * const mt_nonnull timers,
+                 Time     const accept_retry_timeout_millisec)
 {
+    assert (timers);
+
     this->frontend = frontend;
     this->timers = timers;
     this->accept_retry_timeout_millisec = accept_retry_timeout_millisec;
@@ -398,7 +386,8 @@ TcpServer::TcpServer (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
       accept_retry_timeout_millisec (1000),
       timers (coderef_container),
-      fd (-1)
+      fd (-1),
+      accept_retry_timer_set (false)
 {
 }
 

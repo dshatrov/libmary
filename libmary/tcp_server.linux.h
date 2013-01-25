@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__TCP_SERVER__LINUX__H__
-#define __LIBMARY__TCP_SERVER__LINUX__H__
+#ifndef LIBMARY__TCP_SERVER__LINUX__H__
+#define LIBMARY__TCP_SERVER__LINUX__H__
 
 
 #include <libmary/code_referenced.h>
@@ -61,7 +61,6 @@ private:
     }
 
   mt_iface (PollGroup::Pollable)
-
     static PollGroup::Pollable const pollable;
 
     static void processEvents (Uint32  event_flags,
@@ -71,14 +70,10 @@ private:
 
     static void setFeedback (Cb<PollGroup::Feedback> const &feedback,
 			     void *_self);
-
   mt_iface_end
 
-    struct AcceptRetryTimerData : public Referenced
-    {
-        Timers::TimerKey timer;
-        TcpServer *tcp_server;
-    };
+    StateMutex accept_retry_mutex;
+    mt_mutex (mutex) bool accept_retry_timer_set;
 
     static void acceptRetryTimerTick (void *_data);
 
@@ -103,11 +98,6 @@ public:
     mt_throws AcceptResult accept (TcpConnection * mt_nonnull tcp_connection,
 				   IpAddress     *ret_addr = NULL);
 
-private:
-    mt_throws AcceptResult doAccept (TcpConnection * mt_nonnull tcp_connection,
-                                     IpAddress     *ret_addr);
-
-public:
     // Should be called before listen().
     mt_throws Result bind (IpAddress const &ip_addr);
 
@@ -123,7 +113,7 @@ public:
     }
 
     void init (CbDesc<Frontend> const &frontend,
-               Timers *timers,
+               Timers * mt_nonnull timers,
                Time    accept_retry_timeout_millisec = 1000);
 
     TcpServer (Object *coderef_container);
@@ -134,5 +124,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__TCP_SERVER__LINUX__H__ */
+#endif /* LIBMARY__TCP_SERVER__LINUX__H__ */
 
