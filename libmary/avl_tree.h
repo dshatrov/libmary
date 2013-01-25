@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__AVL_TREE__H__
-#define __LIBMARY__AVL_TREE__H__
+#ifndef LIBMARY__AVL_TREE__H__
+#define LIBMARY__AVL_TREE__H__
 
 
 #include <libmary/extractor.h>
@@ -64,6 +64,9 @@ public:
 	typename AvlTreeBase<T>::Node *node;
 
     public:
+        bool operator == (TopLeftIterator const &iter) const { return node == iter.node; }
+        bool operator != (TopLeftIterator const &iter) const { return node != iter.node; }
+
 	typename AvlTreeBase<T>::Node& next ()
 	{
 	    typename AvlTreeBase<T>::Node* ret = node;
@@ -253,6 +256,28 @@ public:
 	{
 	}
     };
+
+
+  // ________________________________ iterator _________________________________
+
+    class iterator
+    {
+    private:
+        TopLeftIterator iter;
+
+    public:
+        iterator (AvlTreeBase<T> const &tree) : iter (tree) {}
+        iterator (typename AvlTreeBase<T>::Node * const node) : iter (node) {}
+
+        bool operator == (iterator const &iter) const { return this->iter == iter.iter; }
+        bool operator != (iterator const &iter) const { return this->iter != iter.iter; }
+
+        bool done () /* const */ { return iter.done (); }
+        typename AvlTreeBase<T>::Node* next () { return &iter.next (); }
+    };
+
+  // ___________________________________________________________________________
+
 
     /*> The root node of the tree. */
     Node *top;
@@ -1059,5 +1084,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__AVL_TREE__H__ */
+#endif /* LIBMARY__AVL_TREE__H__ */
 

@@ -77,6 +77,51 @@ public:
 	}
     };
 
+
+  // ________________________________ iterator _________________________________
+
+    class iterator
+    {
+    private:
+        typename AvlTreeBase<T>::iterator iter;
+
+    public:
+	template < class Extractor,
+		   class Comparator,
+		   class MapBase >
+        iterator (Map< T, Extractor, Comparator, MapBase > const &map) : iter (map.avl_tree) {}
+
+        bool operator == (iterator const &iter) const { return this->iter == iter.iter; }
+        bool operator != (iterator const &iter) const { return this->iter != iter.iter; }
+
+        bool done () /* const */ { return iter.done (); }
+        Entry next () { return Entry (iter.next ()); }
+    };
+
+
+  // ______________________________ data_iterator ______________________________
+
+    class data_iterator
+    {
+    private:
+        iterator iter;
+
+    public:
+	template < class Extractor,
+		   class Comparator,
+		   class MapBase >
+        data_iterator (Map< T, Extractor, Comparator, MapBase > const &map) : iter (map) {}
+
+        bool operator == (data_iterator const &iter) const { return this->iter == iter.iter; }
+        bool operator != (data_iterator const &iter) const { return this->iter != iter.iter; }
+
+        bool done () /* const */ { return iter.done (); }
+        T& next () { return iter.next ().getData(); }
+    };
+
+  // ___________________________________________________________________________
+
+
     template <class Base = EmptyBase>
     class Iterator_ : public StatefulIterator<Entry, Base>
     {
