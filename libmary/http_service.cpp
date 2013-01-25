@@ -23,6 +23,9 @@
 #include <libmary/http_service.h>
 
 
+// TODO Use selectThreadContext() for multithreading
+
+
 namespace M {
 
 namespace {
@@ -94,18 +97,12 @@ HttpService::connKeepaliveTimerExpired (void * const _http_conn)
 
     logI (http_service, _func, "0x", fmt_hex, (UintPtr) (http_conn));
 
-    CodeRef http_service_ref;
-    if (http_conn->weak_http_service.isValid()) {
-	http_service_ref = http_conn->weak_http_service;
-	if (!http_service_ref)
-	    return;
-    }
-    HttpService * const self = http_conn->unsafe_http_service;
+    CodeDepRef<HttpService> const self = http_conn->weak_http_service;
+    if (!self)
+        return;
 
-  // TODO FIXME Should httpMessageBody() callback be called here to report
-  // an error to the client? See httpClosed() for reference.
-
-    self->destroyHttpConnection (http_conn);
+    // Timers belong to the same thread as PollGroup, hence this call is safe.
+    self->doCloseHttpConnection (http_conn);
 }
 
 void
@@ -116,13 +113,9 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 
     logD_ (_func, "http_conn 0x", fmt_hex, (UintPtr) http_conn, ": ", req->getRequestLine());
 
-    CodeRef http_service_ref;
-    if (http_conn->weak_http_service.isValid()) {
-	http_service_ref = http_conn->weak_http_service;
-	if (!http_service_ref)
-	    return;
-    }
-    HttpService * const self = http_conn->unsafe_http_service;
+    CodeDepRef<HttpService> const self = http_conn->weak_http_service;
+    if (!self)
+        return;
 
     http_conn->cur_handler = NULL;
     http_conn->cur_msg_data = NULL;
@@ -376,13 +369,9 @@ HttpService::doCloseHttpConnection (HttpConnection * const http_conn)
 	logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
     }
 
-    CodeRef http_service_ref;
-    if (http_conn->weak_http_service.isValid()) {
-	http_service_ref = http_conn->weak_http_service;
-	if (!http_service_ref)
-	    return;
-    }
-    HttpService * const self = http_conn->unsafe_http_service;
+    CodeDepRef<HttpService> const self = http_conn->weak_http_service;
+    if (!self)
+        return;
 
     self->destroyHttpConnection (http_conn);
 }
@@ -432,7 +421,6 @@ HttpService::acceptOneConnection ()
     logD_ (_func, "accepted, http_conn 0x", fmt_hex, (UintPtr) http_conn);
 
     http_conn->weak_http_service = this;
-    http_conn->unsafe_http_service = this;
 
     http_conn->cur_handler = NULL;
     http_conn->cur_msg_data = NULL;
@@ -627,6 +615,8 @@ HttpService::HttpService (Object * const coderef_container)
 HttpService::~HttpService ()
 {
   StateMutexLock l (&mutex);
+
+  // TODO Call remaining messageBody() callbacks to release callers' resources.
 
     ConnectionList::iter iter (conn_list);
     while (!conn_list.iter_done (iter)) {

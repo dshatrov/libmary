@@ -106,8 +106,7 @@ private:
     public:
 	bool valid;
 
-	WeakCodeRef weak_http_service;
-	HttpService *unsafe_http_service;
+	WeakDepRef<HttpService> weak_http_service;
 
 	TcpConnection tcp_conn;
 	ImmediateConnectionSender conn_sender;
