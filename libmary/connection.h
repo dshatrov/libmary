@@ -39,7 +39,7 @@ public:
     //      fin ();   // (частичный shutdown - если понадобится)
     //      close (); // <- Не асинхронный. Асинхронным занимаается Sender.
     //                // НО нужно помнить о SO_LINGER, хотя он здесь и не нужен.
-    virtual mt_throws Result close () = 0;
+//    virtual mt_throws Result close () = 0;
 
 #ifdef LIBMARY_ENABLE_MWRITEV
     virtual int getFd () = 0;

@@ -104,10 +104,12 @@ public:
 
     mt_iface_end
 
+#if 0
     // Note that close() closes the file descriptor, which may cause races
     // if the connection object is still in use, i.e. it is referenced and
     // read/write methods may potentially be called.
     mt_throws Result close ();
+#endif
 
 #ifdef LIBMARY_ENABLE_MWRITEV
     int getFd ()

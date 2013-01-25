@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__IMMEDIATE_CONNECTION_SENDER__H__
-#define __LIBMARY__IMMEDIATE_CONNECTION_SENDER__H__
+#ifndef LIBMARY__IMMEDIATE_CONNECTION_SENDER__H__
+#define LIBMARY__IMMEDIATE_CONNECTION_SENDER__H__
 
 
 #include <libmary/connection.h>
@@ -93,5 +93,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__IMMEDIATE_CONNECTION_SENDER__H__ */
+#endif /* LIBMARY__IMMEDIATE_CONNECTION_SENDER__H__ */
 

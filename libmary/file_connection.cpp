@@ -65,11 +65,13 @@ FileConnection::writev (struct iovec * const iovs,
     return AsyncIoResult::Normal;
 }
 
+#if 0
 mt_throws Result
 FileConnection::close ()
 {
     return file->close ();
 }
+#endif
 
 #ifdef LIBMARY_ENABLE_MWRITEV
 int

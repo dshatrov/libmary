@@ -385,8 +385,9 @@ HttpClient::destroyHttpClientConnection (HttpClientConnection * const _http_conn
             http_conn->pollable_key = NULL;
         }
 
-        if (!http_conn->tcp_conn.close ())
-            logE_ (_func, "tcp_conn.close() failed: ", exc->toString());
+// TODO Explicit closing is useful but leads to race conditions in class TcpConnection.
+//        if (!http_conn->tcp_conn.close ())
+//            logE_ (_func, "tcp_conn.close() failed: ", exc->toString());
 
       // Manually discarding sender and receiver buffers here might be a good idea.
     }

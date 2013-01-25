@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__DEFERRED_CONNECTION_SENDER__H__
-#define __LIBMARY__DEFERRED_CONNECTION_SENDER__H__
+#ifndef LIBMARY__DEFERRED_CONNECTION_SENDER__H__
+#define LIBMARY__DEFERRED_CONNECTION_SENDER__H__
 
 
 #include <libmary/libmary_config.h>
@@ -143,5 +143,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__DEFERRED_CONNECTION_SENDER__H__ */
+#endif /* LIBMARY__DEFERRED_CONNECTION_SENDER__H__ */
 

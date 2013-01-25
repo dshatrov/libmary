@@ -373,10 +373,13 @@ TcpConnection::writev (struct iovec * const iovs,
     return AsyncIoResult::Normal;
 }
 
+#if 0
 mt_throws Result
 TcpConnection::close ()
 {
   // TODO Protect against duplicate calls to close() somehow.
+    logE_ (_this_func_);
+    abort ();
 
     if (fd == -1)
 	return Result::Success;
@@ -402,6 +405,7 @@ TcpConnection::close ()
 
     return Result::Success;
 }
+#endif
 
 mt_throws TcpConnection::ConnectResult
 TcpConnection::connect (IpAddress const &addr)

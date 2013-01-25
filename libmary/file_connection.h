@@ -57,7 +57,7 @@ public:
     mt_iface (Connection)
     mt_begin
 
-      mt_throws Result close ();
+//      mt_throws Result close ();
 
 #ifdef LIBMARY_ENABLE_MWRITEV
       int getFd ();
