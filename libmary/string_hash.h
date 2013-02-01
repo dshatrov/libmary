@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__STRING_HASH__H__
-#define __LIBMARY__STRING_HASH__H__
+#ifndef LIBMARY__STRING_HASH__H__
+#define LIBMARY__STRING_HASH__H__
 
 
 #include <libmary/hash.h>
@@ -39,7 +39,7 @@ private:
 	Ref<String> str;
 
         Entry (ConstMemory const mem)
-            : str (grab (new String (mem)))
+            : str (grab (new (std::nothrow) String (mem)))
         {
         }
     };
@@ -141,14 +141,16 @@ public:
     EntryKey add (ConstMemory const &mem,
 		  T data)
     {
-	Entry * const entry = new Entry (mem, data);
+	Entry * const entry = new (std::nothrow) Entry (mem, data);
+        assert (entry);
 	hash.add (entry);
 	return entry;
     }
 
     EntryKey addEmpty (ConstMemory const &mem)
     {
-	Entry * const entry = new Entry (mem);
+	Entry * const entry = new (std::nothrow) Entry (mem);
+        assert (entry);
 	hash.add (entry);
 	return entry;
     }
@@ -207,6 +209,28 @@ public:
     {
 	return hash.iter_done (iter._iter);
     }
+
+
+  // ________________________________ iterator _________________________________
+
+    class iterator
+    {
+    private:
+	typename StrHash::iterator iter;
+
+    public:
+	iterator (StringHash_anybase &hash) : iter (hash.hash) {}
+        iterator () {}
+
+        bool operator == (iterator const &iter) const { return this->iter == iter.iter; }
+        bool operator != (iterator const &iter) const { return this->iter != iter.iter; }
+
+        bool done () const { return iter.done(); }
+        T* next () { return &iter.next()->data; }
+    };
+
+  // ___________________________________________________________________________
+
 };
 
 template < class T, class Base = EmptyBase >
@@ -224,5 +248,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__STRING_HASH__H__ */
+#endif /* LIBMARY__STRING_HASH__H__ */
 
