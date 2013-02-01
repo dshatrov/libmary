@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__INTRUSIVE_LIST__H__
-#define __LIBMARY__INTRUSIVE_LIST__H__
+#ifndef LIBMARY__INTRUSIVE_LIST__H__
+#define LIBMARY__INTRUSIVE_LIST__H__
 
 
 #include <libmary/types_base.h>
@@ -593,5 +593,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__INTRUSIVE_LIST__H__ */
+#endif /* LIBMARY__INTRUSIVE_LIST__H__ */
 

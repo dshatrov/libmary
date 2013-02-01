@@ -193,7 +193,6 @@ VfsPosix::openDirectory (ConstMemory const &_dirname)
     ConstMemory const dirname = makePath (dirname_str, _dirname);
 
     Ref<Directory> directory = grab (new Directory);
-//    if (!directory->open (makeString (root_path->mem(), "/", dirname)->mem()))
     if (!directory->open (dirname))
 	return NULL;
 

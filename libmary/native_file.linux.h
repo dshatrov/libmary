@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__NATIVE_FILE_LINUX__H__
-#define __LIBMARY__NATIVE_FILE_LINUX__H__
+#ifndef LIBMARY__NATIVE_FILE_LINUX__H__
+#define LIBMARY__NATIVE_FILE_LINUX__H__
 
 
 #include <libmary/posix.h>
@@ -35,7 +35,6 @@ private:
 
 public:
     mt_iface (File)
-
       mt_iface (InputStream)
 	mt_throws IoResult read (Memory  mem,
 				 Size   *ret_nread);
@@ -56,7 +55,6 @@ public:
       mt_throws Result sync ();
 
       mt_throws Result close (bool flush_data = true);
-
     mt_iface_end
 
     mt_throws Result stat (FileStat * mt_nonnull ret_stat);
@@ -94,5 +92,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__NATIVE_FILE_LINUX__H__ */
+#endif /* LIBMARY__NATIVE_FILE_LINUX__H__ */
 

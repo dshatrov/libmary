@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__VFS_POSIX__H__
-#define __LIBMARY__VFS_POSIX__H__
+#ifndef LIBMARY__VFS_POSIX__H__
+#define LIBMARY__VFS_POSIX__H__
 
 
 #include <sys/types.h>
@@ -77,5 +77,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__VFS_POSIX__H__ */
+#endif /* LIBMARY__VFS_POSIX__H__ */
 

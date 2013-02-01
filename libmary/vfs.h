@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__VFS__H__
-#define __LIBMARY__VFS__H__
+#ifndef LIBMARY__VFS__H__
+#define LIBMARY__VFS__H__
 
 
 #include <libmary/types.h>
@@ -63,5 +63,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__VFS__H__ */
+#endif /* LIBMARY__VFS__H__ */
 
