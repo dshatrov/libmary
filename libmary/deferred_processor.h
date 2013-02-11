@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -60,22 +60,26 @@ public:
     mt_const VirtRef self_ref;
 
     DeferredProcessor_Task ()
-        : scheduled (false),
-          processing (false),
-          permanent (false),
+        : scheduled    (false),
+          processing   (false),
+          permanent    (false),
           registration (NULL)
     {
     }
 };
 
-typedef IntrusiveList <DeferredProcessor_Task, DeferredProcessor_TaskList_name>          DeferredProcessor_TaskList;
-typedef IntrusiveList <DeferredProcessor_Task, DeferredProcessor_PermanentTaskList_name> DeferredProcessor_PermanentTaskList;
+typedef IntrusiveList <DeferredProcessor_Task,
+                       DeferredProcessor_TaskList_name> DeferredProcessor_TaskList;
+
+typedef IntrusiveList <DeferredProcessor_Task,
+                       DeferredProcessor_PermanentTaskList_name> DeferredProcessor_PermanentTaskList;
 
 class DeferredProcessor_RegistrationList_name;
 class DeferredProcessor_PermanentRegistrationList_name;
 
-class DeferredProcessor_Registration : public IntrusiveListElement<DeferredProcessor_RegistrationList_name>,
-                                       public IntrusiveListElement<DeferredProcessor_PermanentRegistrationList_name>
+class DeferredProcessor_Registration
+        : public IntrusiveListElement<DeferredProcessor_RegistrationList_name>,
+          public IntrusiveListElement<DeferredProcessor_PermanentRegistrationList_name>
 {
     friend class DeferredProcessor;
 
@@ -115,8 +119,13 @@ public:
     }
 };
 
-typedef IntrusiveList <DeferredProcessor_Registration, DeferredProcessor_RegistrationList_name>          DeferredProcessor_RegistrationList;
-typedef IntrusiveList <DeferredProcessor_Registration, DeferredProcessor_PermanentRegistrationList_name> DeferredProcessor_PermanentRegistrationList;
+typedef IntrusiveList <DeferredProcessor_Registration,
+                       DeferredProcessor_RegistrationList_name>
+        DeferredProcessor_RegistrationList;
+
+typedef IntrusiveList <DeferredProcessor_Registration,
+                       DeferredProcessor_PermanentRegistrationList_name>
+        DeferredProcessor_PermanentRegistrationList;
 
 class DeferredProcessor : public DependentCodeReferenced
 {

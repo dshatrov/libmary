@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -24,9 +24,7 @@
 
 namespace M {
 
-namespace {
-LogGroup libMary_logGroup_dp ("deferred_processor", LogLevel::N);
-}
+static LogGroup libMary_logGroup_dp ("deferred_processor", LogLevel::N);
 
 mt_mutex (unsafe_deferred_processor->mutex) void
 DeferredProcessor_Registration::rescheduleTask (DeferredProcessor_Task * const mt_nonnull task)
@@ -233,7 +231,6 @@ DeferredProcessor::process ()
 		assert (!task->permanent);
 		task->scheduled = false;
 		task->processing = true;
-		task->registration = NULL;
 	    }
 	    processing_task_list.stealAppend (reg->task_list.getFirst(), reg->task_list.getLast());
 	    reg->task_list.clear ();
@@ -278,8 +275,11 @@ DeferredProcessor::process ()
 			    assert (!task->registration);
 			}
 		    } else {
-			if (task->registration)
+			if (task->registration) {
 			    task->registration->rescheduleTask (task);
+                            // Not setting force_extra_iteration, because
+                            // !registration_list.isEmpy() check below is enough.
+                        }
 		    }
 #if 0
 // 'self_ref' is supposed to be nullified in task callback.
