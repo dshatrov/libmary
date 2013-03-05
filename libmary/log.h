@@ -17,11 +17,13 @@
 */
 
 
-#ifndef __LIBMARY__LOG__H__
-#define __LIBMARY__LOG__H__
+#ifndef LIBMARY__LOG__H__
+#define LIBMARY__LOG__H__
 
 
 #include <libmary/types.h>
+#include <cstdio>
+
 #include <libmary/exception.h>
 #include <libmary/mutex.h>
 #include <libmary/output_stream.h>
@@ -99,13 +101,14 @@ static inline LogGroup* getDefaultLogGroup ()
 
 static inline unsigned getDefaultLogLevel ()
 {
-    return libMary_logGroup_default.getLogLevel ();
+    return (unsigned) libMary_logGroup_default.getLogLevel ();
 }
 
 // TODO Rename to logLevelOn_()
 static inline bool defaultLogLevelOn (unsigned const loglevel)
 {
-    return loglevel >= getDefaultLogLevel();
+    return loglevel >= (unsigned) libMary_globalLogLevel &&
+           loglevel >= getDefaultLogLevel();
 }
 
 #define logLevelOn_(loglevel) (defaultLogLevelOn (loglevel))
@@ -280,5 +283,5 @@ void setLogStream (OutputStream             *new_logs,
 }
 
 
-#endif /* __LIBMARY__LOG__H__ */
+#endif /* LIBMARY__LOG__H__ */
 
