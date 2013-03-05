@@ -50,9 +50,13 @@ public:
 			       void         ** mt_nonnull ret_msg_data,
 			       void          *cb_data);
 
-	// If @req is NULL, then we have not received the request in full due to
-	// an error. Such last call is made to give the module a chance
+	// If mem.len() is 0, then we have not received the request in full due to
+	// the connection being closed for some reason. For replies without
+        // content-length header field, that is the normal end-of-reply notification.
+        // In case of an error, such last call is made to give the module a chance
 	// to release msg_data.
+        //
+        // Note that @req is NULL in case of some errors, e.g. http timeout.
 	Result (*httpMessageBody) (HttpRequest  * mt_nonnull req,
 				   Sender       * mt_nonnull conn_sender,
 				   Memory const &mem,
@@ -88,12 +92,12 @@ private:
 	}
     };
 
-    class Namespace : public BasicReferenced
+    class Namespace : public StReferenced
     {
     public:
 	// We use Ref<Namespace> because 'Namespace' is an incomplete type here
 	// (language limitation).
-	typedef StringHash< Ref<Namespace> > NamespaceHash;
+	typedef StringHash< StRef<Namespace> > NamespaceHash;
 	typedef StringHash<HandlerEntry> HandlerHash;
 
 	NamespaceHash namespace_hash;
@@ -122,13 +126,16 @@ private:
 	    HandlerEntry *cur_handler;
 	    void *cur_msg_data;
 
+            // Indicates that httpRequest() callback has already been called,
+            // and httpMessageBody() should now be called.
+            bool receiving_body;
+
 	    Byte *preassembly_buf;
 	    Size preassembly_buf_size;
 	    Size preassembled_len;
 	// }
 
-	HttpConnection ();
-
+	 HttpConnection ();
 	~HttpConnection ();
     };
 
@@ -152,7 +159,8 @@ private:
 
     static void connKeepaliveTimerExpired (void *_http_conn);
 
-    static void doCloseHttpConnection (HttpConnection *http_conn);
+    static void doCloseHttpConnection (HttpConnection *http_conn,
+                                       HttpRequest    *req);
 
   mt_iface (HttpServer::Frontend)
     static HttpServer::Frontend const http_frontend;
@@ -161,13 +169,14 @@ private:
 			     void        *cb_data);
 
     static void httpMessageBody (HttpRequest  * mt_nonnull req,
-				 Memory const &mem,
+				 Memory        mem,
 				 bool          end_of_request,
 				 Size         * mt_nonnull ret_accepted,
 				 void         *cb_data);
 
-    static void httpClosed (Exception *exc_,
-			    void      *cb_data);
+    static void httpClosed (HttpRequest *req,
+                            Exception   *exc_,
+			    void        *cb_data);
   mt_iface_end
 
     bool acceptOneConnection ();
@@ -206,8 +215,7 @@ public:
 			   Time               keepalive_timeout_microsec,
                            bool               no_keeaplive_conns);
 
-    HttpService (Object *coderef_container);
-
+     HttpService (Object *coderef_container);
     ~HttpService ();
 };
 

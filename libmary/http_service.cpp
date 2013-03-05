@@ -28,19 +28,7 @@
 
 namespace M {
 
-namespace {
-LogGroup libMary_logGroup_http_service ("http_service", LogLevel::N);
-}
-
-HttpServer::Frontend const HttpService::http_frontend = {
-    httpRequest,
-    httpMessageBody,
-    httpClosed
-};
-
-TcpServer::Frontend const HttpService::tcp_server_frontend = {
-    accepted
-};
+static LogGroup libMary_logGroup_http_service ("http_service", LogLevel::N);
 
 HttpService::HttpConnection::HttpConnection ()
     : valid (true),
@@ -49,6 +37,7 @@ HttpService::HttpConnection::HttpConnection ()
       conn_receiver (this),
       http_server   (this),
       pollable_key  (NULL),
+      receiving_body  (false),
       preassembly_buf (NULL)
 {
     logD (http_service, _func, "0x", fmt_hex, (UintPtr) this);
@@ -102,8 +91,14 @@ HttpService::connKeepaliveTimerExpired (void * const _http_conn)
         return;
 
     // Timers belong to the same thread as PollGroup, hence this call is safe.
-    self->doCloseHttpConnection (http_conn);
+    self->doCloseHttpConnection (http_conn, NULL /* req */);
 }
+
+HttpServer::Frontend const HttpService::http_frontend = {
+    httpRequest,
+    httpMessageBody,
+    httpClosed
+};
 
 void
 HttpService::httpRequest (HttpRequest * const mt_nonnull req,
@@ -119,7 +114,6 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 
     http_conn->cur_handler = NULL;
     http_conn->cur_msg_data = NULL;
-//    logD_ (_func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
 
     self->mutex.lock ();
 
@@ -140,24 +134,19 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 
     Namespace *cur_namespace = &self->root_namespace;
     Count const num_path_els = req->getNumPathElems();
-//    logD_ (_func, "num_path_els: ", num_path_els);
     ConstMemory handler_path_el;
     for (Count i = 0; i < num_path_els; ++i) {
 	ConstMemory const path_el = req->getPath (i);
-//	logD_ (_func, "path_el: ", path_el);
 	Namespace::NamespaceHash::EntryKey const namespace_key = cur_namespace->namespace_hash.lookup (path_el);
 	if (!namespace_key) {
 	    handler_path_el = path_el;
 	    break;
 	}
 
-//	logD_ (_func, "Got namespace key for \"", path_el, "\"");
-
 	cur_namespace = namespace_key.getData();
 	assert (cur_namespace);
     }
 
-//    logD_ (_func, "Looking up \"", handler_path_el, "\"");
     Namespace::HandlerHash::EntryKey handler_key = cur_namespace->handler_hash.lookup (handler_path_el);
     if (!handler_key) {
 	handler_key = cur_namespace->handler_hash.lookup (ConstMemory());
@@ -170,8 +159,8 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
 
 	ConstMemory const reply_body = "404 Not Found";
 
-	Byte date_buf [timeToString_BufSize];
-	Size const date_len = timeToString (Memory::forObject (date_buf), getUnixtime());
+	Byte date_buf [unixtimeToString_BufSize];
+	Size const date_len = unixtimeToString (Memory::forObject (date_buf), getUnixtime());
 	logD (http_service, _func, "page_pool: 0x", fmt_hex, (UintPtr) self->page_pool.ptr());
 	http_conn->conn_sender.send (
 		self->page_pool,
@@ -200,22 +189,37 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
     http_conn->cur_handler = handler;
     logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
 
+    http_conn->receiving_body = false;
     http_conn->preassembled_len = 0;
 
-    if (!handler->preassembly || req->getContentLength() == 0) {
+    if (!handler->preassembly || !req->hasBody()) {
         if (handler->cb->httpRequest) {
-            if (!handler->cb.call (handler->cb->httpRequest,
-                        /* ( */ req, &http_conn->conn_sender, Memory(), &http_conn->cur_msg_data /* ) */))
+            Result res = Result::Failure;
+            if (!handler->cb.call_ret<Result> (
+                        &res,
+                        handler->cb->httpRequest,
+                        /*(*/
+                            req,
+                            &http_conn->conn_sender,
+                            Memory(),
+                             &http_conn->cur_msg_data
+                        /*)*/)
+                || !res)
             {
                 http_conn->cur_handler = NULL;
             }
+
+            if (http_conn->cur_msg_data && !req->hasBody())
+                logW_ (_func, "msg_data is likely lost");
+
+            http_conn->receiving_body = true;
         }
     }
 }
 
 void
 HttpService::httpMessageBody (HttpRequest  * const mt_nonnull req,
-			      Memory const &mem,
+			      Memory         const mem,
 			      bool           const end_of_request,
 			      Size         * const mt_nonnull ret_accepted,
 			      void         * const  _http_conn)
@@ -230,9 +234,10 @@ HttpService::httpMessageBody (HttpRequest  * const mt_nonnull req,
     if (http_conn->cur_handler->preassembly
 	&& http_conn->preassembled_len < http_conn->cur_handler->preassembly_limit)
     {
-	Size size = req->getContentLength();
-	if (size > http_conn->cur_handler->preassembly_limit)
-	    size = http_conn->cur_handler->preassembly_limit;
+        // 'size' is how much we'are going to preassemble for this request.
+	Size size = http_conn->cur_handler->preassembly_limit;
+        if (req->getContentLengthSpecified() && req->getContentLength() < size)
+            size = req->getContentLength();
 
 	bool alloc_new = true;
 	if (http_conn->preassembly_buf) {
@@ -248,72 +253,93 @@ HttpService::httpMessageBody (HttpRequest  * const mt_nonnull req,
 	    http_conn->preassembly_buf_size = size;
 	}
 
-	if (mem.len() + http_conn->preassembled_len < mem.len() /* dirty */
-	    || mem.len() + http_conn->preassembled_len >= size)
-	{
-	    *ret_accepted = 0;
-	    if (size > 0) {
+	if (mem.len() + http_conn->preassembled_len >= size
+            || end_of_request)
+        {
+            {
+                Size tocopy = size - http_conn->preassembled_len;
+                if (tocopy > mem.len())
+                    tocopy = mem.len();
+
 		memcpy (http_conn->preassembly_buf + http_conn->preassembled_len,
 			mem.mem(),
-			size - http_conn->preassembled_len);
-		*ret_accepted = size - http_conn->preassembled_len;
-		http_conn->preassembled_len = size;
+                        tocopy);
 
-		if (http_conn->cur_handler->parse_body_params) {
-//		    logD_ (_func, "Parsing body params:");
-//                  logLock ();
-//		    hexdump (logs, ConstMemory (http_conn->preassembly_buf, http_conn->preassembled_len));
-//                  logUnlock ();
-		    req->parseParameters (
-                            Memory (http_conn->preassembly_buf,
-                                    http_conn->preassembled_len));
-		}
+		*ret_accepted = tocopy;
+		http_conn->preassembled_len += tocopy;
+            }
 
-                if (http_conn->cur_handler->cb->httpRequest) {
+            if (http_conn->cur_handler->parse_body_params) {
+                req->parseParameters (
+                        Memory (http_conn->preassembly_buf,
+                                http_conn->preassembled_len));
+            }
+
+            if (http_conn->cur_handler->cb->httpRequest) {
+                Result res = Result::Failure;
+                if (!http_conn->cur_handler->cb.call_ret<Result> (
+                            &res,
+                            http_conn->cur_handler->cb->httpRequest,
+                            /*(*/
+                                req,
+                                &http_conn->conn_sender,
+                                Memory (http_conn->preassembly_buf,
+                                        http_conn->preassembled_len),
+                                &http_conn->cur_msg_data
+                            /*)*/)
+                    || !res)
+                {
+                    http_conn->cur_handler = NULL;
+                }
+            }
+            http_conn->receiving_body = true;
+
+            if (http_conn->cur_handler) {
+                if (*ret_accepted < mem.len()) {
+                    Size accepted = 0;
                     Result res = Result::Failure;
                     if (!http_conn->cur_handler->cb.call_ret<Result> (
                                 &res,
-                                http_conn->cur_handler->cb->httpRequest,
+                                http_conn->cur_handler->cb->httpMessageBody,
                                 /*(*/
                                     req,
                                     &http_conn->conn_sender,
-                                    Memory (http_conn->preassembly_buf,
-                                            http_conn->preassembled_len),
-                                    &http_conn->cur_msg_data
-                                /*)*/))
+                                    mem.region (*ret_accepted),
+                                    end_of_request,
+                                    &accepted,
+                                    http_conn->cur_msg_data
+                                /*)*/)
+                        || !res)
                     {
                         http_conn->cur_handler = NULL;
                     }
 
-                    if (!res)
-                        http_conn->cur_handler = NULL;
+                    *ret_accepted += accepted;
+                } else {
+                    if (end_of_request && !req->getContentLengthSpecified()) {
+                        Size dummy_accepted = 0;
+                        Result res = Result::Failure;
+                        if (!http_conn->cur_handler->cb.call_ret<Result> (
+                                    &res,
+                                    http_conn->cur_handler->cb->httpMessageBody,
+                                    /*(*/
+                                        req,
+                                        &http_conn->conn_sender,
+                                        Memory(),
+                                        true /* end_of_request */,
+                                        &dummy_accepted,
+                                        http_conn->cur_msg_data
+                                    /*)*/)
+                            || !res)
+                        {
+                            http_conn->cur_handler = NULL;
+                        }
+                    }
                 }
-	    }
+            }
 
-	    if (*ret_accepted < mem.len()) {
-                Result res = Result::Failure;;
-		Size accepted = 0;
-		if (!http_conn->cur_handler->cb.call_ret<Result> (
-                            &res,
-                            http_conn->cur_handler->cb->httpMessageBody,
-                            /*(*/
-                                req,
-                                &http_conn->conn_sender,
-                                mem.region (*ret_accepted),
-                                end_of_request,
-                                &accepted,
-                                http_conn->cur_msg_data
-                            /*)*/)
-		    || end_of_request)
-		{
-		    http_conn->cur_handler = NULL;
-		}
-
-                if (!res)
-                    http_conn->cur_handler = NULL;
-
-		*ret_accepted += accepted;
-	    }
+            if (!http_conn->cur_handler)
+                *ret_accepted = mem.len();
 	} else {
 	    memcpy (http_conn->preassembly_buf + http_conn->preassembled_len,
 		    mem.mem(),
@@ -337,33 +363,59 @@ HttpService::httpMessageBody (HttpRequest  * const mt_nonnull req,
                     ret_accepted,
                     http_conn->cur_msg_data
                 /*)*/)
-	|| end_of_request)
+        || !res)
     {
 	http_conn->cur_handler = NULL;
 	*ret_accepted = mem.len();
     }
-
-    if (!res) {
-        http_conn->cur_handler = NULL;
-        *ret_accepted = mem.len();
-    }
 }
 
 void
-HttpService::doCloseHttpConnection (HttpConnection * const http_conn)
+HttpService::doCloseHttpConnection (HttpConnection * const http_conn,
+                                    HttpRequest    * const req)
 {
+#warning I presume that HttpServer/Service guarantees synchronization domain.
+#warning But calling doCloseHttpConnection from the dtor violates the rule.
+/* ^^^
+   Решу это привязкой объектов к потокам. Простого решения нет.
+   Очевидно, что в деструкторе нужно вызывать callback, который гарантирует
+   контекст синхронизации. Единственный способ это сделать -
+   вызывать callback из конкретного потока.
+*/
+
     if (http_conn->cur_handler) {
-	Size accepted = 0;
-	http_conn->cur_handler->cb.call (
-                http_conn->cur_handler->cb->httpMessageBody,
-                /*(*/
-                    (HttpRequest*) NULL,
-                    &http_conn->conn_sender,
-                    Memory(),
-                    true /* end_of_request */,
-                    &accepted,
-                    http_conn->cur_msg_data
-                /*)*/);
+        if (req && !http_conn->receiving_body) {
+            void *dummy_msg_data = NULL;
+            http_conn->cur_handler->cb.call (
+                    http_conn->cur_handler->cb->httpRequest,
+                    /*(*/
+                        req,
+                        &http_conn->conn_sender,
+                        (http_conn->cur_handler->preassembly ?
+                                Memory (http_conn->preassembly_buf,
+                                        http_conn->preassembled_len)
+                                : Memory()),
+                        &dummy_msg_data
+                    /*)*/);
+            if (dummy_msg_data)
+                logW_ (_func, "msg_data is likely lost");
+
+            http_conn->receiving_body = true;
+        }
+
+        if (!req || (req->hasBody() && http_conn->receiving_body)) {
+            Size dummy_accepted = 0;
+            http_conn->cur_handler->cb.call (
+                    http_conn->cur_handler->cb->httpMessageBody,
+                    /*(*/
+                        req,
+                        &http_conn->conn_sender,
+                        Memory(),
+                        true /* end_of_request */,
+                        &dummy_accepted,
+                        http_conn->cur_msg_data
+                    /*)*/);
+        }
 
 	http_conn->cur_handler = NULL;
 	logD (http_service, _func, "http_conn->cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
@@ -377,8 +429,9 @@ HttpService::doCloseHttpConnection (HttpConnection * const http_conn)
 }
 
 void
-HttpService::httpClosed (Exception * const exc_,
-			 void      * const _http_conn)
+HttpService::httpClosed (HttpRequest * const req,
+                         Exception   * const exc_,
+			 void        * const _http_conn)
 {
     HttpConnection * const http_conn = static_cast <HttpConnection*> (_http_conn);
 
@@ -391,7 +444,7 @@ HttpService::httpClosed (Exception * const exc_,
           "refcount: ", fmt_def, http_conn->getRefCount(), ", "
           "cur_handler: 0x", fmt_hex, (UintPtr) http_conn->cur_handler);
 
-    doCloseHttpConnection (http_conn);
+    doCloseHttpConnection (http_conn, req);
 }
 
 bool
@@ -424,6 +477,7 @@ HttpService::acceptOneConnection ()
 
     http_conn->cur_handler = NULL;
     http_conn->cur_msg_data = NULL;
+    http_conn->receiving_body = false;
     http_conn->preassembly_buf = NULL;
     http_conn->preassembly_buf_size = 0;
     http_conn->preassembled_len = 0;
@@ -470,6 +524,10 @@ HttpService::acceptOneConnection ()
     return true;
 }
 
+TcpServer::Frontend const HttpService::tcp_server_frontend = {
+    accepted
+};
+
 void
 HttpService::accepted (void *_self)
 {
@@ -486,11 +544,14 @@ HttpService::accepted (void *_self)
 mt_mutex (mutex) void
 HttpService::addHttpHandler_rec (CbDesc<HttpHandler> const &cb,
 				 ConstMemory   const path_,
-				 bool          const preassembly,
+				 bool                preassembly,
 				 Size          const preassembly_limit,
 				 bool          const parse_body_params,
 				 Namespace   * const nsp)
 {
+    if (preassembly_limit == 0)
+        preassembly = false;
+
     ConstMemory path = path_;
     if (path.len() > 0 && path.mem() [0] == '/')
 	path = path.region (1);
@@ -512,7 +573,7 @@ HttpService::addHttpHandler_rec (CbDesc<HttpHandler> const &cb,
     if (next_nsp_key) {
 	next_nsp = next_nsp_key.getData();
     } else {
-	Ref<Namespace> const new_nsp = grab (new (std::nothrow) Namespace);
+	StRef<Namespace> const new_nsp = st_grab (new (std::nothrow) Namespace);
 	nsp->namespace_hash.add (next_nsp_name, new_nsp);
 	next_nsp = new_nsp;
     }
