@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__UTIL_TIME__H__
-#define __LIBMARY__UTIL_TIME__H__
+#ifndef LIBMARY__UTIL_TIME__H__
+#define LIBMARY__UTIL_TIME__H__
 
 
 #include <libmary/types.h>
@@ -70,13 +70,15 @@ static inline void sSleep (unsigned long const seconds)
     uSleep (microseconds);
 }
 
+Result unixtimeToStructTm (Time       unixtime,
+                           struct tm * mt_nonnull ret_tm);
+
 enum {
-    timeToString_BufSize = 30
+    unixtimeToString_BufSize = 30
 };
 
-// TODO Rename to "unixtimeToHttpString"
-Size timeToString (Memory mem,
-		   Time   time);
+Size unixtimeToString (Memory mem,
+                       Time   time);
 
 Size timeToHttpString (Memory     mem,
                        struct tm * mt_nonnull tm);
@@ -93,5 +95,5 @@ ComparisonResult compareTime (struct tm * mt_nonnull left,
 }
 
 
-#endif /* __LIBMARY__UTIL_TIME__H__ */
+#endif /* LIBMARY__UTIL_TIME__H__ */
 

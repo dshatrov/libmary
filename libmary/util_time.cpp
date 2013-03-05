@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -19,6 +19,7 @@
 
 #include <libmary/types.h>
 #include <cctype>
+#include <cstdio>
 
 #include <errno.h>
 #include <time.h>
@@ -57,6 +58,43 @@ namespace M {
 
 namespace {
 LogGroup libMary_logGroup_time ("time", LogLevel::None);
+}
+
+static void dumpTime (LibMary_ThreadLocal * const tlocal)
+{
+    fprintf (stderr,
+             "--- tlocal 0x%lx\n"
+             "time_seconds: %lu, "
+             "time_microseconds: %lu, "
+             "unixtime: %lu\n",
+             (unsigned long) tlocal,
+             (unsigned long) tlocal->time_seconds,
+             (unsigned long) tlocal->time_microseconds,
+             (unsigned long) tlocal->unixtime);
+
+    fprintf (stderr,
+             "localtime: %lu/%lu/%lu %lu:%lu:%lu.%lu\n",
+             (unsigned long) tlocal->localtime.tm_year + 1900,
+             (unsigned long) tlocal->localtime.tm_mon + 1,
+             (unsigned long) tlocal->localtime.tm_mday,
+             (unsigned long) tlocal->localtime.tm_hour,
+             (unsigned long) tlocal->localtime.tm_min,
+             (unsigned long) tlocal->localtime.tm_sec,
+             (unsigned long) tlocal->time_log_frac);
+
+    fprintf (stderr,
+             "saved_unixtime: %lu, "
+             "saved_monotime: %lu\n",
+             (unsigned long) tlocal->saved_unixtime,
+             (unsigned long) tlocal->saved_monotime);
+
+#ifdef LIBMARY_PLATFORM_WIN32
+    fprintf (stderr,
+             "prv_win_time_dw: %lu, "
+             "win_time_offs: %lu\n",
+             (unsigned long) tlocal->prv_win_time_dw,
+             (unsigned long) tlocal->win_time_offs);
+#endif
 }
 
 mt_throws Result updateTime ()
@@ -193,38 +231,49 @@ static char const *months [] = {
         "Jan", "Feb", "Mar", "Apr", "May", "Jun",
         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
-// HTTP date formatting (RFC2616, RFC822, RFC1123).
-//
-// @time - unixtime.
-//
-Size timeToString (Memory const mem,
-		   Time   const time)
+Result unixtimeToStructTm (Time        const unixtime,
+                           struct tm * const mt_nonnull ret_tm)
 {
-    time_t t = time;
+    time_t t = unixtime;
 
-    struct tm tm;
 #ifdef LIBMARY_PLATFORM_WIN32
   #ifdef LIBMARY_WIN32_SECURE_CRT
-    if (gmtime_s (&tm, &t) != 0)
+    if (gmtime_s (ret_tm, &t) != 0)
   #else
     libraryLock ();
     struct tm * const tmp_tm = gmtime (&t);
     if (tmp_tm) {
-        tm = *tmp_tm;
+        *ret_tm = *tmp_tm;
     }
     libraryUnlock ();
     if (!tmp_tm)
   #endif
 #else
-    if (!gmtime_r (&t, &tm))
+    if (!gmtime_r (&t, ret_tm))
 #endif
     {
+	logE_ (_func, "gmtime_r() failed");
+        return Result::Failure;
+    }
+
+    return Result::Success;
+}
+
+// HTTP date formatting (RFC2616, RFC822, RFC1123).
+//
+// @time - unixtime.
+//
+Size unixtimeToString (Memory const mem,
+                       Time   const unixtime)
+{
+    struct tm tm;
+    if (!unixtimeToStructTm (unixtime, &tm)) {
 	logE_ (_func, "gmtime_r() failed");
 
 	if (mem.len() > 0)
 	    mem.mem() [0] = 0;
 
-	return 0;
+        return 0;
     }
 
     return timeToHttpString (mem, &tm);
