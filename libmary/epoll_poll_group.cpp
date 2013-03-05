@@ -33,9 +33,7 @@
 
 namespace M {
 
-namespace {
-LogGroup libMary_logGroup_epoll ("epoll", LogLevel::I);
-}
+static LogGroup libMary_logGroup_epoll ("epoll", LogLevel::I);
 
 mt_mutex (mutex) void
 EpollPollGroup::processPollableDeletionQueue ()
@@ -108,6 +106,11 @@ EpollPollGroup::doActivate (PollableEntry * const mt_nonnull pollable_entry)
 	return Result::Failure;
     }
 
+#warning We've added a new pollable to the poll group. We don't yet know its state
+#warning and we use edge-triggered events, hence we should assume initially that
+#warning both input and output events should be reported without waiting for an edge.
+#warning Take care of robust triggering to avoid loosing such injected events.
+    // ^^^ Note that ConnectionReceiver takes care of this.
     if (!trigger ()) {
 	logE_ (_func, "trigger() failed: ", exc->toString());
 	return Result::Failure;
@@ -189,7 +192,7 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	}
 
         mutex.lock ();
-        if (triggered) {
+        if (triggered || timeout == 0) {
             block_trigger_pipe = true;
             timeout = 0;
             mutex.unlock ();
@@ -356,10 +359,10 @@ EpollPollGroup::trigger ()
     return commonTriggerPipeWrite (trigger_pipe [1]);
 }
 
-mt_throws Result
+mt_const mt_throws Result
 EpollPollGroup::open ()
 {
-    efd =  epoll_create (1 /* size, unused */);
+    efd = epoll_create (1 /* size, unused */);
     if (efd == -1) {
 	exc_throw (PosixException, errno);
 	logE_ (_func, "epoll_create() failed: ", errnoString (errno));
