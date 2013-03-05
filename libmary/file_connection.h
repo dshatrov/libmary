@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__FILE_CONNECTION__H__
-#define __LIBMARY__FILE_CONNECTION__H__
+#ifndef LIBMARY__FILE_CONNECTION__H__
+#define LIBMARY__FILE_CONNECTION__H__
 
 
 #include <libmary/types.h>
@@ -35,45 +35,32 @@ private:
 
 public:
     mt_iface (AsyncInputStream)
-    mt_begin
-
       mt_throws AsyncIoResult read (Memory  mem,
 				    Size   *ret_nread);
-
-    mt_end
+    mt_iface_end
 
     mt_iface (AsyncOutputStream)
-    mt_begin
-
       mt_throws AsyncIoResult write (ConstMemory  mem,
 				     Size        *ret_nwritten);
 
       mt_throws AsyncIoResult writev (struct iovec *iovs,
 				      Count         num_iovs,
 				      Size         *ret_nwrittev);
-
-    mt_end
+    mt_iface_end
 
     mt_iface (Connection)
-    mt_begin
-
-//      mt_throws Result close ();
-
 #ifdef LIBMARY_ENABLE_MWRITEV
-      int getFd ();
+      int getFd () { return file->getFd(); }
 #endif
+    mt_iface_end
 
-    mt_end
+    mt_const void init (File * const mt_nonnull file) { this->file = file; }
 
-    mt_const void setFile (File *file);
-
-    FileConnection ();
-
-    ~FileConnection ();
+    FileConnection () : file (NULL) {}
 };
 
 }
 
 
-#endif /* __LIBMARY__FILE_CONNECTION__H__ */
+#endif /* LIBMARY__FILE_CONNECTION__H__ */
 

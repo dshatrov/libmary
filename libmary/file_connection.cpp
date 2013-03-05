@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -23,7 +23,7 @@
 namespace M {
 
 mt_throws AsyncIoResult
-FileConnection::read (Memory  mem,
+FileConnection::read (Memory   const mem,
 		      Size   * const ret_nread)
 {
     IoResult const res = file->read (mem, ret_nread);
@@ -41,7 +41,7 @@ FileConnection::read (Memory  mem,
 }
 
 mt_throws AsyncIoResult
-FileConnection::write (ConstMemory  mem,
+FileConnection::write (ConstMemory   const mem,
 		       Size        * const ret_nwritten)
 {
     if (!file->write (mem, ret_nwritten))
@@ -63,37 +63,6 @@ FileConnection::writev (struct iovec * const iovs,
 	return AsyncIoResult::Error;
 
     return AsyncIoResult::Normal;
-}
-
-#if 0
-mt_throws Result
-FileConnection::close ()
-{
-    return file->close ();
-}
-#endif
-
-#ifdef LIBMARY_ENABLE_MWRITEV
-int
-FileConnection::getFd ()
-{
-    return file->getFd ();
-}
-#endif
-
-void
-FileConnection::setFile (File * const file)
-{
-    this->file = file;
-}
-
-FileConnection::FileConnection ()
-    : file (NULL)
-{
-}
-
-FileConnection::~FileConnection ()
-{
 }
 
 }
