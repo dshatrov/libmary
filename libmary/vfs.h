@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -23,39 +23,54 @@
 
 #include <libmary/types.h>
 #include <libmary/exception.h>
-#include <libmary/basic_referenced.h>
+#include <libmary/referenced.h>
 #include <libmary/string.h>
 #include <libmary/native_file.h>
 
 
 namespace M {
 
-class Vfs : public BasicReferenced
+class Vfs : public Referenced
 {
 public:
     typedef NativeFile::FileType FileType;
     typedef NativeFile::FileStat FileStat;
 
-    class Directory : public BasicReferenced
+    class VfsFile : public Referenced
+    {
+    public:
+        virtual File* getFile () = 0;
+    };
+
+    class VfsDirectory : public BasicReferenced
     {
     public:
 	virtual mt_throws Result getNextEntry (Ref<String> &ret_name) = 0;
-
 	virtual mt_throws Result rewind () = 0;
     };
 
     virtual mt_throws Result stat (ConstMemory  name,
                                    FileStat    * mt_nonnull ret_stat) = 0;
 
-    virtual mt_throws Ref<Directory> openDirectory (ConstMemory const &dirname) = 0;
+    virtual mt_throws Ref<VfsFile> openFile (ConstMemory    filename,
+                                             Uint32         open_flags,
+                                             FileAccessMode access_mode) = 0;
 
-#if 0
-    virtual mt_throws Ref<File> openFile (ConstMemory const &filename,
-					  Uint32             open_flags,
-					  File::AccessMode   access_mode) = 0;
-#endif
+    virtual mt_throws Ref<VfsDirectory> openDirectory (ConstMemory dirname) = 0;
 
-    static mt_throws Ref<Vfs> createDefaultLocalVfs (ConstMemory const &root_path);
+    virtual mt_throws Result createDirectory (ConstMemory dirname) = 0;
+
+    mt_throws Result createSubdirs (ConstMemory dirs_path);
+
+    mt_throws Result createSubdirsForFilename (ConstMemory const filename)
+    {
+        if (Byte const * const file_part = (Byte const*) memrchr (filename.mem(), '/', filename.len()))
+            return createSubdirs (filename.region (0, file_part - filename.mem()));
+
+        return Result::Success;
+    }
+
+    static mt_throws Ref<Vfs> createDefaultLocalVfs (ConstMemory root_path);
 
     virtual ~Vfs () {}
 };
