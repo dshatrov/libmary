@@ -69,7 +69,7 @@ DeferredProcessor_Registration::scheduleTask (DeferredProcessor_Task * const mt_
 	return;
     }
 
-    assert (!task->registration);
+    assert (!task->registration || task->registration == this);
     task->registration = this;
 
     task->scheduled = true;
