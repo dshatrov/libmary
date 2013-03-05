@@ -92,7 +92,11 @@ public:
     int fetchAdd (int const a)
     {
 #ifdef LIBMARY_MT_SAFE
+  #ifdef LIBMARY__OLD_GTHREAD_API
 	return (int) g_atomic_int_exchange_and_add (&value, a);
+  #else
+        return (int) g_atomic_int_add (&value, a);
+  #endif
 #else
 	int old_value = value;
 	value += a;
