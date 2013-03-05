@@ -17,15 +17,15 @@
 */
 
 
-#ifndef __LIBMARY__MEMORY__H__
-#define __LIBMARY__MEMORY__H__
+#ifndef LIBMARY__MEMORY__H__
+#define LIBMARY__MEMORY__H__
 
 
 // No libmary #include directives here.
 // This file is meant to be included via libmary/types.h
-#if !(defined (__LIBMARY__TYPES__H__)  || \
-      defined (__LIBMARY__STRING__H__) || \
-      defined (__LIBMARY__UTIL_BASE__H__))
+#if !(defined (LIBMARY__TYPES__H__)  || \
+      defined (LIBMARY__STRING__H__) || \
+      defined (LIBMARY__UTIL_BASE__H__))
 #error libmary/memory.h should not be included directly
 #endif
 
@@ -225,5 +225,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__MEMORY__H__ */
+#endif /* LIBMARY__MEMORY__H__ */
 
