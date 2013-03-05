@@ -40,8 +40,16 @@ public:
   #endif
 #endif
 public:
+#ifdef LIBMARY_MT_SAFE
     void lock   ();
     void unlock ();
+#else
+  // Note: To test 'tlocal->state_mutex_counter' in mt-unsafe mode,
+  //       StateMutexLock and StateMutexUnlock should be changed
+  //       to actually call StateMutex::lock() and StateMutex::unlock().
+    void lock   () {}
+    void unlock () {}
+#endif
 };
 
 class StateMutexLock
@@ -56,20 +64,12 @@ private:
 
 public:
     StateMutexLock (StateMutex * const mt_nonnull mutex)
-	: mutex (mutex)
-    {
-	mutex->lock ();
-    }
+        : mutex (mutex) { mutex->lock (); }
 
-    ~StateMutexLock ()
-    {
-	mutex->unlock ();
-    }
+    ~StateMutexLock () { mutex->unlock (); }
 #else
 public:
-    StateMutexLock (StateMutex * const /* mutex */)
-    {
-    }
+    StateMutexLock (StateMutex * const /* mutex */) {}
 #endif
 };
 
@@ -85,20 +85,12 @@ private:
 
 public:
     StateMutexUnlock (StateMutex * const mt_nonnull mutex)
-	: mutex (mutex)
-    {
-	mutex->unlock ();
-    }
+        : mutex (mutex) { mutex->unlock (); }
 
-    ~StateMutexUnlock ()
-    {
-	mutex->lock ();
-    }
+    ~StateMutexUnlock () { mutex->lock (); }
 #else
-punlic:
-    StateMutexUnlock (StateMutex * const mt_nonnull /* mutex */)
-    {
-    }
+public:
+    StateMutexUnlock (StateMutex * const mt_nonnull /* mutex */) {}
 #endif
 };
 

@@ -27,6 +27,7 @@
 
 namespace M {
 
+#ifdef LIBMARY_MT_SAFE
 void
 StateMutex::lock ()
 {
@@ -69,6 +70,7 @@ void StateMutex::unlock ()
     mutex.unlock ();
 #endif
 }
+#endif
 
 }
 
