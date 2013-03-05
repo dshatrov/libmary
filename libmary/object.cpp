@@ -77,16 +77,20 @@ Object::last_unref ()
 
 	shadow->weak_ptr = NULL;
 
-	// External objects will be unable to call removeDeletionCallback() while
-	// we're in the process of calling deletion callbacks, because there's no
-	// references to the object anymore, and weak_ptr in Shadow is nullified.
-	// Therefore, if a subscriber gets deleted while we're processing deletion
-	// subscriptions, we'll get a stale subscription in the list.
-	// This means that we must prevent subscribers from being deleted by
-	// grabbing real references to all guard objects before releasing shadow's
-	// mutex after nullifying weak_ptr.
+        // Note that we *must* unref 'shadow_mutex' before calling getRefPtr()
+        // for objects from 'deletion_subscription_list'. Otherwise there'd
+        // be a deadlock condition on shadow mutexes when two objects subscribed
+        // for deletion of each other are deleted simultaneously.
+        //
+        // There's no need to worry about dangling pointers due to the other
+        // object being deleted after we nullified 'shadow->weak_ptr', because
+        // we still have a reference to that object's shadow. WeakRefs act
+        // as a proper synchronization mechanism here.
+        shadow->shadow_mutex.unlock ();
+
 	{
-	  MutexLock l (&deletion_mutex);
+            deletion_mutex.lock ();
+
 	    DeletionSubscription *sbn = deletion_subscription_list.getFirst ();
 	    if (sbn) {
 		do {
@@ -102,6 +106,9 @@ Object::last_unref ()
 			    // there'll be no external method calls for the object
 			    // anymore.
 			    sbn->obj = sbn->weak_peer_obj.getRefPtr ();
+                            // If we couldn't obtain a reference (got NULL), then the peer
+                            // object is being deleted right now. We just silently delete
+                            // 'sbn' in that case.
 			} else {
 			    sbn->obj = this;
 			}
@@ -109,9 +116,9 @@ Object::last_unref ()
 		    sbn = deletion_subscription_list.getNext (sbn);
 		} while (sbn != deletion_subscription_list.getFirst ());
 	    }
-	}
 
-        shadow->shadow_mutex.unlock ();
+            deletion_mutex.unlock ();
+	}
     }
 
     // Releasing 'shadow' early so that 'atomic_shadow' field can be used
@@ -169,6 +176,11 @@ Object::do_delete ()
   // itself, because deletion_subscription_list may contain mutual
   // subscriptions which may be deleted at any moment by do_delete() of
   // another object.
+  //
+  // ^^^ And if they do get deleted, then we'll never call unref() for the peer object.
+  // That would be a bug (leak). But the comment above is likely false, because
+  // to remove any deletion subscription (including mutual subscriptions),
+  // one has to get a reference to the object, which is not possible at this point.
 
     for (;;) {
 	deletion_mutex.lock ();
@@ -248,19 +260,19 @@ Object::addDeletionCallback (CbDesc<DeletionCallback> const &cb)
 		(unsigned long) this, _func_name, (unsigned long) sbn, (unsigned long) cb.coderef_container);
     )
     sbn->obj = this;
-    {
-	if (cb.coderef_container && cb.coderef_container != this) {
-	    sbn->mutual_sbn = cb.coderef_container->addDeletionCallbackNonmutual (
-                    CbDesc<DeletionCallback> (
-                            mutualDeletionCallback,
-                            sbn,
-                            getCoderefContainer() /* equivalent to 'this' */));
-	}
 
-        deletion_mutex.lock ();
-	deletion_subscription_list.append (sbn);
-        deletion_mutex.unlock ();
+    if (cb.coderef_container && cb.coderef_container != getCoderefContainer() /* equivalent to 'this' */) {
+        sbn->mutual_sbn = cb.coderef_container->addDeletionCallbackNonmutual (
+                CbDesc<DeletionCallback> (
+                        mutualDeletionCallback,
+                        sbn,
+                        getCoderefContainer() /* equivalent to 'this' */));
     }
+
+    deletion_mutex.lock ();
+    deletion_subscription_list.append (sbn);
+    deletion_mutex.unlock ();
+
     return sbn;
 }
 
@@ -289,15 +301,20 @@ Object::addDeletionCallbackNonmutual (CbDesc<DeletionCallback> const &cb)
 void
 Object::removeDeletionCallback (DeletionSubscriptionKey const mt_nonnull sbn)
 {
+    if (sbn->mutual_sbn) {
+	Ref<Object> const peer_obj = sbn->weak_peer_obj.getRef ();
+        if (!peer_obj) {
+          // 'sbn' will be released by mutualDeletionCallback(), which is likely
+          // just about to be called.
+            return;
+        }
+
+        peer_obj->removeDeletionCallback (sbn->mutual_sbn);
+    }
+
     deletion_mutex.lock ();
     deletion_subscription_list.remove (sbn.del_sbn);
     deletion_mutex.unlock ();
-
-    if (sbn->mutual_sbn) {
-	Ref<Object> peer_obj = sbn->weak_peer_obj.getRef ();
-	if (peer_obj)
-	    peer_obj->removeDeletionCallback (sbn->mutual_sbn);
-    }
 
     delete sbn.del_sbn;
 }
