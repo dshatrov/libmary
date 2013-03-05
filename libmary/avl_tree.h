@@ -276,6 +276,25 @@ public:
         typename AvlTreeBase<T>::Node* next () { return &iter.next (); }
     };
 
+
+  // _______________________________ bl_iterator _______________________________
+
+    class bl_iterator
+    {
+    private:
+        BottomLeftIterator iter;
+
+    public:
+        bl_iterator (AvlTreeBase<T> const &tree) : iter (tree) {}
+        bl_iterator (typename AvlTreeBase<T>::Node * const node) : iter (node) {}
+
+        bool operator == (iterator const &iter) const { return this->iter == iter.iter; }
+        bool operator != (iterator const &iter) const { return this->iter != iter.iter; }
+
+        bool done () /* const */ { return iter.done (); }
+        typename AvlTreeBase<T>::Node* next () { return &iter.next (); }
+    };
+
   // ___________________________________________________________________________
 
 
