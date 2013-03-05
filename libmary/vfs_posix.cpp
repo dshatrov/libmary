@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -19,6 +19,7 @@
 
 #include <errno.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <dirent.h>
 
 #include <libmary/array_holder.h>
@@ -63,14 +64,14 @@ VfsPosix::makePathCstr (Ref<String> &str_holder,
 	else
 	    str_holder = makeString (root_mem, "/", path_suffix);
     } else {
-	str_holder = grab (new String (path_suffix));
+	str_holder = grab (new (std::nothrow) String (path_suffix));
     }
 
     return str_holder->mem();
 }
 
 mt_throws Result
-VfsPosix::Directory::getNextEntry (Ref<String> &ret_str)
+VfsPosix::VfsPosixDirectory::getNextEntry (Ref<String> &ret_str)
 {
     ret_str = NULL;
 
@@ -87,7 +88,7 @@ VfsPosix::Directory::getNextEntry (Ref<String> &ret_str)
         return Result::Failure;
     }
 
-    ret_str = grab (new String ((char const*) dirent->d_name));
+    ret_str = grab (new (std::nothrow) String ((char const*) dirent->d_name));
     libraryUnlock ();
 #else
     ArrayHolder<unsigned char> dirent_array (sizeof (struct dirent) + NAME_MAX + 1);
@@ -108,21 +109,21 @@ VfsPosix::Directory::getNextEntry (Ref<String> &ret_str)
 	return Result::Failure;
     }
 
-    ret_str = grab (new String ((char const*) dirent->d_name));
+    ret_str = grab (new (std::nothrow) String ((char const*) dirent->d_name));
 #endif
 
     return Result::Success;
 }
 
 mt_throws Result
-VfsPosix::Directory::rewind ()
+VfsPosix::VfsPosixDirectory::rewind ()
 {
     rewinddir (dir);
     return Result::Success;
 }
 
 mt_throws Result
-VfsPosix::Directory::open (ConstMemory const &_dirname)
+VfsPosix::VfsPosixDirectory::open (ConstMemory const _dirname)
 {
     char dirname [_dirname.len() + 1];
     memcpy (dirname, _dirname.mem(), _dirname.len());
@@ -139,12 +140,7 @@ VfsPosix::Directory::open (ConstMemory const &_dirname)
     return Result::Success;
 }
 
-VfsPosix::Directory::Directory ()
-    : dir (NULL)
-{
-}
-
-VfsPosix::Directory::~Directory ()
+VfsPosix::VfsPosixDirectory::~VfsPosixDirectory ()
 {
     if (dir) {
 	for (;;) {
@@ -186,42 +182,72 @@ VfsPosix::stat (ConstMemory   const _name,
     return posix_statToFileStat (&stat_buf, ret_stat);
 }
 
-mt_throws Ref<Vfs::Directory>
-VfsPosix::openDirectory (ConstMemory const &_dirname)
+mt_throws Ref<Vfs::VfsFile>
+VfsPosix::openFile (ConstMemory    const _filename,
+                    Uint32         const open_flags,
+                    FileAccessMode const access_mode)
+{
+    Ref<String> filename_str;
+    ConstMemory const filename = makePath (filename_str, _filename);
+
+    Ref<VfsPosixFile> const file = grab (new (std::nothrow) VfsPosixFile);
+    if (!file->native_file.open (filename, open_flags, access_mode))
+        return NULL;
+
+    return file;
+}
+
+mt_throws Ref<Vfs::VfsDirectory>
+VfsPosix::openDirectory (ConstMemory const _dirname)
 {
     Ref<String> dirname_str;
     ConstMemory const dirname = makePath (dirname_str, _dirname);
 
-    Ref<Directory> directory = grab (new Directory);
+    Ref<VfsPosixDirectory> directory = grab (new (std::nothrow) VfsPosixDirectory);
     if (!directory->open (dirname))
 	return NULL;
 
     return directory;
 }
 
-#if 0
-mt_throws Ref<File>
-VfsPosix::openFile (ConstMemory      const &_filename,
-		    Uint32           const  open_flags,
-		    File::AccessMode const  access_mode)
+mt_throws Result
+VfsPosix::createDirectory (ConstMemory const _dirname)
 {
-    Ref<String> filename_str;
-    ConstMemory const filename = makePath (filename_str, _filename);
-// TODO
-#if 0
-    try {
-	return grab (static_cast <File*> (new NativeFile (filename->getData (), open_flags, access_mode)));
-    } catch (Exception &exc) {
-	throw InternalException (String::nullString (), exc.clone ());
-    }
-#endif
-    unreachable ();
-    return NULL;
-}
-#endif
+    Ref<String> dirname_str;
+    ConstMemory const dirname = makePath (dirname_str, _dirname);
 
-VfsPosix::VfsPosix (ConstMemory const &root_path)
-    : root_path (grab (new String (root_path)))
+    for (;;) {
+        String str (dirname);
+        int const res = mkdir (str.cstr(), 0700);
+        if (res == -1) {
+            int const err = errno;
+
+            // There're indications that mkdir() may return EINTR
+            // on some platforms.
+            if (err == EINTR)
+                continue;
+
+            if (err == EEXIST)
+                return Result::Success;
+
+            logE_ (_func, "mkdir() failed: ", errnoString (err));
+            exc_throw (PosixException, err);
+            return Result::Failure;
+        } else
+        if (res != 0) {
+            logE_ (_func, "mkdir(): unexpected return value: ", res);
+            exc_throw (InternalException, InternalException::BackendMalfunction);
+            return Result::Failure;
+        }
+
+        break;
+    }
+
+    return Result::Success;
+}
+
+VfsPosix::VfsPosix (ConstMemory const root_path)
+    : root_path (grab (new (std::nothrow) String (root_path)))
 {
 }
 

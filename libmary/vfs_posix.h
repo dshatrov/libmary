@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -25,6 +25,7 @@
 #include <dirent.h>
 
 #include <libmary/vfs.h>
+#include <libmary/native_file.h>
 
 
 namespace M {
@@ -35,43 +36,59 @@ private:
     Ref<String> root_path;
 
     ConstMemory makePath (Ref<String> &str_holder,
-			  ConstMemory const path_suffix);
+			  ConstMemory  path_suffix);
 
     ConstMemory makePathCstr (Ref<String> &str_holder,
-			      ConstMemory const path_suffix);
+			      ConstMemory  path_suffix);
 
-public:
-    class Directory : public Vfs::Directory
+    class VfsPosixFile : public Vfs::VfsFile
+    {
+        friend class VfsPosix;
+
+    private:
+        NativeFile native_file;
+
+    public:
+      mt_iface (Vfs::VfsFile)
+        File* getFile () { return &native_file; }
+      mt_iface_end
+    };
+
+    class VfsPosixDirectory : public Vfs::VfsDirectory
     {
 	friend class VfsPosix;
 
     private:
 	DIR *dir;
 
-	mt_throws Result open (ConstMemory const &dirname);
+	mt_throws Result open (ConstMemory dirname);
 
-	Directory ();
+	VfsPosixDirectory () : dir (NULL) {}
 
     public:
+      mt_iface (Vfs::Directory)
 	mt_throws Result getNextEntry (Ref<String> &ret_name);
-
 	mt_throws Result rewind ();
+      mt_iface_end
 
-	~Directory ();
+	~VfsPosixDirectory ();
     };
 
+public:
+  mt_iface (Vfs)
     mt_throws Result stat (ConstMemory  name,
                            FileStat    * mt_nonnull ret_stat);
 
-    mt_throws Ref<Vfs::Directory> openDirectory (ConstMemory const &dirname);
+    mt_throws Ref<VfsFile> openFile (ConstMemory    _filename,
+                                     Uint32         open_flags,
+                                     FileAccessMode access_mode);
 
-#if 0
-    mt_throws Ref<File> openFile (ConstMemory const &filename,
-				  Uint32             open_flags,
-				  File::AccessMode   access_mode);
-#endif
+    mt_throws Ref<Vfs::VfsDirectory> openDirectory (ConstMemory _dirname);
 
-    VfsPosix (ConstMemory const &root_path);
+    mt_throws Result createDirectory (ConstMemory _dirname);
+  mt_iface_end
+
+    VfsPosix (ConstMemory root_path);
 };
 
 }
