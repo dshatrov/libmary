@@ -34,6 +34,14 @@
 
 namespace M {
 
+typedef void (*ParseHttpParameters_Callback) (ConstMemory  name,
+                                              ConstMemory  value,
+                                              void        *cb_data);
+
+void parseHttpParameters (ConstMemory                   mem,
+                          ParseHttpParameters_Callback  param_cb,
+                          void                         *param_cb_data);
+
 class HttpServer;
 
 // Connection -> InputFrontend, OutputFrontend;
@@ -62,6 +70,8 @@ private:
 		  MemoryComparator<> >
 	    ParameterHash;
 
+    bool client_mode;
+
     Ref<String> request_line;
     ConstMemory method;
     ConstMemory full_path;
@@ -71,6 +81,7 @@ private:
     // TODO Support X-Real-IP and alikes.
     IpAddress   client_addr;
     Uint64      content_length;
+    bool        content_length_specified;
     Ref<String> accept_language;
     Ref<String> if_modified_since;
     Ref<String> if_none_match;
@@ -86,12 +97,15 @@ public:
     Count       getNumPathElems    () const { return num_path_elems; }
     IpAddress   getClientAddress   () const { return client_addr; }
     Uint64      getContentLength   () const { return content_length; }
+    bool        getContentLengthSpecified () const { return content_length_specified; }
     ConstMemory getAcceptLanguage  () const { return accept_language ? accept_language->mem()   : ConstMemory(); }
     ConstMemory getIfModifiedSince () const { return if_modified_since ? if_modified_since->mem() : ConstMemory(); }
     ConstMemory getIfNoneMatch     () const { return if_none_match   ? if_none_match->mem()     : ConstMemory(); }
 
     void setKeepalive (bool const keepalive) { this->keepalive = keepalive; }
     bool getKeepalive () const { return keepalive; }
+
+    bool hasBody () const { return (client_mode && !getContentLengthSpecified()) || getContentLength() > 0; }
 
     ConstMemory getPath (Count const index) const
     {
@@ -112,6 +126,12 @@ public:
 	return param->value;
     }
 
+private:
+    static void parseParameters_paramCallback (ConstMemory  name,
+                                               ConstMemory  value,
+                                               void        *_self);
+
+public:
     void parseParameters (Memory mem);
 
     struct AcceptedLanguage
@@ -134,11 +154,13 @@ public:
                                     bool            *ret_any,
                                     List<EntityTag> * mt_nonnull ret_etags);
 
-    HttpRequest ()
-	: path (NULL),
+    HttpRequest (bool const client_mode)
+	: client_mode    (client_mode),
+          path           (NULL),
 	  num_path_elems (0),
 	  content_length (0),
-	  keepalive (true)
+          content_length_specified (false),
+	  keepalive      (true)
     {
     }
 
@@ -153,14 +175,16 @@ public:
 			 // TODO ret_parse_query - для разбора данных от форм 
 			 void        *cb_data);
 
+        // Called only when req->hasBody() is true.
 	void (*messageBody) (HttpRequest * mt_nonnull req,
-			     Memory const &mem,
+			     Memory       mem,
 			     bool         end_of_request,
 			     Size        * mt_nonnull ret_accepted,
 			     void        *cb_data);
 
-	void (*closed) (Exception *exc_,
-			void      *cb_data);
+	void (*closed) (HttpRequest *req,
+                        Exception   *exc_,
+			void        *cb_data);
     };
 
 private:
@@ -185,6 +209,8 @@ private:
     mt_const DataDepRef<Sender> sender;
     mt_const DataDepRef<PagePool> page_pool;
 
+    mt_const bool client_mode;
+
     mt_const IpAddress client_addr;
 
     AtomicInt input_blocked;
@@ -196,6 +222,7 @@ private:
     Size recv_pos;
     // What the "Content-Length" HTTP header said for the current request.
     Size recv_content_length;
+    bool recv_content_length_specified;
 
     Result processRequestLine (Memory mem);
 
@@ -235,13 +262,15 @@ public:
                Receiver               * const mt_nonnull receiver,
                Sender                 * const sender    /* may be NULL for client mode */,
                PagePool               * const page_pool /* may be NULL for client mode */,
-               IpAddress const        &client_addr)
+               IpAddress const        &client_addr,
+               bool                     const client_mode = false)
     {
         this->frontend = frontend;
         this->receiver = receiver;
         this->sender = sender;
         this->page_pool = page_pool;
 	this->client_addr = client_addr;
+        this->client_mode = client_mode;
 
         receiver->setFrontend (
                 CbDesc<Receiver::Frontend> (&receiver_frontend, this, getCoderefContainer()));
@@ -257,9 +286,11 @@ public:
           receiver  (coderef_container),
 	  sender    (coderef_container),
           page_pool (coderef_container),
+          client_mode (false),
 	  req_state (RequestState::RequestLine),
 	  recv_pos (0),
-	  recv_content_length (0)
+	  recv_content_length (0),
+          recv_content_length_specified (false)
     {
     }
 };

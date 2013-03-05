@@ -30,9 +30,7 @@
 
 namespace M {
 
-namespace {
-LogGroup libMary_logGroup_http ("http", LogLevel::I);
-}
+static LogGroup libMary_logGroup_http ("http", LogLevel::I);
 
 Receiver::Frontend const HttpServer::receiver_frontend = {
     processInput,
@@ -45,49 +43,65 @@ Sender::Frontend const HttpServer::sender_frontend = {
     senderClosed
 };
 
-void
-HttpRequest::parseParameters (Memory const mem)
+void parseHttpParameters (ConstMemory                    const mem,
+                          ParseHttpParameters_Callback   const param_cb,
+                          void                         * const param_cb_data)
 {
     Byte const *uri_end = mem.mem() + mem.len();
     Byte const *param_pos = mem.mem();
 
     while (param_pos < uri_end) {
-	ConstMemory name;
-	ConstMemory value;
-	Byte const *value_start = (Byte const *) memchr (param_pos, '=', uri_end - param_pos);
-	if (value_start) {
-	    ++value_start; // Skipping '='
-	    if (value_start > uri_end)
-		value_start = uri_end;
+        ConstMemory name;
+        ConstMemory value;
 
-	    name = ConstMemory (param_pos, value_start - 1 /*'='*/ - param_pos);
+        Byte const * const name_end = (Byte const *) memchr (param_pos, '&', uri_end - param_pos);
+        Byte const *value_start     = (Byte const *) memchr (param_pos, '=', uri_end - param_pos);
+        if (value_start && (!name_end || value_start < name_end)) {
+            ++value_start; // Skipping '='
+            name = ConstMemory (param_pos, value_start - 1 /*'='*/ - param_pos);
 
-	    Byte const *value_end = (Byte const *) memchr (value_start, '&', uri_end - value_start);
-	    if (value_end) {
-		if (value_end > uri_end)
-		    value_end = uri_end;
+            Byte const *value_end = (Byte const *) memchr (value_start, '&', uri_end - value_start);
+            if (value_end) {
+                value = ConstMemory (value_start, value_end - value_start);
+                param_pos = value_end + 1; // Skipping '&'
+            } else {
+                value = ConstMemory (value_start, uri_end - value_start);
+                param_pos = uri_end;
+            }
+        } else {
+            if (name_end) {
+                name = ConstMemory (param_pos, name_end - param_pos);
+                param_pos = name_end + 1; // Skipping '&'
+            } else {
+                name = ConstMemory (param_pos, uri_end - param_pos);
+                param_pos = uri_end;
+            }
+        }
 
-		value = ConstMemory (value_start, value_end - value_start);
-		param_pos = value_end + 1; // Skipping '&'
-	    } else {
-		value = ConstMemory (value_start, uri_end - value_start);
-		param_pos = uri_end;
-	    }
-	} else {
-	    name = ConstMemory (param_pos, uri_end - param_pos);
-	    param_pos = uri_end;
-	}
-
-//	logD_ (_func, "parameter: ", name, " = ", value);
-
-	{
-	    HttpRequest::Parameter * const param = new (std::nothrow) HttpRequest::Parameter;
-            assert (param);
-	    param->name = name;
-	    param->value = value;
-	    parameter_hash.add (param);
-	}
+        param_cb (name, value, param_cb_data);
     }
+}
+
+
+void
+HttpRequest::parseParameters_paramCallback (ConstMemory   const name,
+                                            ConstMemory   const value,
+                                            void        * const _self)
+{
+    HttpRequest * const self = static_cast <HttpRequest*> (_self);
+
+    HttpRequest::Parameter * const param = new (std::nothrow) HttpRequest::Parameter;
+    assert (param);
+    param->name = name;
+    param->value = value;
+
+    self->parameter_hash.add (param);
+}
+
+void
+HttpRequest::parseParameters (Memory const mem)
+{
+    parseHttpParameters (mem, parseParameters_paramCallback, this);
 }
 
 static bool isAlpha (unsigned char c)
@@ -548,7 +562,11 @@ HttpServer::processHeaderField (ConstMemory const &mem)
 
     if (!compare (header_name, "content-length")) {
 	recv_content_length = strToUlong (header_value);
+        recv_content_length_specified = true;
+
 	cur_req->content_length = recv_content_length;
+        cur_req->content_length_specified = true;
+
 	logD (http, _func, "recv_content_length: ", recv_content_length);
     } else
     if (!compare (header_name, "expect")) {
@@ -682,6 +700,7 @@ HttpServer::resetRequestState ()
 {
     recv_pos = 0;
     recv_content_length = 0;
+    recv_content_length_specified = false;
     cur_req = NULL;
     req_state = RequestState::RequestLine;
 }
@@ -707,7 +726,7 @@ HttpServer::processInput (Memory const &_mem,
 		logD (http, _func, "RequestState::RequestLine");
 	    case RequestState::HeaderField: {
 		if (!self->cur_req) {
-		    self->cur_req = st_grab (new (std::nothrow) HttpRequest);
+		    self->cur_req = st_grab (new (std::nothrow) HttpRequest (self->client_mode));
 		    self->cur_req->client_addr = self->client_addr;
 		}
 
@@ -720,7 +739,9 @@ HttpServer::processInput (Memory const &_mem,
 
 		mem = mem.region (line_accepted);
 
-		if (self->recv_content_length > 0) {
+		if ((self->client_mode && !self->recv_content_length_specified)
+                    || self->recv_content_length > 0)
+                {
 		    self->recv_pos = 0;
 		    self->req_state = RequestState::MessageBody;
 		} else
@@ -731,10 +752,12 @@ HttpServer::processInput (Memory const &_mem,
 
 		Size toprocess = mem.len();
 		bool must_consume = false;
-		if (toprocess >= self->recv_content_length - self->recv_pos) {
-		    toprocess = self->recv_content_length - self->recv_pos;
-		    must_consume = true;
-		}
+                if (self->recv_content_length_specified
+                    && toprocess >= self->recv_content_length - self->recv_pos)
+                {
+                    toprocess = self->recv_content_length - self->recv_pos;
+                    must_consume = true;
+                }
 
 		logD (http, _func, "recv_pos: ", self->recv_pos, ", toprocess: ", toprocess);
 		Size accepted = toprocess;
@@ -748,16 +771,16 @@ HttpServer::processInput (Memory const &_mem,
 		}
 
 		if (must_consume && accepted != toprocess) {
-                    // TODO Why care about RTMPT here?
-		    logE (http, _func, "RTMPT request contains an incomplete RTMP message");
+		    logW (http, _func, "HTTP data was not processed in full");
 		    return Receiver::ProcessInputResult::Error;
 		}
 
 		*ret_accepted += accepted;
 
 		self->recv_pos += accepted;
-		if (self->recv_pos < self->recv_content_length) {
-		    logD (http, _func, "waiting for more content");
+		if (!self->recv_content_length_specified || self->recv_pos < self->recv_content_length) {
+		    logD (http, _func, "waiting for more content "
+                          "(recv_content_length_specified: ", self->recv_content_length_specified, ")");
 		    return Receiver::ProcessInputResult::Again;
 		}
 
@@ -785,7 +808,8 @@ HttpServer::processEof (void * const _self)
     logD (http, _func_);
 
     if (self->frontend && self->frontend->closed)
-	self->frontend.call (self->frontend->closed, /*(*/ (Exception*) NULL /* exc_ */ /*)*/);
+	self->frontend.call (self->frontend->closed,
+                             /*(*/ self->cur_req, (Exception*) NULL /* exc_ */ /*)*/);
 }
 
 void
@@ -797,7 +821,7 @@ HttpServer::processError (Exception * const exc_,
     logD (http, _func_);
 
     if (self->frontend && self->frontend->closed)
-	self->frontend.call (self->frontend->closed, /*(*/ exc_ /*)*/);
+	self->frontend.call (self->frontend->closed, /*(*/ self->cur_req, exc_ /*)*/);
 }
 
 void
@@ -828,7 +852,7 @@ HttpServer::senderClosed (Exception * const exc_,
 
 #warning Verify that the connection is not closed prematurely when we've already sent the reply but have not processed input data yet.
     if (self->frontend && self->frontend->closed)
-	self->frontend.call (self->frontend->closed, /*(*/ exc_ /*)*/);
+	self->frontend.call (self->frontend->closed, /*(*/ self->cur_req, exc_ /*)*/);
 }
 
 }
