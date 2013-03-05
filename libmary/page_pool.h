@@ -265,13 +265,11 @@ public:
     void getPages (PageListHead * mt_nonnull page_list,
 		   Size len);
 
-    void pageRef (Page * mt_nonnull page);
-
+    void pageRef   (Page * mt_nonnull page);
     void pageUnref (Page * mt_nonnull page);
 
-    void msgRef (Page * mt_nonnull first_page);
-
-    void msgUnref (Page * mt_nonnull first_page);
+    void msgRef   (Page *first_page);
+    void msgUnref (Page *first_page);
 
     // printToPages() should never fail.
     template <class ...Args>
@@ -311,6 +309,29 @@ public:
         }
 
         return pages_data_len;
+    }
+
+    static bool msgEqual (Page *left_page,
+                          Page *right_page)
+    {
+        for (;;) {
+            if (!left_page && !right_page)
+                break;
+
+            if (!left_page || !right_page)
+                return false;
+
+            if (left_page->data_len != right_page->data_len)
+                return false;
+
+            if (memcmp (left_page->getData(), right_page->getData(), left_page->data_len))
+                return false;
+
+            left_page  = left_page->getNextMsgPage();
+            right_page = right_page->getNextMsgPage();
+        }
+
+        return true;
     }
 };
 
