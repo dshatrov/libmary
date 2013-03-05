@@ -46,7 +46,7 @@ public:
         //
         // If @resp is NULL, then there was an error (no response).
 	Result (*httpResponse) (HttpRequest   *resp,
-                                Memory const  &msg_body,
+                                Memory         msg_body,
                                 void         ** mt_nonnull ret_msg_data,
                                 void          *cb_data);
 
@@ -54,7 +54,7 @@ public:
 	// an error. Such last call is made to give the module a chance
 	// to release msg_data.
 	Result (*httpResponseBody) (HttpRequest  *resp,
-				    Memory const &mem,
+				    Memory        mem,
 				    bool          end_of_response,
 				    Size         * mt_nonnull ret_accepted,
 				    void         *msg_data,
@@ -77,6 +77,7 @@ private:
 
         mt_const bool preassembly;
         mt_const bool parse_body_params;
+        mt_const bool use_http_1_0;
 
         mt_mutex (HttpClient::Mutex) bool receiving_body;
         mt_mutex (HttpClient::Mutex) List< Ref<HttpClientRequest> >::Element *req_list_el;
@@ -87,8 +88,6 @@ private:
         mt_begin
           bool discarded;
         mt_end
-
-        void releaseRequestData ();
     };
 
     class HttpClientConnection : public Object
@@ -117,8 +116,7 @@ private:
 
         mt_mutex (mutex) List< Ref<HttpClientRequest> > requests;
 
-        HttpClientConnection ();
-
+         HttpClientConnection ();
         ~HttpClientConnection ();
     };
 
@@ -159,20 +157,23 @@ private:
                            void        *_http_conn);
 
     static void httpReplyBody (HttpRequest  * mt_nonnull reply,
-                               Memory const &mem,
+                               Memory        mem,
                                bool          end_of_reply,
                                Size         * mt_nonnull ret_accepted,
                                void         *_http_conn);
 
-    static void httpClosed (Exception *exc_,
-                            void      *_http_conn);
+    static void httpClosed (HttpRequest *reply,
+                            Exception   *exc_,
+                            void        *_http_conn);
   mt_iface_end
 
-    mt_mutex (mutex) void destroyHttpClientConnection (HttpClientConnection *http_conn);
+    mt_mutex (mutex) void destroyHttpClientConnection (HttpClientConnection * mt_nonnull http_conn,
+                                                       HttpRequest          *reply);
 
     mt_mutex (mutex) Ref<HttpClientConnection> connect (bool *ret_connected);
 
-    mt_mutex (mutex) Ref<HttpClientConnection> getConnection (bool *ret_connected);
+    mt_mutex (mutex) Ref<HttpClientConnection> getConnection (bool *ret_connected,
+                                                              bool  force_new_connection);
 
     mt_mutex (mutex) void sendRequest (HttpClientConnection * mt_nonnull http_conn,
                                        HttpClientRequest    * mt_nonnull http_req);
@@ -181,7 +182,8 @@ private:
                          ConstMemory     req_path,
                          CbDesc<HttpResponseHandler> const &response_cb,
                          bool            preassembly,
-                         bool            parse_body_params);
+                         bool            parse_body_params,
+                         bool            use_http_1_0);
 
 public:
   // TODO Make requests by URI
@@ -189,13 +191,15 @@ public:
     Result httpGet (ConstMemory req_path,
                     CbDesc<HttpResponseHandler> const &response_cb,
                     bool        preassembly       = false,
-                    bool        parse_body_params = false);
+                    bool        parse_body_params = false,
+                    bool        use_http_1_0      = false);
 
     Result httpPost (ConstMemory req_path,
                      ConstMemory post_data,
                      CbDesc<HttpResponseHandler> const &response_cb,
                      bool        preassembly       = false,
-                     bool        parse_body_params = false);
+                     bool        parse_body_params = false,
+                     bool        use_http_1_0      = false);
 
     void setServerAddr (IpAddress   server_addr,
                         ConstMemory host);
