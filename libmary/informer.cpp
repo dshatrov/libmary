@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -28,13 +28,21 @@ namespace M {
 mt_mutex (mutex) void
 GenericInformer::releaseSubscription (Subscription * const mt_nonnull sbn)
 {
-    if (sbn->weak_code_ref.isValid()) {
-	CodeRef const code_ref = sbn->weak_code_ref;
-	if (code_ref)
-	    code_ref->removeDeletionCallback (sbn->del_sbn);
+    if (sbn->del_sbn) {
+        CodeRef const code_ref = sbn->weak_code_ref;
+        if (!code_ref) {
+          // The subscription will be released by subscriberDeletionCallback,
+          // which is likely just about to be called.
+            return;
+        }
+
+        code_ref->removeDeletionCallback (sbn->del_sbn);
     }
 
-    sbn->ref_data = NULL;
+    sbn_list.remove (sbn);
+    // This is why we need StateMutex and not a plain Mutex:
+    // 'sbn' carries a VirtRef to an arbitrary object.
+    delete sbn;
 }
 
 mt_mutex (mutex) void
@@ -43,6 +51,10 @@ GenericInformer::releaseSubscriptionFromDestructor (Subscription * const mt_nonn
     // If the informer has a coderef container, then deletion subscription has
     // already been released by coderef container's deletion callback.
     if (!getCoderefContainer()) {
+        // We're somewhat screwed at this point, because if we get here, then
+        // it's likely that there's a race involving deletion subscriptions.
+        // It's better for all informers to have coderef containers.
+
 	if (sbn->weak_code_ref.isValid()) {
 	    CodeRef const code_ref = sbn->weak_code_ref;
 	    if (code_ref)
@@ -50,11 +62,11 @@ GenericInformer::releaseSubscriptionFromDestructor (Subscription * const mt_nonn
 	}
     }
 
-    sbn->ref_data = NULL;
+    delete sbn;
 }
 
 void
-GenericInformer::subscriberDeletionCallback (void *_sbn)
+GenericInformer::subscriberDeletionCallback (void * const _sbn)
 {
     Subscription * const sbn = static_cast <Subscription*> (_sbn);
     GenericInformer * const self = sbn->informer;
@@ -122,6 +134,9 @@ GenericInformer::informAll_unlocked (ProxyInformCallback   const mt_nonnull prox
 
 	proxy_inform_cb (sbn->cb_ptr, sbn->cb_data, inform_cb, inform_cb_data);
 
+        // Nullifying with 'mutex' unlocked.
+        code_ref = NULL;
+
 	mutex->lock ();
 	sbn = sbn_list.getNext (sbn);
     }
@@ -134,10 +149,6 @@ GenericInformer::informAll_unlocked (ProxyInformCallback   const mt_nonnull prox
 	    assert (!sbn->valid);
 
 	    releaseSubscription (sbn);
-	    sbn_list.remove (sbn);
-            // This is why we need StateMutex and not a plain Mutex:
-            // 'sbn' carries a VirtRef to an arbitrary object.
-	    delete sbn;
 
 	    sbn = next_sbn;
 	}
@@ -199,15 +210,7 @@ void
 GenericInformer::unsubscribe (SubscriptionKey const sbn_key)
 {
     mutex->lock ();
-    sbn_key.sbn->valid = false;
-    if (traversing == 0) {
-	releaseSubscription (sbn_key.sbn);
-	sbn_list.remove (sbn_key.sbn);
-	mutex->unlock ();
-	delete sbn_key.sbn;
-	return;
-    }
-    sbn_invalidation_list.append (sbn_key.sbn);
+    unsubscribe_unlocked (sbn_key);
     mutex->unlock ();
 }
 
@@ -217,8 +220,6 @@ GenericInformer::unsubscribe_unlocked (SubscriptionKey const sbn_key)
     sbn_key.sbn->valid = false;
     if (traversing == 0) {
 	releaseSubscription (sbn_key.sbn);
-	sbn_list.remove (sbn_key.sbn);
-	delete sbn_key.sbn;
         return;
     }
     sbn_invalidation_list.append (sbn_key.sbn);
@@ -233,10 +234,7 @@ GenericInformer::~GenericInformer ()
     Subscription *sbn = sbn_list.getFirst();
     while (sbn) {
 	Subscription * const next_sbn = sbn_list.getNext (sbn);
-
 	releaseSubscriptionFromDestructor (sbn);
-	delete sbn;
-
 	sbn = next_sbn;
     }
 

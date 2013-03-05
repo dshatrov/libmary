@@ -66,9 +66,11 @@ void libMaryInit ()
     if (setlocale (LC_NUMERIC, "C") == NULL)
         fprintf (stderr, "WARNING: Could not set LC_NUMERIC locale to \"C\"\n");
 
+#ifndef LIBMARY_PLATFORM_WIN32
     // GStreamer calls setlocale(LC_ALL, ""), which is lame. We fight this with setenv().
     if (setenv ("LC_NUMERIC", "C", 1 /* overwrite */) == -1)
         perror ("WARNING: Could not set LC_NUMERIC environment variable to \"C\"");
+#endif
 
 #ifdef LIBMARY_MT_SAFE
   #ifdef LIBMARY__OLD_GTHREAD_API

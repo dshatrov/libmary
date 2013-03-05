@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__INFORMER__H__
-#define __LIBMARY__INFORMER__H__
+#ifndef LIBMARY__INFORMER__H__
+#define LIBMARY__INFORMER__H__
 
 
 #include <libmary/types.h>
@@ -272,14 +272,6 @@ public:
 	return subscribeVoid ((VoidFunction) cb.cb, cb.cb_data, cb.ref_data, cb.coderef_container);
     }
 
-    mt_mutex (mutex) SubscriptionKey subscribe_unlocked (T                const cb,
-                                                         void           * const cb_data,
-                                                         VirtReferenced * const ref_data,
-                                                         Object         * const coderef_container)
-    {
-	return subscribeVoid_unlocked ((VoidFunction) cb, cb_data, ref_data, coderef_container);
-    }
-
     mt_mutex (mutex) SubscriptionKey subscribe_unlocked (CbDesc<T> const &cb)
     {
 	return subscribeVoid_unlocked ((VoidFunction) cb.cb, cb.cb_data, cb.ref_data, cb.coderef_container);
@@ -295,5 +287,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__INFORMER__H__ */
+#endif /* LIBMARY__INFORMER__H__ */
 
