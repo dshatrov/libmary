@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__TIMERS__H__
-#define __LIBMARY__TIMERS__H__
+#ifndef LIBMARY__TIMERS__H__
+#define LIBMARY__TIMERS__H__
 
 
 #include <libmary/types.h>
@@ -186,6 +186,10 @@ public:
 
     void deleteTimer (TimerKey mt_nonnull timer_key);
 
+private:
+    void doDeleteTimer (Timer * mt_nonnull timer);
+
+public:
     Time getSleepTime_microseconds ();
 
     void processTimers ();
@@ -210,5 +214,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__TIMERS__H__ */
+#endif /* LIBMARY__TIMERS__H__ */
 

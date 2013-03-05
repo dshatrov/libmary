@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -35,7 +35,7 @@ Timers::subscriberDeletionCallback (void * const _timer)
     Timer * const timer = static_cast <Timer*> (_timer);
     Timers * const timers = timer->timers;
 
-    timers->deleteTimer (timer);
+    timers->doDeleteTimer (timer);
 }
 
 Timers::TimerKey
@@ -133,13 +133,25 @@ void
 Timers::deleteTimer (TimerKey const mt_nonnull timer_key)
 {
     Timer * const timer = timer_key;
-    TimerChain * const chain = timer->chain;
 
     if (timer->del_sbn) {
         CodeRef const code_ref = timer->timer_cb.getWeakCodeRef();
-        if (code_ref)
-            code_ref->removeDeletionCallback (timer->del_sbn);
+        if (!code_ref) {
+          // doDeleteTimer() will be called by subscriberDeletionCallback,
+          // which is likely just about to be called.
+            return;
+        }
+
+        code_ref->removeDeletionCallback (timer->del_sbn);
     }
+
+    doDeleteTimer (timer);
+}
+
+void
+Timers::doDeleteTimer (Timer * const timer)
+{
+    TimerChain * const chain = timer->chain;
 
     mutex.lock ();
 
@@ -231,11 +243,16 @@ Timers::processTimers ()
                     // TODO We create CodeRef twice: here and in call_unlocks_mutex_().
                     //      Should do this only once for efficiency.
                     CodeRef const code_ref = timer->timer_cb.getWeakCodeRef();
-                    if (code_ref)
+                    // If 'code_ref' is null, then doDeleteTimer() will be called
+                    // by subscriberDeletionCallback(), which is likely just about
+                    // to be called.
+                    if (code_ref) {
                         code_ref->removeDeletionCallback (timer->del_sbn);
+                        delete_timer = true;
+                    }
+                } else {
+                    delete_timer = true;
                 }
-
-                delete_timer = true;
             }
 	}
 
