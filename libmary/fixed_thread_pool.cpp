@@ -17,6 +17,10 @@
 */
 
 
+#include <libmary/types.h>
+#include <libmary/log.h>
+
+
 #include <libmary/fixed_thread_pool.h>
 
 

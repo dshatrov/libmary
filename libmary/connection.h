@@ -17,16 +17,14 @@
 */
 
 
-#ifndef __LIBMARY__CONNECTION__H__
-#define __LIBMARY__CONNECTION__H__
+#ifndef LIBMARY__CONNECTION__H__
+#define LIBMARY__CONNECTION__H__
 
 
 #include <libmary/libmary_config.h>
 #include <libmary/types.h>
-#include <libmary/cb.h>
 #include <libmary/async_input_stream.h>
 #include <libmary/async_output_stream.h>
-#include <libmary/util_net.h>
 
 
 namespace M {
@@ -51,5 +49,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__CONNECTION__H__ */
+#endif /* LIBMARY__CONNECTION__H__ */
 

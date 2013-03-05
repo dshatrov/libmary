@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__POSIX__H__
-#define __LIBMARY__POSIX__H__
+#ifndef LIBMARY__POSIX__H__
+#define LIBMARY__POSIX__H__
 
 
 #include <libmary/exception.h>
@@ -31,5 +31,5 @@ void libMary_posixInit ();
 }
 
 
-#endif /* __LIBMARY__POSIX__H__ */
+#endif /* LIBMARY__POSIX__H__ */
 

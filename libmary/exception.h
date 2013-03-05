@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__EXCEPTION__H__
-#define __LIBMARY__EXCEPTION__H__
+#ifndef LIBMARY__EXCEPTION__H__
+#define LIBMARY__EXCEPTION__H__
 
 
 #include <libmary/types.h>
@@ -262,5 +262,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__EXCEPTION__H__ */
+#endif /* LIBMARY__EXCEPTION__H__ */
 

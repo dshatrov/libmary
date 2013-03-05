@@ -67,10 +67,7 @@ public:
     void resetFd ();
 
 #ifdef LIBMARY_ENABLE_MWRITEV
-    int getFd ()
-    {
-	return fd;
-    }
+    int getFd () { return fd; }
 #endif
 
     mt_throws Result open (ConstMemory filename,
@@ -82,10 +79,8 @@ public:
 			  Uint32      open_flags,
 			  AccessMode  access_mode);
 
-    NativeFile (int fd);
-
-    NativeFile ();
-
+     NativeFile (int fd);
+     NativeFile ();
     ~NativeFile ();
 };
 

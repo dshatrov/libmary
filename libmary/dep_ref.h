@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__DEP_REF__H__
-#define __LIBMARY__DEP_REF__H__
+#ifndef LIBMARY__DEP_REF__H__
+#define LIBMARY__DEP_REF__H__
 
 
 #include <libmary/code_referenced.h>
@@ -216,5 +216,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__DEP_REF__H__ */
+#endif /* LIBMARY__DEP_REF__H__ */
 

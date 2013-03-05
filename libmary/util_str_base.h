@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__UTIL_STR_BASE__H__
-#define __LIBMARY__UTIL_STR_BASE__H__
+#ifndef LIBMARY__UTIL_STR_BASE__H__
+#define LIBMARY__UTIL_STR_BASE__H__
 
 
 #include <libmary/types.h>
@@ -485,5 +485,5 @@ unsigned long strToUlong (ConstMemory const &mem);
 }
 
 
-#endif /* __LIBMARY__UTIL_STR_BASE__H__ */
+#endif /* LIBMARY__UTIL_STR_BASE__H__ */
 

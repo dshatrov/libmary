@@ -68,6 +68,7 @@ private:
     mt_mutex (mutex) PollableList pollable_list;
     mt_mutex (mutex) PollableDeletionQueue pollable_deletion_queue;
 
+    // TODO Get rid of 'poll_tlocal': it is now excessive, overlaps with 'block_trigger_pipe'.
     mt_const LibMary_ThreadLocal *poll_tlocal;
 
     mt_throws Result doActivate (PollableEntry * mt_nonnull pollable_entry);
@@ -90,7 +91,7 @@ public:
     mt_throws Result trigger ();
   mt_end
 
-    mt_throws Result open ();
+    mt_const mt_throws Result open ();
 
     mt_const void bindToThread (LibMary_ThreadLocal * const poll_tlocal)
     {

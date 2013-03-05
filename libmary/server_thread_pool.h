@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__SERVER_THREAD_POOL__H__
-#define __LIBMARY__SERVER_THREAD_POOL__H__
+#ifndef LIBMARY__SERVER_THREAD_POOL__H__
+#define LIBMARY__SERVER_THREAD_POOL__H__
 
 
 #include <libmary/types.h>
@@ -40,5 +40,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__SERVER_THREAD_POOL__H__ */
+#endif /* LIBMARY__SERVER_THREAD_POOL__H__ */
 

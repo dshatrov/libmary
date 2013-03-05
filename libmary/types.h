@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__TYPES__H__
-#define __LIBMARY__TYPES__H__
+#ifndef LIBMARY__TYPES__H__
+#define LIBMARY__TYPES__H__
 
 
 #include <libmary/types_base.h>
@@ -279,5 +279,5 @@ public:
 #include <libmary/util_str_base.h>
 
 
-#endif /* __LIBMARY__TYPES__H__ */
+#endif /* LIBMARY__TYPES__H__ */
 

@@ -73,7 +73,7 @@ public:
 	void (*sendStateChanged) (Sender::SendState  send_state,
 				  void              *cb_data);
 
-#warning TODO pass "close_input" parameter to communicate user's intentions to the server (HttpServer mostly).
+//#warning TODO pass "close_input" parameter to communicate user's' intentions to the server (HttpServer mostly).
 	void (*closed) (Exception *exc_,
 			void      *cb_data);
     };

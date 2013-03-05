@@ -343,7 +343,7 @@ PagePool::pageUnref (Page * const mt_nonnull page)
 }
 
 void
-PagePool::msgRef (Page * const mt_nonnull first_page)
+PagePool::msgRef (Page * const first_page)
 {
     logD (pool, _func_);
 
@@ -356,7 +356,7 @@ PagePool::msgRef (Page * const mt_nonnull first_page)
 }
 
 void
-PagePool::msgUnref (Page * const mt_nonnull first_page)
+PagePool::msgUnref (Page * const first_page)
 {
     logD (pool, _func_);
 

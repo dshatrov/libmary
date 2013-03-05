@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__UTIL_BASE__H__
-#define __LIBMARY__UTIL_BASE__H__
+#ifndef LIBMARY__UTIL_BASE__H__
+#define LIBMARY__UTIL_BASE__H__
 
 
 #include <cstdlib>
@@ -96,5 +96,5 @@ char* rawCollectBacktrace ();
 }
 
 
-#endif /* __LIBMARY__UTIL_BASE__H__ */
+#endif /* LIBMARY__UTIL_BASE__H__ */
 

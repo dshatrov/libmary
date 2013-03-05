@@ -17,14 +17,15 @@
 */
 
 
-#ifndef __LIBMARY__TCP_CONNECTION__LINUX__H__
-#define __LIBMARY__TCP_CONNECTION__LINUX__H__
+#ifndef LIBMARY__TCP_CONNECTION__LINUX__H__
+#define LIBMARY__TCP_CONNECTION__LINUX__H__
 
 
 #include <libmary/libmary_config.h>
 #include <libmary/code_referenced.h>
 #include <libmary/connection.h>
 #include <libmary/poll_group.h>
+#include <libmary/util_net.h>
 #include <libmary/debug.h>
 
 
@@ -70,7 +71,6 @@ private:
     }
 
   mt_iface (PollGroup::Pollable)
-
     static PollGroup::Pollable const pollable;
 
     static void processEvents (Uint32  event_flags,
@@ -80,28 +80,22 @@ private:
 
     static void setFeedback (Cb<PollGroup::Feedback> const &feedback,
 			     void *_self);
-
   mt_iface_end
 
 public:
   mt_iface (Connection)
-
     mt_iface (AsyncInputStream)
-
       mt_throws AsyncIoResult read (Memory  mem,
 				    Size   *ret_nread);
-
     mt_iface_end
 
     mt_iface (AsyncOutputStream)
-
       mt_throws AsyncIoResult write (ConstMemory  mem,
 				     Size        *ret_nwritten);
 
       mt_throws AsyncIoResult writev (struct iovec *iovs,
 				      Count         num_iovs,
 				      Size         *ret_nwritten);
-
     mt_iface_end
 
 #if 0
@@ -117,7 +111,6 @@ public:
 	return fd;
     }
 #endif
-
   mt_iface_end
 
     void setFrontend (Cb<Frontend> const &frontend)
@@ -139,7 +132,7 @@ public:
 
     // May be called only once. Must be called early (during initialzation)
     // to ensure proper synchronization of accesses to 'connected' data member.
-    mt_throws ConnectResult connect (IpAddress const &addr);
+    mt_throws ConnectResult connect (IpAddress addr);
 
     // Should be called just once by TcpServer.
     void setFd (int const fd)
@@ -156,5 +149,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__TCP_CONNECTION__LINUX__H__ */
+#endif /* LIBMARY__TCP_CONNECTION__LINUX__H__ */
 

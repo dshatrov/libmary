@@ -408,7 +408,7 @@ TcpConnection::close ()
 #endif
 
 mt_throws TcpConnection::ConnectResult
-TcpConnection::connect (IpAddress const &addr)
+TcpConnection::connect (IpAddress const addr)
 {
     struct sockaddr_in saddr;
     setIpAddress (addr, &saddr);

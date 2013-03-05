@@ -26,10 +26,7 @@
 #include <libmary/exception.h>
 #include <libmary/io.h>
 #include <libmary/native_file.h>
-#include <libmary/buffered_output_stream.h>
 #include <libmary/log.h>
-#include <libmary/util_str.h>
-#include <libmary/util_time.h>
 
 #include <libmary/posix.h>
 

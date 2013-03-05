@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__CB_DEFERRED__H__
-#define __LIBMARY__CB_DEFERRED__H__
+#ifndef LIBMARY__CB_DEFERRED__H__
+#define LIBMARY__CB_DEFERRED__H__
 
 
 #include <libmary/cb.h>
@@ -169,5 +169,5 @@ void call_deferredIfLocked (CB tocall, Args const &...args) const
 }
 
 
-#endif /* __LIBMARY__CB_DEFERRED__H__ */
+#endif /* LIBMARY__CB_DEFERRED__H__ */
 

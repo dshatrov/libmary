@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__STRING__H__
-#define __LIBMARY__STRING__H__
+#ifndef LIBMARY__STRING__H__
+#define LIBMARY__STRING__H__
 
 
 #include <libmary/types_base.h>
@@ -186,5 +186,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__STRING__H__ */
+#endif /* LIBMARY__STRING__H__ */
 

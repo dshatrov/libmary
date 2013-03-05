@@ -17,6 +17,9 @@
 */
 
 
+#include <libmary/types.h>
+#include <cstdio>
+
 #include <libmary/libmary_config.h>
 #include <libmary/deferred_connection_sender.h>
 #include <libmary/util_time.h>

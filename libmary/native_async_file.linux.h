@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__NATIVE_ASYNC_FILE__H__
-#define __LIBMARY__NATIVE_ASYNC_FILE__H__
+#ifndef LIBMARY__NATIVE_ASYNC_FILE__H__
+#define LIBMARY__NATIVE_ASYNC_FILE__H__
 
 
 #include <libmary/types.h>
@@ -49,7 +49,6 @@ private:
     }
 
   mt_iface (PollGroup::Pollable)
-
     static PollGroup::Pollable const pollable;
 
     static void processEvents (Uint32  event_flags,
@@ -59,24 +58,18 @@ private:
 
     static void setFeedback (Cb<PollGroup::Feedback> const &feedback,
 			     void *_self);
-
   mt_iface_end
 
 public:
   mt_iface (AsyncFile)
-
     mt_iface (AsyncInputStream)
-
       mt_throws AsyncIoResult read (Memory  mem,
                                     Size   *ret_nread);
-
     mt_iface_end
 
     mt_iface (AsyncOutputStream)
-
       mt_throws AsyncIoResult write (ConstMemory  mem,
                                      Size        *ret_nwritten);
-
     mt_iface_end
 
     mt_throws Result seek (FileOffset offset,
@@ -87,7 +80,6 @@ public:
     mt_throws Result sync ();
 
     mt_throws Result close (bool flush_data = true);
-
   mt_iface_end
 
     void setFd (int fd);
@@ -112,5 +104,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__NATIVE_ASYNC_FILE__H__ */
+#endif /* LIBMARY__NATIVE_ASYNC_FILE__H__ */
 

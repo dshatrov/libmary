@@ -40,6 +40,9 @@ namespace M {
 
 class DeferredProcessor_Registration;
 
+// TODO For each call(), provide the calling Object as the first parameter
+//      and implement synchronization shortcuts (no need to do getRef() when
+//      called from the same coderef container).
 template <class T>
 class Cb
 {

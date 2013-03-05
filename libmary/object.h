@@ -125,6 +125,9 @@ private:
     //     object's lifetime.
     Shadow* getShadow ()
     {
+        // TODO It's better to create shadow immediately to avoid the need for atomic ops here.
+        //      That would provide cheap getShadow() for runtime synchronization shortcuts.
+
 	Shadow *shadow = static_cast <Shadow*> (atomic_shadow.get ());
 	if (shadow)
 	    return shadow;
