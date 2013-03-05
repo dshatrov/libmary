@@ -119,10 +119,8 @@ mary_target_headers =			\
                                         \
         line_server.h                   \
         line_service.h                  \
-        line_pipe.h                     \
 					\
 	vfs.h				\
-	vfs_posix.h			\
 					\
 	deferred_processor.h		\
 	poll_group.h			\
@@ -157,17 +155,12 @@ endif
 mary_linux_target_headers =	\
 	posix.h			\
 	util_posix.h		\
+	vfs_posix.h             \
 	native_file.linux.h	\
 	tcp_connection.linux.h	\
 	tcp_server.linux.h	\
-	poll_poll_group.h
-
-mary_win32_target_headers =	\
-	win32.h			\
-	native_file.win32.h	\
-	tcp_connection.win32.h	\
-	tcp_server.win32.h      \
-        wsa_poll_group.h
+	poll_poll_group.h       \
+        line_pipe.h
 
 if LIBMARY_ENABLE_EPOLL
     mary_linux_target_headers += epoll_poll_group.h
@@ -179,6 +172,20 @@ if LIBMARY_ENABLE_MWRITEV
     mary_linux_target_headers += mwritev.h
 else
     mary_private_headers += mwritev.h
+endif
+
+mary_win32_target_headers =	\
+	win32.h			\
+	native_file.win32.h	\
+	tcp_connection.win32.h	\
+	tcp_server.win32.h
+
+if LIBMARY_WIN32_IOCP
+    mary_win32_target_headers += iocp_poll_group.h
+    mary_private_headers      += wsa_poll_group.h
+else
+    mary_win32_target_headers += wsa_poll_group.h
+    mary_private_headers      += iocp_poll_group.h
 endif
 
 if LIBMARY_PLATFORM_WIN32
@@ -205,6 +212,7 @@ DISTCLEANFILES = libmary_config.h
         tcp_connection.h        \
         tcp_server.h
 
+# TODO Use cp instead of ln -s ?
 if LIBMARY_PLATFORM_WIN32
 native_file.h: native_file.win32.h
 	rm -f $@
@@ -214,6 +222,15 @@ native_async_file.h: native_async_file.win32.h
 	rm -f $@
 	ln -s $(srcdir)/native_async_file.win32.h native_async_file.h
 
+if LIBMARY_WIN32_IOCP
+tcp_connection.h: tcp_connection.win32_iocp.h
+	rm -f $@
+	ln -s $(srcdir)/tcp_connection.win32_iocp.h tcp_connection.h
+
+tcp_server.h: tcp_server.win32_iocp.h
+	rm -f $@
+	ln -s $(srcdir)/tcp_server.win32_iocp.h tcp_server.h
+else
 tcp_connection.h: tcp_connection.win32.h
 	rm -f $@
 	ln -s $(srcdir)/tcp_connection.win32.h tcp_connection.h
@@ -221,6 +238,7 @@ tcp_connection.h: tcp_connection.win32.h
 tcp_server.h: tcp_server.win32.h
 	rm -f $@
 	ln -s $(srcdir)/tcp_server.win32.h tcp_server.h
+endif
 else
 native_file.h: native_file.linux.h
 	rm -f $@
@@ -280,7 +298,6 @@ libmary_1_0_la_SOURCES =		\
         memory_file.cpp                 \
 					\
 	vfs.cpp				\
-	vfs_posix.cpp			\
 					\
 	async_output_stream.cpp		\
 	file_connection.cpp		\
@@ -293,7 +310,6 @@ libmary_1_0_la_SOURCES =		\
                                         \
         line_server.cpp                 \
         line_service.cpp                \
-        line_pipe.cpp                   \
 					\
 	deferred_processor.cpp		\
 					\
@@ -328,20 +344,14 @@ endif
 mary_linux_sources =			\
 	posix.cpp			\
 	util_posix.cpp			\
+	vfs_posix.cpp                   \
 	native_file.linux.cpp		\
         native_async_file.linux.cpp     \
 	tcp_connection.linux.cpp	\
 	tcp_server.linux.cpp		\
 	select_poll_group.cpp		\
-	poll_poll_group.cpp
-
-mary_win32_sources =			\
-        win32.cpp                       \
-	native_file.win32.cpp		\
-        native_async_file.win32.cpp     \
-	tcp_connection.win32.cpp	\
-	tcp_server.win32.cpp            \
-	wsa_poll_group.cpp
+	poll_poll_group.cpp             \
+        line_pipe.cpp
 
 if LIBMARY_ENABLE_EPOLL
     mary_linux_sources += epoll_poll_group.cpp
@@ -353,6 +363,23 @@ if LIBMARY_ENABLE_MWRITEV
     mary_linux_sources += mwritev.cpp
 else
     mary_extra_dist += mwritev.cpp
+endif
+
+mary_win32_sources =			\
+        win32.cpp                       \
+	native_file.win32.cpp		\
+        native_async_file.win32.cpp     \
+	tcp_connection.win32.cpp	\
+	tcp_server.win32.cpp            \
+	wsa_poll_group.cpp              \
+        iocp_poll_group.cpp
+
+if LIBMARY_WIN32_IOCP
+    mary_win32_sources += iocp_poll_group.cpp
+    mary_extra_dist    += wsa_poll_group.cpp
+else
+    mary_win32_sources += wsa_poll_group.cpp
+    mary_extra_dist    += iocp_poll_group.cpp
 endif
 
 if LIBMARY_PLATFORM_WIN32

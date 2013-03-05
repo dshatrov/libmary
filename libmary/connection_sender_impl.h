@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__CONNECTION_SENDER_IMPL__H__
-#define __LIBMARY__CONNECTION_SENDER_IMPL__H__
+#ifndef LIBMARY__CONNECTION_SENDER_IMPL__H__
+#define LIBMARY__CONNECTION_SENDER_IMPL__H__
 
 
 #include <libmary/libmary_config.h>
@@ -40,6 +40,10 @@ private:
     // Hard queue length limit must be less or equal to soft limit.
     mt_const Count soft_msg_limit;
     mt_const Count hard_msg_limit;
+
+#ifdef LIBMARY_WIN32_IOCP
+    Overlapped overlapped;
+#endif
 
     Sender::SendState send_state;
     bool overloaded;
@@ -64,27 +68,21 @@ private:
 
     mt_throws AsyncIoResult sendPendingMessages_writev ();
 
-#if 0
-    void sendPendingMessages_vector (bool          count_iovs,
-				     bool          fill_iovs,
-				     bool          react,
-				     Count        *ret_num_iovs,
-				     struct iovec *iovs,
-				     Count         num_iovs,
-				     Size          num_written);
+    void sendPendingMessages_vector_fill (Count        * mt_nonnull ret_num_iovs,
+#ifdef LIBMARY_WIN32_IOCP
+                                          WSABUF       * mt_nonnull buffers,
+#else
+					  struct iovec * mt_nonnull iovs,
 #endif
-
-    void sendPendingMessages_vector_fill (Count        *mt_nonnull ret_num_iovs,
-					  struct iovec *mt_nonnull iovs,
 					  Count         num_iovs);
 
     void sendPendingMessages_vector_react (Count num_iovs);
 
-    void dumpMessage (Sender::MessageEntry * const mt_nonnull msg_entry);
+    void dumpMessage (Sender::MessageEntry * mt_nonnull msg_entry);
 
 public:
     // Takes ownership of msg_entry.
-    void queueMessage (Sender::MessageEntry * const mt_nonnull msg_entry);
+    void queueMessage (Sender::MessageEntry * mt_nonnull msg_entry);
 
     mt_throws AsyncIoResult sendPendingMessages ();
 
@@ -97,15 +95,9 @@ public:
 				    Size          num_written);
 #endif
 
-    void markProcessingBarrier ()
-    {
-	processing_barrier = msg_list.getLast ();
-    }
+    void markProcessingBarrier () { processing_barrier = msg_list.getLast (); }
 
-    bool processingBarrierHit() const
-    {
-	return processing_barrier_hit;
-    }
+    bool processingBarrierHit() const { return processing_barrier_hit; }
 
     bool gotDataToSend () const
     {
@@ -113,21 +105,12 @@ public:
 	return sending_message || !msg_list.isEmpty ();
     }
 
-    Sender::SendState getSendState () const
-    {
-        return send_state;
-    }
+    Sender::SendState getSendState () const { return send_state; }
 
-    mt_const void setConnection (Connection * const conn)
-    {
-	this->conn = conn;
-    }
+    mt_const void setConnection (Connection * const conn) { this->conn = conn; }
 
 #ifdef LIBMARY_ENABLE_MWRITEV
-    Connection* getConnection ()
-    {
-	return conn;
-    }
+    Connection* getConnection () { return conn; }
 #endif
 
     mt_const void init (Cb<Sender::Frontend>            * const frontend,
@@ -154,5 +137,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__CONNECTION_SENDER_IMPL__H__ */
+#endif /* LIBMARY__CONNECTION_SENDER_IMPL__H__ */
 

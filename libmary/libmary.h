@@ -97,7 +97,9 @@
 
 #include <libmary/line_server.h>
 #include <libmary/line_service.h>
-#include <libmary/line_pipe.h>
+#ifndef LIBMARY_PLATFORM_WIN32
+  #include <libmary/line_pipe.h>
+#endif
 
 #include <libmary/vfs.h>
 #ifndef LIBMARY_PLATFORM_WIN32
@@ -108,13 +110,17 @@
 #include <libmary/poll_group.h>
 #include <libmary/active_poll_group.h>
 #ifdef LIBMARY_PLATFORM_WIN32
-  #include <libmary/wsa_poll_group.h>
+  #ifdef LIBMARY_WIN32_IOCP
+    #include <libmary/iocp_poll_group.h>
+  #else
+    #include <libmary/wsa_poll_group.h>
+  #endif
 #else
   #include <libmary/select_poll_group.h>
   #include <libmary/poll_poll_group.h>
-#endif
-#if !defined (LIBMARY_PLATFORM_WIN32) && defined LIBMARY_ENABLE_EPOLL
-  #include <libmary/epoll_poll_group.h>
+  #ifdef LIBMARY_ENABLE_EPOLL
+    #include <libmary/epoll_poll_group.h>
+  #endif
 #endif
 
 #include <libmary/http_server.h>

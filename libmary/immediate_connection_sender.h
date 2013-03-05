@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -35,26 +35,29 @@ class ImmediateConnectionSender : public Sender,
 private:
     DeferredProcessor::Registration deferred_reg;
 
-  mt_mutex (mutex)
-  mt_begin
-    ConnectionSenderImpl conn_sender_impl;
+    mt_mutex (mutex) ConnectionSenderImpl conn_sender_impl;
 
-    bool closed;
-    bool close_after_flush;
-    bool ready_for_output;
-  mt_end
+    mt_mutex (mutex) bool closed;
+    mt_mutex (mutex) bool close_after_flush;
+    mt_mutex (mutex) bool ready_for_output;
 
     mt_unlocks (mutex) void closeIfNeeded (bool deferred_event);
 
+  mt_iface (Connection::OutputFrontend)
     static Connection::OutputFrontend const conn_output_frontend;
-
+#ifdef LIBMARY_WIN32_IOCP
+    static void outputComplete (Overlapped *overlapped,
+                                Size        bytes_transferred,
+                                void       *cb_data);
+#else
     static void processOutput (void *_self);
+#endif
+  mt_iface_end
 
     mt_mutex (mutex) mt_unlocks (mutex) void doFlush ();
 
 public:
   mt_iface (Sender)
-
     void sendMessage (MessageEntry * mt_nonnull msg_entry,
 		      bool do_flush = false);
 
@@ -71,13 +74,13 @@ public:
     void lock ();
 
     void unlock ();
-
   mt_iface_end
 
     void setConnection (Connection * const mt_nonnull conn)
     {
 	conn_sender_impl.setConnection (conn);
-	conn->setOutputFrontend (Cb<Connection::OutputFrontend> (&conn_output_frontend, this, getCoderefContainer()));
+	conn->setOutputFrontend (
+                CbDesc<Connection::OutputFrontend> (&conn_output_frontend, this, getCoderefContainer()));
     }
 
     void init (DeferredProcessor * const mt_nonnull deferred_processor)

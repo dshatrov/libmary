@@ -26,15 +26,18 @@ namespace M {
 
 static LogGroup libMary_logGroup_msg ("msg", LogLevel::N);
 
-AsyncInputStream::InputFrontend const ConnectionReceiver::conn_input_frontend = {
-    processInput,
-    processError
-};
-
 mt_sync_domain (conn_input_frontend) void
 ConnectionReceiver::doProcessInput ()
 {
     logD (msg, _func_);
+
+#ifdef LIBMARY_WIN32_IOCP
+    if (overlapped_in_progress)
+        return;
+#endif
+
+    if (error_reported)
+        return;
 
     for (;;) {
 	assert (recv_buf_pos < recv_buf_len);
@@ -47,11 +50,26 @@ ConnectionReceiver::doProcessInput ()
 	Size nread;
 	AsyncIoResult io_res;
 	{
-	    io_res = conn->read (Memory (recv_buf + recv_buf_pos, toread), &nread);
+#ifdef LIBMARY_WIN32_IOCP
+            OVERLAPPED * const sys_overlapped = &overlapped;
+            memset (sys_overlapped, 0, sizeof (OVERLAPPED));
+#endif
+	    io_res = conn->read (
+#ifdef LIBMARY_WIN32_IOCP
+                                 &overlapped,
+#endif
+                                 Memory (recv_buf + recv_buf_pos, toread),
+                                 &nread);
 	    logD (msg, _func, "read(): ", io_res);
 	    switch (io_res) {
 		case AsyncIoResult::Again: {
 		    // TODO if (recv_buf_pos >= recv_buf_len) then error.
+#ifdef LIBMARY_WIN32_IOCP
+                    overlapped_in_progress = true;
+#endif
+
+#warning For IOCP, react to the number of bytes read properly.
+
 		    return;
 		} break;
 		case AsyncIoResult::Error: {
@@ -151,6 +169,26 @@ ConnectionReceiver::doProcessInput ()
     } // for (;;)
 }
 
+AsyncInputStream::InputFrontend const ConnectionReceiver::conn_input_frontend = {
+#ifdef LIBMARY_WIN32_IOCP
+    inputComplete
+#else
+    processInput,
+    processError
+#endif
+};
+
+#ifdef LIBMARY_WIN32_IOCP
+void
+ConnectionReceiver::inputComplete (Overlapped * const /* overlapped */,
+                                   Size         const /* bytes_transferred */,
+                                   void       * const _self)
+{
+    ConnectionReceiver * const self = static_cast <ConnectionReceiver*> (_self);
+    overlapped_in_progress = false;
+    self->doProcessInput ();
+}
+#else
 void
 ConnectionReceiver::processInput (void * const _self)
 {
@@ -173,6 +211,7 @@ ConnectionReceiver::processError (Exception * const exc_,
     if (self->frontend && self->frontend->processError)
 	self->frontend.call (self->frontend->processError, /*(*/ exc_ /*)*/);
 }
+#endif // LIBMARY_WIN32_IOCP
 
 bool
 ConnectionReceiver::unblockInputTask (void * const _self)
@@ -195,6 +234,11 @@ ConnectionReceiver::ConnectionReceiver (Object * const coderef_container)
       recv_accepted_pos (0),
       error_reported (false)
 {
+#ifdef LIBMARY_WIN32_IOCP
+    overlapped->op_kind = Overlapped::OpKind_Read;
+    overlapped_in_progress = false;
+#endif
+
     recv_buf = new (std::nothrow) Byte [recv_buf_len];
     assert (recv_buf);
 

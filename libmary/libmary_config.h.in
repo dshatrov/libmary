@@ -1,5 +1,5 @@
-#ifndef __LIBMARY__LIBMARY_CONFIG__H__
-#define __LIBMARY__LIBMARY_CONFIG__H__
+#ifndef LIBMARY__LIBMARY_CONFIG__H__
+#define LIBMARY__LIBMARY_CONFIG__H__
 
 #undef LIBMARY_MT_SAFE
 
@@ -14,20 +14,22 @@
 #undef LIBMARY_PLATFORM_CYGWIN
 
 #if !defined (LIBMARY_ENABLE_EPOLL) && !defined (LIBMARY_USE_POLL)
-#define LIBMARY_USE_SELECT 1
+  #define LIBMARY_USE_SELECT 1
 #endif
 
 #if defined (LIBMARY_PLATFORM_WIN32) && !defined (LIBMARY_USE_POLL)
-#define LIBMARY_USE_SELECT 1
+  #define LIBMARY_USE_SELECT 1
 #endif
 
 #undef LIBMARY_ENABLE_MWRITEV
 
 #undef LIBMARY_WIN32_SECURE_CRT
 
-#define LIBMARY_TLOCAL __thread
+#ifndef LIBMARY_PLATFORM_WIN32
+  #define LIBMARY_TLOCAL __thread
+#endif
 
 #define LIBMARY_EXCBUF_POOL_SIZE 128
 
-#endif /* __LIBMARY__LIBMARY_CONFIG__H__ */
+#endif /* LIBMARY__LIBMARY_CONFIG__H__ */
 

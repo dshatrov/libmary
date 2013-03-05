@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -32,23 +32,33 @@ class AsyncInputStream
 {
 public:
     struct InputFrontend {
+#ifdef LIBMARY_WIN32_IOCP
+        void (*inputComplete) (Overlapped *overlapped,
+                               Size        bytes_transferred,
+                               void       *cb_data);
+#else
 	void (*processInput) (void *cb_data);
 
 	void (*processError) (Exception *exc_,
 			      void      *cb_data);
+#endif
     };
 
 protected:
     mt_const Cb<InputFrontend> input_frontend;
 
 public:
+#ifdef LIBMARY_WIN32_IOCP
+    virtual mt_throws AsyncIoResult read (OVERLAPPED * mt_nonnull overlapped,
+                                          Memory      mem,
+                                          Size       *ret_nread) = 0;
+#else
     virtual mt_throws AsyncIoResult read (Memory  mem,
 					  Size   *ret_nread) = 0;
+#endif
 
-    mt_const void setInputFrontend (Cb<InputFrontend> const &input_frontend)
-    {
-	this->input_frontend = input_frontend;
-    }
+    mt_const void setInputFrontend (CbDesc<InputFrontend> const &input_frontend)
+        { this->input_frontend = input_frontend; }
 
     virtual ~AsyncInputStream () {}
 };

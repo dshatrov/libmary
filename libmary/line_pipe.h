@@ -17,12 +17,13 @@
 */
 
 
-#ifndef __LIBMARY__LINE_PIPE__H__
-#define __LIBMARY__LINE_PIPE__H__
+#ifndef LIBMARY__LINE_PIPE__H__
+#define LIBMARY__LINE_PIPE__H__
 
 
 #include <libmary/code_referenced.h>
 #include <libmary/timers.h>
+#include <libmary/poll_group.h>
 #include <libmary/native_async_file.h>
 #include <libmary/connection_receiver.h>
 #include <libmary/line_server.h>
@@ -71,14 +72,12 @@ private:
     mt_mutex (mutex) Timers::TimerKey reopen_timer;
 
   mt_iface (LineServer::Frontend)
-
     static LineServer::Frontend const line_frontend;
 
     static void line (ConstMemory  line,
                       void        *_pipe_session);
 
     static void closed (void *_pipe_session);
-
   mt_iface_end
 
     static void reopenTimerTick (void *_self);
@@ -104,5 +103,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__LINE_PIPE__H__ */
+#endif /* LIBMARY__LINE_PIPE__H__ */
 

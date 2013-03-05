@@ -69,6 +69,16 @@ if test "x$enable_epoll" = "xyes"; then
     AC_DEFINE([LIBMARY_ENABLE_EPOLL], [1], [ ])
 fi
 
+AC_ARG_ENABLE([iocp],
+              AC_HELP_STRING([--enable-iocp],
+                             [Enable IOCP on Win32]),
+              [enable_iocp=$enableval],
+              [enable_iocp="no"])
+AM_CONDITIONAL(LIBMARY_WIN32_IOCP, test "x$enable_iocp" = "xyes")
+if test "x$enable_iocp" = "xyes"; then
+    AC_DEFINE([LIBMARY_WIN32_IOCP], [1], [ ])
+fi
+
 AC_ARG_WITH([select],
 	    AC_HELP_STRING([--with-select=@<:@yes/no@:>@],
 			   [Use select() syscall for event polling by default [default=no]]),

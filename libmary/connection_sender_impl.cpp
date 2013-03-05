@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -26,13 +26,11 @@
 
 namespace M {
 
-namespace {
-LogGroup libMary_logGroup_send    ("send",    LogLevel::I);
-LogGroup libMary_logGroup_writev  ("writev",  LogLevel::I);
-LogGroup libMary_logGroup_close   ("close",   LogLevel::I);
-LogGroup libMary_logGroup_hexdump ("hexdump", LogLevel::I);
-LogGroup libMary_logGroup_mwritev ("sender_impl_mwritev", LogLevel::I);
-}
+static LogGroup libMary_logGroup_send    ("send",    LogLevel::I);
+static LogGroup libMary_logGroup_writev  ("writev",  LogLevel::I);
+static LogGroup libMary_logGroup_close   ("close",   LogLevel::I);
+static LogGroup libMary_logGroup_hexdump ("hexdump", LogLevel::I);
+static LogGroup libMary_logGroup_mwritev ("sender_impl_mwritev", LogLevel::I);
 
 void
 ConnectionSenderImpl::setSendState (Sender::SendState const new_state)
@@ -95,8 +93,6 @@ void
 ConnectionSenderImpl::popPage (Sender::MessageEntry_Pages * const mt_nonnull msg_pages)
 {
     PagePool::Page * const next_page = msg_pages->first_page->getNextMsgPage ();
-//    logD_ (_func, "unrefing page 0x", fmt_hex, (UintPtr) msg_pages->first_page, ", "
-//           "refcount: ", msg_pages->first_page->getRefcount());
     msg_pages->page_pool->pageUnref (msg_pages->first_page);
     msg_pages->first_page = next_page;
     msg_pages->msg_offset = 0;
@@ -126,9 +122,9 @@ ConnectionSenderImpl::sendPendingMessages ()
 
 #ifdef LIBMARY_ENABLE_MWRITEV
 void
-ConnectionSenderImpl::sendPendingMessages_fillIovs (Count        *ret_num_iovs,
-						    struct iovec *ret_iovs,
-						    Count         max_iovs)
+ConnectionSenderImpl::sendPendingMessages_fillIovs (Count        * const ret_num_iovs,
+						    struct iovec * const ret_iovs,
+						    Count          const max_iovs)
 {
     processing_barrier_hit = false;
 
@@ -155,15 +151,6 @@ ConnectionSenderImpl::sendPendingMessages_fillIovs (Count        *ret_num_iovs,
 	return;
     }
 
-#if 0
-    sendPendingMessages_vector (false /* count_iovs */,
-				true  /* fill_iovs */,
-				false /* react */,
-				ret_num_iovs,
-				ret_iovs,
-				IOV_MAX <= max_iovs ? IOV_MAX : max_iovs /* num_iovs */,
-				0     /* num_written */);
-#endif
     sendPendingMessages_vector_fill (ret_num_iovs,
 				     ret_iovs,
 				     IOV_MAX <= max_iovs ? IOV_MAX : max_iovs /* num_iovs */);
@@ -186,16 +173,6 @@ ConnectionSenderImpl::sendPendingMessages_react (AsyncIoResult res,
 	return;
     }
 
-#if 0
-    Count num_iovs; // dummy arg
-    sendPendingMessages_vector (false /* count_iovs */,
-				false /* fill_iovs */,
-				true  /* react */,
-				&num_iovs,
-				NULL  /* iovs */,
-				Count_Max /* num_iovs */,
-				num_written);
-#endif
     sendPendingMessages_vector_react (num_written);
 
     if (!gotDataToSend()) {
@@ -235,41 +212,30 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 
 	// TODO Count num_iovs
 	Size num_iovs = 0;
-#if 0
-// Сейчас не используем режим count_iovs, и просто выделяем на стеке массив
-// длиной IOV_MAX.
-	sendPendingMessages_vector (true  /* count_iovs */,
-				    false /* fill_iovs */,
-				    false /* react */,
-				    &num_iovs,
-				    NULL  /* iovs */,
-				    0     /* num_iovs */,
-				    0     /* num_written */);
-#endif
+        // Сейчас не используем режим count_iovs, и просто выделяем на стеке массив
+        // длиной IOV_MAX.
 
-	// Note: Comments in boost headers tell that posix platforms are not
+#ifdef LIBMARY_WIN32_IOCP
+        WSABUF buffers [IOV_MAX];
+#else
+	// Note: Comments in boost headers suggest that posix platforms are not
 	// required to define IOV_MAX.
 	struct iovec iovs [IOV_MAX];
-// TEST for valgrind, this has no effect.
-//        memset (iovs, 0, sizeof (iovs));
-
-#if 0
-	sendPendingMessages_vector (false /* count_iovs */,
-				    true  /* fill_iovs */,
-				    false /* react */,
-				    &num_iovs,
-				    iovs,
-				    IOV_MAX /* num_iovs */,
-				    0     /* num_written */);
 #endif
-	sendPendingMessages_vector_fill (&num_iovs, iovs, IOV_MAX /* num_iovs */);
+
+	sendPendingMessages_vector_fill (&num_iovs,
+#ifdef LIBMARY_WIN32_IOCP
+                                         buffers,
+#else
+                                         iovs,
+#endif
+                                         IOV_MAX /* num_iovs */);
 	if (num_iovs > IOV_MAX) {
 	    logE_ (_func, "num_iovs: ", num_iovs, ", IOV_MAX: ", IOV_MAX);
 	    assert (0);
 	}
-//	if (num_iovs < IOV_MAX)
-//	    logD_ (_func, "< IOV_MAX");
 
+#if 0
 	// Dump of all iovs.
         if (logLevelOn (hexdump, LogLevel::Debug)) {
             logLock ();
@@ -280,6 +246,7 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 	    }
             logUnlock ();
 	}
+#endif
 
 	Size num_written = 0;
 	{
@@ -287,12 +254,26 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 	    processing_barrier_hit = false;
 
             logD (send, _func, "writev: num_iovs: ", num_iovs);
-	    AsyncIoResult const res = conn->writev (iovs, num_iovs, &num_written);
+#ifdef LIBMARY_WIN32_IOCP
+            OVERLAPPED * const sys_overlapped = &overlapped;
+            memset (sys_overlapped, 0, sizeof (OVERLAPPED));
+#endif
+            AsyncIoResult const res = conn->writev (
+#ifdef LIBMARY_WIN32_IOCP
+                                                    &overlapped,
+                                                    buffers,
+#else
+                                                    iovs,
+#endif
+                                                    num_iovs,
+                                                    &num_written);
 	    if (res == AsyncIoResult::Again) {
 		if (send_state == Sender::ConnectionReady)
 		    setSendState (Sender::ConnectionOverloaded);
 
 		logD (send, _func, "connection overloaded");
+
+#warning TODO For IOCP, treat the pages as being sent but keep them in the queue till the next writev call.
 
 		overloaded = true;
 		return AsyncIoResult::Again;
@@ -316,15 +297,6 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 	    // That's why we do not do a usual EINTR loop here.
 	}
 
-#if 0
-	sendPendingMessages_vector (false /* count_iovs */,
-				    false /* fill_iovs */,
-				    true  /* react */,
-				    &num_iovs,
-				    NULL  /* iovs */,
-				    num_iovs,
-				    num_written);
-#endif
 	sendPendingMessages_vector_react (num_written);
     } // for (;;)
 
@@ -332,342 +304,13 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
     return AsyncIoResult::Normal;
 }
 
-#if 0
-// Original, blended version.
-
-// @count_iovs   - Сосчитать кол-во векторов, нужных для отправки всех сообщений в очереди.
-//                 Подсчёт останавливается при достижении лимита IOV_MAX;
-// @fill_iovs    - Заполнить массив векторов (@iovs, @num_iovs);
-// @react        - Обновить состояние отправки сообщений в зависимости от кол-ва байт,
-//                 успешно записанных последним вызовом writev() (@num_written);
-// @ret_num_iovs - Кол-во векторов. Подсчитывается, если @count_iovs истинно;
-// @iovs         - Массив векторов для заполнения;
-// @num_iovs     - Размер массива векторов для заполнения;
-// @num_written  - Кол-во байт, успешно записанных последним вызовом writev().
-//
-void
-ConnectionSenderImpl::sendPendingMessages_vector (bool           const count_iovs,
-						  bool           const fill_iovs,
-						  bool           const react,
-						  Count        * const ret_num_iovs,
-						  struct iovec * const iovs,
-						  Count          const num_iovs,
-						  Size                 num_written)
-{
-    logD (writev, _func, count_iovs ? "count " : "", fill_iovs ? "fill " : "", react ? "react " : "");
-
-    Sender::MessageEntry *msg_entry = msg_list.getFirst ();
-    if (!msg_entry) {
-	logD (writev, _func, "message queue is empty");
-	return;
-    }
-
-    if (enable_processing_barrier
-	&& !processing_barrier)
-    {
-	if (gotDataToSend())
-	    processing_barrier_hit = true;
-
-	logD (writev, _func, "processing barrier is NULL");
-	return;
-    }
-
-    // Valid if @count_iovs is false.
-    Count cur_num_iovs = 0;
-
-    *ret_num_iovs = 0;
-
-    bool first_entry = true;
-    Count i = 0;
-    while (msg_entry) {
-	Sender::MessageEntry * const next_msg_entry = msg_list.getNext (msg_entry);
-
-	// If still set to 'true' after the switch, then msg_entry is removed
-	// from the queue.
-	bool msg_sent_completely = true;
-	switch (msg_entry->type) {
-#if 0
-	    case Sender::MessageEntry::Buffer: {
-	      // TODO
-		unreachable ();
-	    } break;
-#endif
-	    case Sender::MessageEntry::Pages: {
-		logD (writev, _func, "message entry");
-
-		Sender::MessageEntry_Pages * const msg_pages = static_cast <Sender::MessageEntry_Pages*> (msg_entry);
-
-		// Разделение "if (first_entry) {} else {}" нужно, потому что переменные
-		// состояния send*, в том числе и send_header_sent, обновляются только
-		// при последнем вызове этого метода (в фазе "react").
-		if (first_entry) {
-		    if (send_header_sent < msg_pages->header_len) {
-			logD (writev, _func, "first entry, header");
-
-			if (count_iovs) {
-			    ++*ret_num_iovs;
-			    if (*ret_num_iovs >= IOV_MAX)
-				break;
-			} else {
-			    ++cur_num_iovs;
-			    if (cur_num_iovs > num_iovs)
-				break;
-			    ++*ret_num_iovs;
-			}
-
-			if (fill_iovs) {
-			    iovs [i].iov_base = msg_pages->getHeaderData() + send_header_sent;
-			    iovs [i].iov_len = msg_pages->header_len - send_header_sent;
-			    ++i;
-			}
-
-			if (react) {
-			    if (num_written < msg_pages->header_len - send_header_sent) {
-				send_header_sent += num_written;
-				num_written = 0;
-				msg_sent_completely = false;
-				break;
-			    }
-
-			    num_written -= msg_pages->header_len - send_header_sent;
-			    send_header_sent = msg_pages->header_len;
-			}
-		    }
-		} else {
-		    if (msg_pages->header_len > 0) {
-			logD (writev, _func, "header");
-
-			if (count_iovs) {
-			    ++*ret_num_iovs;
-			    if (*ret_num_iovs >= IOV_MAX)
-				break;
-			} else {
-			    ++cur_num_iovs;
-			    if (cur_num_iovs > num_iovs)
-				break;
-			    ++*ret_num_iovs;
-			}
-
-			if (fill_iovs) {
-			    iovs [i].iov_base = msg_pages->getHeaderData();
-			    iovs [i].iov_len = msg_pages->header_len;
-			    ++i;
-			}
-
-			if (react) {
-			    if (num_written < msg_pages->header_len) {
-				send_header_sent = num_written;
-				num_written = 0;
-				msg_sent_completely = false;
-				break;
-			    }
-
-			    send_header_sent = msg_pages->header_len;
-			    num_written -= msg_pages->header_len;
-			}
-		    }
-		} // if (first_entry)
-
-		PagePool::Page *page = msg_pages->first_page;
-		bool first_page = true;
-		while (page) {
-		    logD (writev, _func, "page");
-
-		    PagePool::Page * const next_page = page->getNextMsgPage();
-
-		    if (page->data_len > 0) {
-			logD (writev, _func, "non-empty page");
-
-			// FIXME Limit on the number of iovs conflicts with send barrier logics.
-			//       There probably are bugs because of this.
-			//       Consider situations where we hit num_iovs limit and the message
-			//       has been sent completely.
-			if (count_iovs) {
-			    ++*ret_num_iovs;
-			    if (*ret_num_iovs >= IOV_MAX)
-				break;
-			} else {
-			    ++cur_num_iovs;
-			    if (cur_num_iovs > num_iovs)
-				break;
-			    ++*ret_num_iovs;
-			}
-
-			if (fill_iovs) {
-			    if (first_page) {
-				if (first_entry) {
-				    logD (writev, _func, "#", i, ": first page, first entry");
-
-				    assert (send_cur_offset <= page->data_len);
-                                    if (send_cur_offset == page->data_len) {
-                                        logD_ (_func, "WARNING: "
-                                               "send_cur_offset (", send_cur_offset, ") == "
-                                               "page->data_len (", page->data_len, ")");
-                                    }
-
-				    iovs [i].iov_base = page->getData() + send_cur_offset;
-				    iovs [i].iov_len = page->data_len - send_cur_offset;
-				} else {
-				    logD (writev, _func, "#", i, ": first page");
-
-				    assert (msg_pages->msg_offset <= page->data_len);
-                                    if (msg_pages->msg_offset == page->data_len) {
-                                        logD_ (_func, "WARNING: "
-                                               "msg_pages->msg_offset (", msg_pages->msg_offset, ") == "
-                                               "page->data_len (", page->data_len, ")");
-                                    }
-
-				    iovs [i].iov_base = page->getData() + msg_pages->msg_offset;
-				    iovs [i].iov_len = page->data_len - msg_pages->msg_offset;
-				}
-			    } else {
-				logD (writev, _func, "#", i);
-
-				iovs [i].iov_base = page->getData();
-				iovs [i].iov_len = page->data_len;
-			    }
-
-			    ++i;
-			}
-
-			if (react) {
-			    if (first_page) {
-				if (first_entry) {
-				    assert (send_cur_offset <= page->data_len);
-                                    if (send_cur_offset == page->data_len) {
-                                        logD_ (_func, "WARNING: "
-                                               "send_cur_offset (", send_cur_offset, ") == "
-                                               "page->data_len (", page->data_len, ")");
-                                    }
-
-				    if (num_written < page->data_len - send_cur_offset) {
-					send_cur_offset += num_written;
-					num_written = 0;
-					msg_sent_completely = false;
-					break;
-				    }
-
-				    num_written -= page->data_len - send_cur_offset;
-				} else {
-				    assert (msg_pages->msg_offset <= page->data_len);
-                                    if (msg_pages->msg_offset == page->data_len) {
-                                        logD_ (_func, "WARNING: "
-                                               "msg_pages->msg_offset (", msg_pages->msg_offset, ") == "
-                                               "page->data_len (", page->data_len, ")");
-                                    }
-
-				    if (num_written < page->data_len - msg_pages->msg_offset) {
-					send_cur_offset += num_written;
-					num_written = 0;
-					msg_sent_completely = false;
-					break;
-				    }
-
-				    num_written -= page->data_len - msg_pages->msg_offset;
-				}
-			    } else {
-				if (num_written < page->data_len) {
-				    send_cur_offset = num_written;
-				    num_written = 0;
-				    msg_sent_completely = false;
-				    break;
-				}
-
-				num_written -= page->data_len;
-			    }
-
-			    popPage (msg_pages);
-			}
-		    } else { // if (page->data_len > 0)
-		      // Empty page.
-
-			if (react)
-			    popPage (msg_pages);
-		    }
-
-		    first_page = false;
-		    page = next_page;
-		} // while (page)
-	    } break;
-	    default:
-		unreachable ();
-	} // switch (msg_entry->type)
-
-	if (count_iovs) {
-	    if (*ret_num_iovs >= IOV_MAX)
-		break;
-	} else {
-	    if (cur_num_iovs > num_iovs)
-		break;
-	}
-
-	if (react) {
-	    if (msg_sent_completely) {
-	      // This is the only place where messages are removed from the queue.
-
-		msg_list.remove (msg_entry);
-		Sender::deleteMessageEntry (msg_entry);
-		--num_msg_entries;
-
-		if (send_state == Sender::QueueSoftLimit ||
-		    send_state == Sender::QueueHardLimit)
-		{
-		    if (num_msg_entries < soft_msg_limit) {
-			if (overloaded)
-			    setSendState (Sender::ConnectionOverloaded);
-			else
-			    setSendState (Sender::ConnectionReady);
-		    } else
-		    if (num_msg_entries < hard_msg_limit)
-			setSendState (Sender::QueueSoftLimit);
-		}
-
-		logD (send, _func, "calling resetSendingState()");
-		resetSendingState ();
-
-		if (enable_processing_barrier
-		    && msg_entry == processing_barrier)
-		{
-		    processing_barrier = NULL;
-
-		    if (gotDataToSend())
-			processing_barrier_hit = true;
-
-		    break;
-		}
-	    } else {
-		assert (gotDataToSend());
-#if 0
-// Unnecessary
-		if (enable_processing_barrier
-		    && msg_entry == processing_barrier)
-		{
-		    processing_barrier_hit = true;
-		}
-#endif
-
-		break;
-	    }
-	} else {
-	    if (enable_processing_barrier
-		&& msg_entry == processing_barrier)
-	    {
-		break;
-	    }
-	}
-
-	first_entry = false;
-	msg_entry = next_msg_entry;
-    } // while (msg_entry)
-
-    if (react)
-	assert (num_written == 0);
-}
-#endif
-
 void
 ConnectionSenderImpl::sendPendingMessages_vector_fill (Count        * const mt_nonnull ret_num_iovs,
+#ifdef LIBMARY_WIN32_IOCP
+                                                       WSABUF       * const mt_nonnull buffers,
+#else
 						       struct iovec * const mt_nonnull iovs,
+#endif
 						       Count          const num_iovs)
 {
     logD (writev, _func_);
@@ -1062,6 +705,9 @@ ConnectionSenderImpl::ConnectionSenderImpl (bool const enable_processing_barrier
       send_header_sent (0),
       send_cur_offset (0)
 {
+#ifdef LIBMARY_WIN32_IOCP
+    overlapped->op_kind = Overlapped::OpKind_Write;
+#endif
 }
 
 void

@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011, 2012 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -23,10 +23,6 @@
 
 
 namespace M {
-
-Connection::OutputFrontend const ImmediateConnectionSender::conn_output_frontend = {
-    processOutput
-};
 
 // Must be called with 'mutex' held. Releases 'mutex' before returning.
 mt_unlocks (mutex) void
@@ -57,10 +53,26 @@ ImmediateConnectionSender::closeIfNeeded (bool const deferred_event)
     }
 }
 
+Connection::OutputFrontend const ImmediateConnectionSender::conn_output_frontend = {
+#ifdef LIBMARY_WIN32_IOCP
+    outputComplete
+#else
+    processOutput
+#endif
+};
+
+#ifdef LIBMARY_WIN32_IOCP
+void
+ImmediateConnectionSender::outputComplete (Overlapped * const /* overlapped */,
+                                           Size         const /* bytes_transferred */,
+                                           void       * const _self)
+{
+#else
 void
 ImmediateConnectionSender::processOutput (void * const _self)
 {
     ImmediateConnectionSender * const self = static_cast <ImmediateConnectionSender*> (_self);
+#endif
 
     self->mutex.lock ();
     AsyncIoResult const res = self->conn_sender_impl.sendPendingMessages ();

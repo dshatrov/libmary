@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -78,10 +78,6 @@ void mwritevInit (LibMary_MwritevData * const mwritev)
 } // namespace {}
 #endif
 
-Connection::OutputFrontend const DeferredConnectionSender::conn_output_frontend = {
-    processOutput
-};
-
 mt_unlocks (mutex) void
 DeferredConnectionSender::toGlobOutputQueue (bool const add_ref)
 {
@@ -143,9 +139,21 @@ DeferredConnectionSender::closeIfNeeded (bool const deferred_event)
     }
 }
 
+Connection::OutputFrontend const DeferredConnectionSender::conn_output_frontend = {
+    processOutput
+};
+
+#ifdef LIBMARY_WIN32_IOCP
+void
+ImmediateConnectionSender::outputComplete (Overlapped * const /* overlapped */,
+                                           Size         const /* bytes_transferred */,
+                                           void       * const _self)
+{
+#else
 void
 DeferredConnectionSender::processOutput (void * const _self)
 {
+#endif
     DeferredConnectionSender * const self = static_cast <DeferredConnectionSender*> (_self);
 
     self->mutex.lock ();

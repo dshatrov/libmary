@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -62,9 +62,17 @@ private:
 
     mt_unlocks (mutex) void closeIfNeeded (bool deferred_event);
 
+  mt_iface (Connection::OutputFrontend)
     static Connection::OutputFrontend const conn_output_frontend;
 
+#ifdef LIBMARY_WIN32_IOCP
+    static void outputComplete (Overlapped *overlapped,
+                                Size        bytes_transferred,
+                                void       *cb_data);
+#else
     static void processOutput (void *_self);
+#endif
+  mt_iface_end
 
     mt_unlocks (mutex) void doFlush ();
 
@@ -93,8 +101,8 @@ public:
     mt_const void setConnection (Connection * const mt_nonnull conn)
     {
 	conn_sender_impl.setConnection (conn);
-	conn->setOutputFrontend (Cb<Connection::OutputFrontend> (
-		&conn_output_frontend, this, getCoderefContainer()));
+	conn->setOutputFrontend (
+                CbDesc<Connection::OutputFrontend> (&conn_output_frontend, this, getCoderefContainer()));
     }
 
     mt_const void setQueue (DeferredConnectionSenderQueue * mt_nonnull dcs_queue);

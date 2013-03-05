@@ -44,6 +44,7 @@ public:
 	Hup    = 0x8
     };
 
+    // TODO Unused for now. This is meant to be used for multi-threaded WsaPollGroup.
     struct Events {
         void (*pollGroupFull) (void *cb_data);
         void (*pollGroupFree) (void *cb_data);
@@ -57,15 +58,36 @@ public:
         EventSubscriptionKey (void * const ptr = NULL) : ptr (ptr) {}
     };
 
+#ifndef LIBMARY_WIN32_IOCP
     struct Feedback {
 	void (*requestInput)  (void *cb_data);
 	void (*requestOutput) (void *cb_data);
     };
+#endif
+
+#ifdef LIBMARY_WIN32_IOCP
+    struct Overlapped : public OVERLAPPED
+    {
+        enum OpKind
+        {
+            OpKind_Read,
+            OpKind_Write
+        };
+
+        OpKind op_kind;
+    };
+#endif
 
     struct Pollable
     {
+#ifdef LIBMARY_WIN32_IOCP
+        void (*ioComplete) (Overlapped *overlapped,
+                            Size        bytes_transferred,
+                            void       *cb_data);
+#else
 	void (*processEvents) (Uint32  event_flags,
 			       void   *cb_data);
+#endif
 
 #ifdef LIBMARY_PLATFORM_WIN32
 	SOCKET (*getFd) (void *cb_data);
@@ -73,8 +95,10 @@ public:
 	int (*getFd) (void *cb_data);
 #endif
 
+#ifndef LIBMARY_WIN32_IOCP
 	void (*setFeedback) (Cb<Feedback> const &feedback,
 			     void *cb_data);
+#endif
     };
 
     class PollableKey
@@ -117,15 +141,20 @@ namespace M {
     //      and move this into active_poll_group.h
 
 #ifdef LIBMARY_PLATFORM_WIN32
+  #ifdef LIBMARY_WIN32_IOCP
+    class IocpPollGroup;
+    typedef IocpPollGroup DefaultPollGroup;
+  #else
     class WsaPollGroup;
     typedef WsaPollGroup DefaultPollGroup;
+  #endif
 #else
-  #if defined (LIBMARY_USE_POLL)
-    class PollPollGroup;
-    typedef PollPollGroup DefaultPollGroup;
-  #elif defined (LIBMARY_USE_SELECT) || !defined (LIBMARY_PLATFORM_DEFAULT)
+  #if defined (LIBMARY_USE_SELECT)
     class SelectPollGroup;
     typedef SelectPollGroup DefaultPollGroup;
+  #elif defined (LIBMARY_USE_POLL) || !defined (LIBMARY_ENABLE_EPOLL)
+    class PollPollGroup;
+    typedef PollPollGroup DefaultPollGroup;
   #else
     class EpollPollGroup;
     typedef EpollPollGroup DefaultPollGroup;

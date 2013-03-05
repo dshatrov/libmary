@@ -44,6 +44,11 @@ private:
     mt_const Byte *recv_buf;
     mt_const Size const recv_buf_len;
 
+#ifdef LIBMARY_WIN32_IOCP
+    mt_sync_domain (conn_input_frontend) Overlapped overlapped;
+    mt_sync_domain (conn_input_frontend) bool overlapped_in_progress;
+#endif
+
     mt_sync_domain (conn_input_frontend) Size recv_buf_pos;
     mt_sync_domain (conn_input_frontend) Size recv_accepted_pos;
 
@@ -54,10 +59,16 @@ private:
   mt_iface (AsyncInputStream::InputFrontend)
     static AsyncInputStream::InputFrontend const conn_input_frontend;
 
+#ifdef LIBMARY_WIN32_IOCP
+    static void inputComplete (Overlapped *overlapped,
+                               Size        bytes_transferred,
+                               void       *_self);
+#else
     static void processInput (void *_self);
 
     static void processError (Exception *exc_,
 			      void      *_self);
+#endif
   mt_iface_end
 
     static bool unblockInputTask (void *_self);
@@ -74,8 +85,7 @@ public:
 
 	this->conn = conn;
 	conn->setInputFrontend (
-                Cb<AsyncInputStream::InputFrontend> (
-                        &conn_input_frontend, this, getCoderefContainer()));
+                CbDesc<AsyncInputStream::InputFrontend> (&conn_input_frontend, this, getCoderefContainer()));
     }
 
     ConnectionReceiver (Object * const coderef_container);
