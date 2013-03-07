@@ -27,17 +27,14 @@
 namespace M {
 
 mt_throws Result
-Vfs::createSubdirs (ConstMemory dirs_path)
+Vfs::createSubdirs (ConstMemory const dirs_path)
 {
-//    logD_ (_func, "dirs_path: ", dirs_path);
-
     ConstMemory tail = dirs_path;
     for (;;) {
         ConstMemory cur_dir = dirs_path;
         Byte const * const slash = (Byte const *) memchr (tail.mem(), '/', tail.len());
         if (slash) {
             tail = tail.region (slash - tail.mem() + 1);
-//            logD_ (_func, "tail: ", tail, ", cur_dir: ", cur_dir);
             cur_dir = dirs_path.region (0, slash - dirs_path.mem());
         }
 
@@ -48,6 +45,35 @@ Vfs::createSubdirs (ConstMemory dirs_path)
 
         if (!slash)
             break;
+    }
+
+    return Result::Success;
+}
+
+mt_throws Result
+Vfs::removeSubdirs (ConstMemory const dirs_path)
+{
+    ConstMemory head = dirs_path;
+    for (;;) {
+        if (head.len() == 0)
+            break;
+
+        {
+            RemoveDirectoryResult const res = removeDirectory (head);
+            if (res == RemoveDirectoryResult::NotEmpty) {
+                return Result::Success;
+            } else
+            if (res != RemoveDirectoryResult::Success) {
+                logE_ (_func, "Could not remove directory \"", head, "\": ", exc->toString());
+                return Result::Failure;
+            }
+        }
+
+        Byte const * const slash = (Byte const *) memrchr (head.mem(), '/', head.len());
+        if (!slash)
+            break;
+
+        head = head.region (0, slash - head.mem());
     }
 
     return Result::Success;

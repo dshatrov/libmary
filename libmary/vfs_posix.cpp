@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include <dirent.h>
 
 #include <libmary/array_holder.h>
@@ -203,7 +204,7 @@ VfsPosix::openDirectory (ConstMemory const _dirname)
     Ref<String> dirname_str;
     ConstMemory const dirname = makePath (dirname_str, _dirname);
 
-    Ref<VfsPosixDirectory> directory = grab (new (std::nothrow) VfsPosixDirectory);
+    Ref<VfsPosixDirectory> const directory = grab (new (std::nothrow) VfsPosixDirectory);
     if (!directory->open (dirname))
 	return NULL;
 
@@ -217,8 +218,7 @@ VfsPosix::createDirectory (ConstMemory const _dirname)
     ConstMemory const dirname = makePath (dirname_str, _dirname);
 
     for (;;) {
-        String str (dirname);
-        int const res = mkdir (str.cstr(), 0700);
+        int const res = mkdir (dirname_str->cstr(), 0700);
         if (res == -1) {
             int const err = errno;
 
@@ -230,7 +230,7 @@ VfsPosix::createDirectory (ConstMemory const _dirname)
             if (err == EEXIST)
                 return Result::Success;
 
-            logE_ (_func, "mkdir() failed: ", errnoString (err));
+            logE_ (_func, "mkdir() failed for directory \"", dirname, "\": ", errnoString (err));
             exc_throw (PosixException, err);
             return Result::Failure;
         } else
@@ -244,6 +244,69 @@ VfsPosix::createDirectory (ConstMemory const _dirname)
     }
 
     return Result::Success;
+}
+
+mt_throws Result
+VfsPosix::removeFile (ConstMemory const _filename)
+{
+    Ref<String> filename_str;
+    ConstMemory const filename = makePath (filename_str, _filename);
+
+    for (;;) {
+        int const res = unlink (filename_str->cstr());
+        if (res == -1) {
+            int const err = errno;
+
+            if (err == EINTR)
+                continue;
+
+            logE_ (_func, "unlink() failed for file \"", filename, "\": ", errnoString (err));
+            exc_throw (PosixException, err);
+            return Result::Failure;
+        } else
+        if (res != 0) {
+            logE_ (_func, "unlink(): unexpected return value: ", res);
+            exc_throw (InternalException, InternalException::BackendMalfunction);
+            return Result::Failure;
+        }
+
+        break;
+    }
+
+    return Result::Success;
+}
+
+mt_throws Vfs::RemoveDirectoryResult
+VfsPosix::removeDirectory (ConstMemory const _dirname)
+{
+    Ref<String> dirname_str;
+    ConstMemory const dirname = makePath (dirname_str, _dirname);
+
+    for (;;) {
+        int const res = rmdir (dirname_str->cstr());
+        if (res == -1) {
+            int const err = errno;
+
+            if (err == EINTR)
+                continue;
+
+            if (err == ENOTEMPTY)
+                return RemoveDirectoryResult::NotEmpty;
+
+            logE_ (_func, "rmdir() failed for directory \"", dirname, "\": ", errnoString (err));
+            exc_throw (PosixException, err);
+            return RemoveDirectoryResult::Failure;
+        } else
+        if (res != 0) {
+            logE_ (_func, "rmdir(): unexpected return value: ", res);
+            exc_throw (InternalException, InternalException::BackendMalfunction);
+            return RemoveDirectoryResult::Failure;
+        }
+
+        break;
+    }
+
+    return RemoveDirectoryResult::Success;
 }
 
 VfsPosix::VfsPosix (ConstMemory const root_path)

@@ -60,12 +60,41 @@ public:
 
     virtual mt_throws Result createDirectory (ConstMemory dirname) = 0;
 
+    virtual mt_throws Result removeFile (ConstMemory filename) = 0;
+
+    class RemoveDirectoryResult
+    {
+    public:
+        enum Value {
+            Success,
+            Failure,
+            NotEmpty
+        };
+        operator Value () const { return value; }
+        RemoveDirectoryResult (Value const value) : value (value) {}
+        RemoveDirectoryResult () {}
+    private:
+        Value value;
+    };
+
+    virtual mt_throws RemoveDirectoryResult removeDirectory (ConstMemory dirname) = 0;
+
     mt_throws Result createSubdirs (ConstMemory dirs_path);
 
     mt_throws Result createSubdirsForFilename (ConstMemory const filename)
     {
         if (Byte const * const file_part = (Byte const*) memrchr (filename.mem(), '/', filename.len()))
             return createSubdirs (filename.region (0, file_part - filename.mem()));
+
+        return Result::Success;
+    }
+
+    mt_throws Result removeSubdirs (ConstMemory dirs_path);
+
+    mt_throws Result removeSubdirsForFilename (ConstMemory const filename)
+    {
+        if (Byte const * const file_part = (Byte const*) memrchr (filename.mem(), '/', filename.len()))
+            return removeSubdirs (filename.region (0, file_part - filename.mem()));
 
         return Result::Success;
     }

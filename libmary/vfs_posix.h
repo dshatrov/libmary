@@ -86,6 +86,10 @@ public:
     mt_throws Ref<Vfs::VfsDirectory> openDirectory (ConstMemory _dirname);
 
     mt_throws Result createDirectory (ConstMemory _dirname);
+
+    mt_throws Result removeFile (ConstMemory _filename);
+
+    mt_throws RemoveDirectoryResult removeDirectory (ConstMemory _dirname);
   mt_iface_end
 
     VfsPosix (ConstMemory root_path);
