@@ -124,7 +124,7 @@ PagePool::PageListArray::set (Size const offset,
     doGetSet (offset, NULL /* data_get */, mem.mem() /* data_set */, mem.len(), false /* get */);
 }
 
-PagePool::Page*
+mt_mutex (mutex) PagePool::Page*
 PagePool::grabPage ()
 {
     Page *page;
@@ -162,8 +162,6 @@ PagePool::doGetPages (PageListHead * const mt_nonnull page_list,
     Byte const *cur_data = mem.mem ();
     Size cur_data_len = mem.len ();
 
-    mutex.lock ();
-
     if (page_list->last != NULL) {
 	Page * const page = page_list->last;
 	if (page->data_len < page_size) {
@@ -182,7 +180,12 @@ PagePool::doGetPages (PageListHead * const mt_nonnull page_list,
 	}
     }
 
+    if (cur_data_len == 0)
+        return;
+
+    mutex.lock ();
     while (cur_data_len > 0) {
+        // TODO Grab all pages with mutex locked, then unlock the mutex, then do memcpy.
 	Page * const page = grabPage ();
 	{
 	  // Dealing with the linked list.
@@ -205,7 +208,6 @@ PagePool::doGetPages (PageListHead * const mt_nonnull page_list,
 	cur_data += tocopy;
 	cur_data_len -= tocopy;
     }
-
     mutex.unlock ();
 }
 

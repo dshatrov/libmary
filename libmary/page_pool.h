@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__PAGE_POOL__H__
-#define __LIBMARY__PAGE_POOL__H__
+#ifndef LIBMARY__PAGE_POOL__H__
+#define LIBMARY__PAGE_POOL__H__
 
 
 #include <libmary/types.h>
@@ -43,9 +43,12 @@ private:
     Mutex mutex;
 
 public:
+    class PageListHead;
+
     class Page
     {
 	friend class PagePool;
+        friend class PageListHead;
 
     private:
 	AtomicInt refcount;
@@ -58,31 +61,15 @@ public:
 
 	Page (int const refcount = 1)
 	    : refcount (refcount)
-	{
-	}
+	{}
 
     public:
 	Size data_len;
 
-	Page* getNextMsgPage () const
-	{
-	    return next_msg_page;
-	}
-
-	Byte* getData () const
-	{
-	    return (Byte*) this + sizeof (*this);
-	}
-
-        int getRefcount () const
-        {
-            return refcount.get();
-        }
-
-	Memory mem () const
-	{
-	    return Memory (getData (), data_len);
-	}
+	Page*  getNextMsgPage () const { return next_msg_page; }
+	Byte*  getData        () const { return (Byte*) this + sizeof (*this); }
+        int    getRefcount    () const { return refcount.get(); }
+	Memory mem            () const { return Memory (getData(), data_len); }
     };
 
     class PageListHead
@@ -90,6 +77,29 @@ public:
     public:
 	Page *first;
 	Page *last;
+
+        void appendList (PageListHead * const mt_nonnull list)
+        {
+            if (list->first) {
+                last->next_msg_page = list->first;
+                last = list->last;
+            }
+        }
+
+        void appendPages (Page * const first)
+        {
+            Page *last = first;
+            if (last) {
+                while (last->next_msg_page)
+                    last = last->next_msg_page;
+            }
+
+            PageListHead pages;
+            pages.first = first;
+            pages.last = last;
+
+            appendList (&pages);
+        }
 
 	bool isEmpty () const
 	{
@@ -240,7 +250,7 @@ private:
 
     Page *first_spare_page;
 
-    Page* grabPage ();
+    mt_mutex (mutex) Page* grabPage ();
 
     void doGetPages (PageListHead * mt_nonnull page_list,
 		     ConstMemory const &mem,
@@ -338,5 +348,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__PAGE_POOL__H__ */
+#endif /* LIBMARY__PAGE_POOL__H__ */
 
