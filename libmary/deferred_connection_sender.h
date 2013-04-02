@@ -143,8 +143,7 @@ public:
 
     void release ();
 
-    DeferredConnectionSenderQueue (Object *coderef_container);
-
+     DeferredConnectionSenderQueue (Object *coderef_container);
     ~DeferredConnectionSenderQueue ();
 };
 

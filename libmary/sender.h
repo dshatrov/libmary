@@ -283,7 +283,7 @@ public:
 	msg_pages->first_page = first_page;
 	msg_pages->msg_offset = msg_offset;
 
-        // TODO Workaround for broken msg_offset handling. Fix ConnectionSenderImpl instead.
+#warning TODO Workaround for broken msg_offset handling. Fix ConnectionSenderImpl instead.
         if (msg_offset > 0) {
             Size const len = PagePool::countPageListDataLen (first_page, msg_offset);
             PagePool::PageListHead page_list;
