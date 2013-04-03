@@ -26,14 +26,19 @@ namespace M {
 
 // Must be called with 'mutex' held. Releases 'mutex' before returning.
 mt_unlocks (mutex) void
-ImmediateConnectionSender::closeIfNeeded (bool const deferred_event)
+ImmediateConnectionSender::closeIfNeeded (bool const deferred_event,
+                                          bool const unlock)
 {
     if (!closed
         && close_after_flush
 	&& !conn_sender_impl.gotDataToSend ())
     {
         closed = true;
-	mutex.unlock ();
+        if (unlock) {
+            mutex.unlock ();
+        } else {
+            assert (deferred_event);
+        }
 
         if (deferred_event) {
             fireClosed_deferred (&deferred_reg, NULL /* exc_buf */);
@@ -49,7 +54,8 @@ ImmediateConnectionSender::closeIfNeeded (bool const deferred_event)
                 frontend.call (frontend->closed, /*(*/ (Exception*) NULL /* exc_ */ /*)*/);
         }
     } else {
-	mutex.unlock ();
+        if (unlock)
+            mutex.unlock ();
     }
 }
 
@@ -122,7 +128,7 @@ ImmediateConnectionSender::processOutput (void * const _self)
     else
 	self->ready_for_output = true;
 
-    mt_unlocks (mutex) self->closeIfNeeded (false /* deferred_event */);
+    mt_unlocks (mutex) self->closeIfNeeded (false /* deferred_event */, true /* unlock */);
 }
 
 void
@@ -132,17 +138,28 @@ ImmediateConnectionSender::sendMessage (MessageEntry  * const mt_nonnull msg_ent
     mutex.lock ();
     conn_sender_impl.queueMessage (msg_entry);
     if (do_flush) {
-	mt_unlocks (mutex) doFlush ();
+	mt_unlocks (mutex) doFlush (true /* unlock */);
 	return;
     }
     mutex.unlock ();
 }
 
+mt_mutex (mutex) void
+ImmediateConnectionSender::sendMessage_unlocked (MessageEntry * const mt_nonnull msg_entry,
+                                                 bool           const do_flush)
+{
+    conn_sender_impl.queueMessage (msg_entry);
+    if (do_flush)
+        flush_unlocked ();
+}
+
 mt_mutex (mutex) mt_unlocks (mutex) void
-ImmediateConnectionSender::doFlush ()
+ImmediateConnectionSender::doFlush (bool const unlock)
 {
     if (!ready_for_output) {
-	mutex.unlock ();
+        if (unlock) {
+            mutex.unlock ();
+        }
 	return;
     }
 
@@ -158,7 +175,8 @@ ImmediateConnectionSender::doFlush ()
             inform_closed = true;
         }
 
-	mutex.unlock ();
+        if (unlock)
+            mutex.unlock ();
 
 	// TODO It might be better to return Result from flush().
         //
@@ -195,14 +213,20 @@ ImmediateConnectionSender::doFlush ()
     if (res == AsyncIoResult::Again)
 	ready_for_output = false;
 
-    mt_unlocks (mutex) closeIfNeeded (true /* deferred_event */);
+    mt_unlocks (mutex) closeIfNeeded (true /* deferred_event */, unlock);
 }
 
 void
 ImmediateConnectionSender::flush ()
 {
     mutex.lock ();
-    mt_unlocks (mutex) doFlush ();
+    mt_unlocks (mutex) doFlush (true /* unlock */);
+}
+
+mt_mutex (mutex) void
+ImmediateConnectionSender::flush_unlocked ()
+{
+    doFlush (false /* unlock */);
 }
 
 void
@@ -210,7 +234,7 @@ ImmediateConnectionSender::closeAfterFlush ()
 {
     mutex.lock ();
     close_after_flush = true;
-    mt_unlocks (mutex) closeIfNeeded (true /* deferred_event */);
+    mt_unlocks (mutex) closeIfNeeded (true /* deferred_event */, true /* unlock */);
 }
 
 void
@@ -235,27 +259,19 @@ ImmediateConnectionSender::close ()
 
 mt_mutex (mutex) bool
 ImmediateConnectionSender::isClosed_unlocked ()
-{
-    return closed;
-}
+    { return closed; }
 
 mt_mutex (mutex) Sender::SendState
 ImmediateConnectionSender::getSendState_unlocked ()
-{
-    return conn_sender_impl.getSendState();
-}
+    { return conn_sender_impl.getSendState(); }
 
 void
 ImmediateConnectionSender::lock ()
-{
-    mutex.lock ();
-}
+    { mutex.lock (); }
 
 void
 ImmediateConnectionSender::unlock ()
-{
-    mutex.unlock ();
-}
+    { mutex.unlock (); }
 
 ImmediateConnectionSender::ImmediateConnectionSender (Object * const coderef_container)
     : Sender (coderef_container),

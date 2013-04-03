@@ -245,9 +245,14 @@ public:
     //
     // Takes ownership of msg_entry.
     virtual void sendMessage (MessageEntry * mt_nonnull msg_entry,
-			      bool          do_flush = false) = 0;
+			      bool          do_flush = false /* FIXME 'false' by default is dangerous */) = 0;
+
+    virtual mt_mutex (mutex) void sendMessage_unlocked (MessageEntry * mt_nonnull msg_entry,
+                                                        bool          do_flush) = 0;
 
     virtual void flush () = 0;
+
+    virtual mt_mutex (mutex) void flush_unlocked () = 0;
 
     // Frontend::closed() will be called after message queue becomes empty.
     virtual void closeAfterFlush () = 0;
@@ -257,7 +262,6 @@ public:
 
     virtual mt_mutex (mutex) bool isClosed_unlocked () = 0;
 
-    // Note: This is currently unused.
     virtual mt_mutex (mutex) SendState getSendState_unlocked () = 0;
 
     virtual void lock () = 0;

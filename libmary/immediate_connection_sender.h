@@ -41,7 +41,8 @@ private:
     mt_mutex (mutex) bool close_after_flush;
     mt_mutex (mutex) bool ready_for_output;
 
-    mt_unlocks (mutex) void closeIfNeeded (bool deferred_event);
+    mt_unlocks (mutex) void closeIfNeeded (bool deferred_event,
+                                           bool unlock);
 
   mt_iface (Connection::OutputFrontend)
     static Connection::OutputFrontend const conn_output_frontend;
@@ -54,14 +55,19 @@ private:
 #endif
   mt_iface_end
 
-    mt_mutex (mutex) mt_unlocks (mutex) void doFlush ();
+    mt_mutex (mutex) mt_unlocks (mutex) void doFlush (bool unlock);
 
 public:
   mt_iface (Sender)
     void sendMessage (MessageEntry * mt_nonnull msg_entry,
-		      bool do_flush = false);
+		      bool do_flush = false /* FIXME 'false' by default is dangerous */);
+
+    mt_mutex (mutex) void sendMessage_unlocked (MessageEntry * mt_nonnull msg_entry,
+                                                bool          do_flush);
 
     void flush ();
+
+    mt_mutex (mutex) void flush_unlocked ();
 
     void closeAfterFlush ();
 

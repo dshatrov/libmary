@@ -79,15 +79,19 @@ void mwritevInit (LibMary_MwritevData * const mwritev)
 #endif
 
 mt_unlocks (mutex) void
-DeferredConnectionSender::toGlobOutputQueue (bool const add_ref)
+DeferredConnectionSender::toGlobOutputQueue (bool const add_ref,
+                                             bool const unlock)
 {
     if (in_output_queue) {
-	mutex.unlock ();
+        if (unlock) {
+            mutex.unlock ();
+        }
 	return;
     }
 
     in_output_queue = true;
-    mutex.unlock ();
+    if (unlock)
+        mutex.unlock ();
 
     // It is important to ref() before adding the sender to output_queue.
     if (add_ref) {
@@ -159,7 +163,7 @@ DeferredConnectionSender::processOutput (void * const _self)
     self->mutex.lock ();
     self->ready_for_output = true;
     if (self->conn_sender_impl.gotDataToSend ())
-	mt_unlocks (self->mutex) self->toGlobOutputQueue (true /* add_ref */);
+	mt_unlocks (self->mutex) self->toGlobOutputQueue (true /* add_ref */, true /* unlock */);
     else
 	self->mutex.unlock ();
 }
@@ -173,22 +177,32 @@ DeferredConnectionSender::sendMessage (MessageEntry * const mt_nonnull msg_entry
     mutex.lock ();
     conn_sender_impl.queueMessage (msg_entry);
     if (do_flush) {
-	mt_unlocks (mutex) doFlush ();
+	mt_unlocks (mutex) doFlush (true /* unlock */);
 	return;
     }
     mutex.unlock ();
 }
 
+mt_mutex (mutex) void
+DeferredConnectionSender::sendMessage_unlocked (MessageEntry * const mt_nonnull msg_entry,
+                                                bool           const do_flush)
+{
+    conn_sender_impl.queueMessage (msg_entry);
+    if (do_flush)
+        flush_unlocked ();
+}
+
 mt_unlocks (mutex) void
-DeferredConnectionSender::doFlush ()
+DeferredConnectionSender::doFlush (bool const unlock)
 {
     if (ready_for_output
 	&& conn_sender_impl.gotDataToSend ())
     {
 	logD (sender, _func, "calling toGlobOutputQueue()");
-	mt_unlocks (mutex) toGlobOutputQueue (true /* add_ref */);
+	mt_unlocks (mutex) toGlobOutputQueue (true /* add_ref */, unlock);
     } else {
-	mutex.unlock ();
+        if (unlock)
+            mutex.unlock ();
     }
 }
 
@@ -196,7 +210,13 @@ void
 DeferredConnectionSender::flush ()
 {
     mutex.lock ();
-    mt_unlocks (mutex) doFlush ();
+    mt_unlocks (mutex) doFlush (true /* unlock */);
+}
+
+mt_mutex (mutex) void
+DeferredConnectionSender::flush_unlocked ()
+{
+    doFlush (false /* unlock */);
 }
 
 void
@@ -231,27 +251,19 @@ DeferredConnectionSender::close ()
 
 mt_mutex (mutex) bool
 DeferredConnectionSender::isClosed_unlocked ()
-{
-    return closed;
-}
+    { return closed; }
 
 mt_mutex (mutex) Sender::SendState
 DeferredConnectionSender::getSendState_unlocked ()
-{
-    return conn_sender_impl.getSendState();
-}
+    { return conn_sender_impl.getSendState(); }
 
 void
 DeferredConnectionSender::lock ()
-{
-    mutex.lock ();
-}
+    { mutex.lock (); }
 
 void
 DeferredConnectionSender::unlock ()
-{
-    mutex.unlock ();
-}
+    { mutex.unlock (); }
 
 mt_const void
 DeferredConnectionSender::setQueue (DeferredConnectionSenderQueue * const mt_nonnull dcs_queue)
@@ -419,7 +431,7 @@ DeferredConnectionSenderQueue::process (void *_self)
 	    assert (0);
 
             // TODO toGlobOutputQueue calls trigger(), which is unnecessary here.
-	    mt_unlocks (deferred_sender->mutex) deferred_sender->toGlobOutputQueue (false /* add_ref */);
+	    mt_unlocks (deferred_sender->mutex) deferred_sender->toGlobOutputQueue (false /* add_ref */, true /* unlock */);
 
 // Overlaps with (!self->output_queue.isEmpty()) check below.
 //	    extra_iteration_needed = true;

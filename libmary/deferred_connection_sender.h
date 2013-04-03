@@ -58,7 +58,8 @@ private:
     bool in_output_queue;
   mt_end
 
-    mt_unlocks (mutex) void toGlobOutputQueue (bool add_ref);
+    mt_unlocks (mutex) void toGlobOutputQueue (bool add_ref,
+                                               bool unlock);
 
     mt_unlocks (mutex) void closeIfNeeded (bool deferred_event);
 
@@ -74,15 +75,19 @@ private:
 #endif
   mt_iface_end
 
-    mt_unlocks (mutex) void doFlush ();
+    mt_unlocks (mutex) void doFlush (bool unlock);
 
 public:
   mt_iface (Sender)
-
     void sendMessage (MessageEntry * mt_nonnull msg_entry,
-		      bool do_flush = false);
+		      bool do_flush = false /* FIXME 'false' by default is dangerous */);
+
+    mt_mutex (mutex) void sendMessage_unlocked (MessageEntry * mt_nonnull msg_entry,
+                                                bool          do_flush);
 
     void flush ();
+
+    mt_mutex (mutex) void flush_unlocked ();
 
     void closeAfterFlush ();
 
@@ -95,7 +100,6 @@ public:
     void lock ();
 
     void unlock ();
-
   mt_iface_end
 
     mt_const void setConnection (Connection * const mt_nonnull conn)
