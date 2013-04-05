@@ -126,6 +126,8 @@ public:
 	return param->value;
     }
 
+    bool hasParameter (ConstMemory const name) { return parameter_hash.lookup (name); }
+
 private:
     static void parseParameters_paramCallback (ConstMemory  name,
                                                ConstMemory  value,
