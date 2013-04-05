@@ -471,7 +471,7 @@ HttpService::acceptOneConnection ()
 	assert (res == TcpServer::AcceptResult::Accepted);
     }
 
-    logD_ (_func, "accepted, http_conn 0x", fmt_hex, (UintPtr) http_conn);
+    logD_ (_func, "accepted, http_conn 0x", fmt_hex, (UintPtr) http_conn, " client ", fmt_def, client_addr);
 
     http_conn->weak_http_service = this;
 

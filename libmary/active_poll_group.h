@@ -42,7 +42,7 @@ protected:
     mt_const Cb<Frontend> frontend;
 
 public:
-    virtual mt_throws Result poll (Uint64 timeout_msec = (Uint64) -1) = 0;
+    virtual mt_throws Result poll (Uint64 timeout_millisec = (Uint64) -1) = 0;
 
     virtual mt_throws Result trigger () = 0;
 
