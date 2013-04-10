@@ -40,7 +40,7 @@ LogLevel libMary_globalLogLevel (LogLevel::All);
 
 Mutex _libMary_log_mutex;
 
-char const * LogLevel::toCompactCstr ()
+char const * LogLevel::toCompactCstr () const
 {
     switch (value) {
 	case LogLevel::All:

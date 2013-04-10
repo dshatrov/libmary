@@ -65,7 +65,7 @@ public:
     LogLevel (unsigned const value) : value (value) {}
     LogLevel () {}
 
-    char const * toCompactCstr ();
+    char const * toCompactCstr () const;
 
     static Result fromString (ConstMemory  str,
 			      LogLevel    * mt_nonnull ret_loglevel);
