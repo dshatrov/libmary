@@ -60,7 +60,7 @@ private:
 public:
   mt_iface (Sender)
     void sendMessage (MessageEntry * mt_nonnull msg_entry,
-		      bool do_flush = false /* FIXME 'false' by default is dangerous */);
+		      bool do_flush);
 
     mt_mutex (mutex) void sendMessage_unlocked (MessageEntry * mt_nonnull msg_entry,
                                                 bool          do_flush);

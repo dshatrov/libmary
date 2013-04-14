@@ -32,6 +32,7 @@
 #include <libmary/informer.h>
 #include <libmary/exception.h>
 #include <libmary/page_pool.h>
+#include <libmary/log.h>
 
 
 // M::VSlab is a grow-only data structure. Be warned.
@@ -239,13 +240,9 @@ public:
     void fireSendStateChanged_deferred (DeferredProcessor::Registration *def_reg,
                                         SendState send_state);
 
-    // TODO sendMessage_unlocked() would allow to send series of messages
-    //      without repeatedly acquiring Sender::mutex. The same applies to
-    //      flush_unlocked().
-    //
     // Takes ownership of msg_entry.
     virtual void sendMessage (MessageEntry * mt_nonnull msg_entry,
-			      bool          do_flush = false /* FIXME 'false' by default is dangerous */) = 0;
+			      bool          do_flush) = 0;
 
     virtual mt_mutex (mutex) void sendMessage_unlocked (MessageEntry * mt_nonnull msg_entry,
                                                         bool          do_flush) = 0;
@@ -268,12 +265,19 @@ public:
 
     virtual void unlock () = 0;
 
-    // Deprecated form
-    void sendPages (PagePool               * const mt_nonnull page_pool,
-		    PagePool::PageListHead * const mt_nonnull page_list,
-		    bool                     const do_flush = false)
+    void sendPages (PagePool       * const mt_nonnull page_pool,
+                    PagePool::Page * const mt_nonnull first_page,
+		    bool             const do_flush)
     {
-        sendPages (page_pool, page_list->first, 0 /* msg_offset */, do_flush);
+      // Same as: sendPages (page_pool, page_list->first, 0 /* msg_offset */, do_flush);
+
+	MessageEntry_Pages * const msg_pages = MessageEntry_Pages::createNew (0 /* max_header_len */);
+	msg_pages->header_len = 0;
+	msg_pages->page_pool = page_pool;
+	msg_pages->first_page = first_page;
+	msg_pages->msg_offset = 0;
+
+	sendMessage (msg_pages, do_flush);
     }
 
     void sendPages (PagePool       * const mt_nonnull page_pool,
@@ -281,45 +285,35 @@ public:
                     Size             const msg_offset,
                     bool             const do_flush)
     {
-	MessageEntry_Pages * const msg_pages = MessageEntry_Pages::createNew (0 /* max_header_len */);
-	msg_pages->header_len = 0;
-	msg_pages->page_pool = page_pool;
-	msg_pages->first_page = first_page;
-	msg_pages->msg_offset = msg_offset;
+        MessageEntry_Pages * const msg_pages = MessageEntry_Pages::createNew (0 /* max_header_len */);
+        msg_pages->header_len = 0;
+        msg_pages->page_pool = page_pool;
+        msg_pages->first_page = first_page;
+        msg_pages->msg_offset = msg_offset;
 
-#warning TODO Workaround for broken msg_offset handling. Fix ConnectionSenderImpl instead.
-        if (msg_offset > 0) {
-            Size const len = PagePool::countPageListDataLen (first_page, msg_offset);
-            PagePool::PageListHead page_list;
-            page_pool->getFillPagesFromPages (&page_list, first_page, msg_offset, len);
-            msg_pages->first_page = page_list.first;
-            msg_pages->msg_offset = 0;
-            page_pool->msgUnref (first_page);
-        }
-
-	sendMessage (msg_pages, do_flush);
+        sendMessage (msg_pages, do_flush);
     }
 
     template <class ...Args>
     void send (PagePool * const mt_nonnull page_pool,
-	       bool const do_flush,
-	       Args const &...args)
+               bool const do_flush,
+               Args const &...args)
     {
-	PagePool::PageListHead page_list;
-	page_pool->printToPages (&page_list, args...);
+        PagePool::PageListHead page_list;
+        page_pool->printToPages (&page_list, args...);
 
-	MessageEntry_Pages * const msg_pages = MessageEntry_Pages::createNew (0 /* max_header_len */);
-	msg_pages->header_len = 0;
-	msg_pages->page_pool = page_pool;
-	msg_pages->first_page = page_list.first;
-	msg_pages->msg_offset = 0;
+        MessageEntry_Pages * const msg_pages = MessageEntry_Pages::createNew (0 /* max_header_len */);
+        msg_pages->header_len = 0;
+        msg_pages->page_pool = page_pool;
+        msg_pages->first_page = page_list.first;
+        msg_pages->msg_offset = 0;
 
-	sendMessage (msg_pages, do_flush);
+        sendMessage (msg_pages, do_flush);
     }
 
     mt_const void setFrontend (CbDesc<Frontend> const &frontend)
     {
-	this->frontend = frontend;
+        this->frontend = frontend;
     }
 
     Sender (Object * const coderef_container)
