@@ -193,7 +193,7 @@ HttpService::httpRequest (HttpRequest * const mt_nonnull req,
     http_conn->preassembled_len = 0;
 
     if (!handler->preassembly || !req->hasBody()) {
-        if (handler->cb->httpRequest) {
+        if (handler->cb && handler->cb->httpRequest) {
             Result res = Result::Failure;
             if (!handler->cb.call_ret<Result> (
                         &res,
@@ -275,7 +275,7 @@ HttpService::httpMessageBody (HttpRequest  * const mt_nonnull req,
                                 http_conn->preassembled_len));
             }
 
-            if (http_conn->cur_handler->cb->httpRequest) {
+            if (http_conn->cur_handler->cb && http_conn->cur_handler->cb->httpRequest) {
                 Result res = Result::Failure;
                 if (!http_conn->cur_handler->cb.call_ret<Result> (
                             &res,

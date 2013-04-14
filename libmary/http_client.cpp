@@ -163,7 +163,7 @@ HttpClient::httpReply (HttpRequest * const mt_nonnull reply,
     http_conn->preassembled_len = 0;
 
     if (!http_req->preassembly || !reply->hasBody()) {
-        if (http_req->response_cb->httpResponse) {
+        if (http_req->response_cb && http_req->response_cb->httpResponse) {
             Result res = Result::Failure;
             if (!http_req->response_cb.call_ret<Result> (&res,
                                                          http_req->response_cb->httpResponse,
@@ -280,7 +280,7 @@ HttpClient::httpReplyBody (HttpRequest  * const mt_nonnull reply,
                                 http_conn->preassembled_len));
             }
 
-            if (http_req->response_cb->httpResponse) {
+            if (http_req->response_cb && http_req->response_cb->httpResponse) {
                 Result res = Result::Failure;
                 if (!http_req->response_cb.call_ret<Result> (
                             &res,

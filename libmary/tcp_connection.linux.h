@@ -113,7 +113,7 @@ public:
 #endif
   mt_iface_end
 
-    void setFrontend (Cb<Frontend> const &frontend)
+    void setFrontend (CbDesc<Frontend> const &frontend)
     {
 	this->frontend = frontend;
     }

@@ -626,7 +626,7 @@ public:
     void remove (typename IntrusiveAvlTree_common<T, TreeName>::Node *node)
     {
 	typename IntrusiveAvlTree_common<T, TreeName>::Node *repl = NULL,
-						  *tobalance = NULL;
+                                                            *tobalance = NULL;
 	bool left = false;
 
 	if (node->balance == 0 &&

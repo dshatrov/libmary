@@ -211,8 +211,7 @@ public:
                         bool           keepalive,
                         Size           preassembly_limit = 0);
 
-    HttpClient (Object *coderef_container);
-
+     HttpClient (Object *coderef_container);
     ~HttpClient ();
 };
 

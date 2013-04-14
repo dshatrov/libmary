@@ -157,8 +157,10 @@ public:
 
     void remove (EntryKey const key)
     {
-	hash.remove (key.entry);
-	delete key.entry;
+        if (key.entry) {
+            hash.remove (key.entry);
+            delete key.entry;
+        }
     }
 
     // TODO Why not to use "lookup (ConstMemory mem)" ?
