@@ -162,7 +162,7 @@ public:
             return PagePool::countPageListDataLen (first_page, msg_offset);
 	}
 
-	static MessageEntry_Pages* createNew (Size const max_header_len)
+	static MessageEntry_Pages* createNew (Size const max_header_len = 0)
 	{
 #ifdef LIBMARY_SENDER_VSLAB
 	    unsigned const vslab_header_len = 33 /* RtmpConnection::MaxHeaderLen */;
