@@ -122,8 +122,9 @@ Result hostToIp (ConstMemory   const host,
     if (WSAStringToAddress (host_str, AF_INET, NULL, (struct sockaddr*) &addr, &addr_len))
 #endif
     {
-#if defined(LIBMARY_PLATFORM_WIN32) || defined(LIBMARY_PLATFORM_CYGWIN)
+#if defined (LIBMARY_PLATFORM_WIN32) || defined (LIBMARY_PLATFORM_CYGWIN) || defined (__MACH__)
 	libraryLock ();
+
 	struct hostent * const he_res = gethostbyname (host_str);
 	if (!he_res) {
 	    libraryUnlock ();
@@ -213,13 +214,13 @@ Result serviceToPort (ConstMemory   const service,
     char *endptr;
     Uint16 port = (Uint16) strtoul (service_str, &endptr, 0);
     if (*endptr != 0) {
-#if defined(LIBMARY_PLATFORM_WIN32) || defined (LIBMARY_PLATFORM_CYGWIN)
+#if defined (LIBMARY_PLATFORM_WIN32) || defined (LIBMARY_PLATFORM_CYGWIN) || defined (__MACH__)
 	libraryLock ();
 
         struct servent * const se_res = getservbyname (service_str, "tcp");
         if (!se_res) {
-          libraryUnlock ();
-          return Result::Failure;
+            libraryUnlock ();
+            return Result::Failure;
         }
 
 	port = se_res->s_port;
