@@ -270,7 +270,13 @@ TcpConnection::write (ConstMemory   const mem,
     else
 	len = mem.len();
 
-    ssize_t const res = send (fd, mem.mem(), (ssize_t) len, MSG_NOSIGNAL);
+    ssize_t const res = send (fd, mem.mem(), (ssize_t) len,
+#ifdef __MACH__
+            0
+#else
+            MSG_NOSIGNAL
+#endif
+            );
     if (res == -1) {
 	if (errno == EAGAIN || errno == EWOULDBLOCK) {
 	    requestOutput ();
