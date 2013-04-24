@@ -114,6 +114,11 @@ mt_throws Result updateTime ()
 
 //    tlocal->time_log_frac = new_microseconds % 1000000 / 100;
 #else
+  #ifdef __MACH__
+    gint64 const mono_time = g_get_monotonic_time ();
+    Time const new_seconds = mono_time / 1000000;
+    Time const new_microseconds = mono_time;
+  #else
     struct timespec ts;
     // Note that clock_gettime is well-optimized on Linux x86_64 and does not carry
     // full syscall overhead (depends on system configuration).
@@ -136,6 +141,7 @@ mt_throws Result updateTime ()
     Time const new_microseconds = (Uint64) ts.tv_sec * 1000000 + (Uint64) ts.tv_nsec / 1000;
 
 //    tlocal->time_log_frac = ts.tv_nsec % 1000000000 / 100000;
+  #endif
 #endif
 
     tlocal->time_log_frac = new_microseconds % 1000000 / 100;
