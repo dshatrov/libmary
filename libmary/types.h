@@ -275,6 +275,19 @@ public:
 }
 
 
+#ifdef __MACH__
+static inline void* memrchr (const void *s, int c, size_t n)
+{
+    for (int i = n; i > 0; --i) {
+        if (((char*) s) [i - 1] == c)
+            return (char*) s + (i - 1);
+    }
+
+    return NULL;
+}
+#endif
+
+
 // For class Format.
 #include <libmary/util_str_base.h>
 
