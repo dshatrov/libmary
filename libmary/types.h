@@ -22,6 +22,13 @@
 
 
 #include <libmary/types_base.h>
+
+#ifdef LIBMARY_PLATFORM_WIN32
+// winsock2.h has a #warning telling to include it before windows.h
+#include <winsock2.h>
+#include <windows.h>
+#endif
+
 #include <libmary/memory.h>
 
 
@@ -67,8 +74,8 @@ ConstMemory _libMary_stripFuncFilePath (char const *str);
 #define _this_func  _func2 (__LINE__, , , fmt_hex, "0x", (unsigned long) this, fmt_def, " ")
 #define _self_func  _func2 (__LINE__, , , fmt_hex, "0x", (unsigned long) self, fmt_def, " ")
 #define _func_      _func2_(__LINE__)
-#define _this_func_ _func2_(__LINE__, , , fmt_hex, "0x", (unsigned long) this, fmt_def, " ")
-#define _self_func_ _func2_(__LINE__, , , fmt_hex, "0x", (unsigned long) self, fmt_def, " ")
+#define _this_func_ _func2_(__LINE__, , , fmt_hex, " 0x", (unsigned long) this, fmt_def, " ")
+#define _self_func_ _func2_(__LINE__, , , fmt_hex, " 0x", (unsigned long) self, fmt_def, " ")
 
 class Result
 {
@@ -198,12 +205,14 @@ class AsyncIoResult
 public:
     enum Value {
 	Normal,
+#ifndef LIBMARY_WIN32_IOCP
 	// We've got the data and we know for sure that the following call to
 	// read() will return EAGAIN.
 	Normal_Again,
 	// Normal_Eof is usually returned when we've received Hup event for
 	// the connection, but there was some data to read.
 	Normal_Eof,
+#endif
 	Again,
 	Eof,
 	Error
@@ -275,7 +284,7 @@ public:
 }
 
 
-#ifdef __MACH__
+#if defined __MACH__ || defined (LIBMARY_PLATFORM_WIN32)
 static inline void* memrchr (const void *s, int c, size_t n)
 {
     for (int i = n; i > 0; --i) {

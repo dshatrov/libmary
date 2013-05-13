@@ -20,9 +20,7 @@
 #include <libmary/types.h>
 
 #include <cstring>
-#ifdef LIBMARY_PLATFORM_WIN32
-#include <winsock2.h>
-#else
+#ifndef LIBMARY_PLATFORM_WIN32
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>

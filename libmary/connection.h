@@ -21,7 +21,6 @@
 #define LIBMARY__CONNECTION__H__
 
 
-#include <libmary/libmary_config.h>
 #include <libmary/types.h>
 #include <libmary/async_input_stream.h>
 #include <libmary/async_output_stream.h>
@@ -42,6 +41,10 @@ public:
 #ifdef LIBMARY_ENABLE_MWRITEV
     virtual int getFd () = 0;
 #endif
+
+    Connection ()
+        : DependentCodeReferenced (NULL /* coderef_container */)
+    {}
 
     virtual ~Connection () {}
 };

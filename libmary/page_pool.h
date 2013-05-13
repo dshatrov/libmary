@@ -59,9 +59,7 @@ public:
 	Page& operator = (Page const &);
 	Page (Page const &);
 
-	Page (int const refcount = 1)
-	    : refcount (refcount)
-	{}
+	Page (int const refcount = 1) : refcount (refcount) {}
 
     public:
 	Size data_len;
@@ -259,10 +257,7 @@ private:
 public:
     Statistics stats;
 
-    Size getPageSize () const
-    {
-	return page_size;
-    }
+    Size getPageSize () const { return page_size; }
 
     void getFillPages (PageListHead * mt_nonnull page_list,
 		       ConstMemory const &mem);

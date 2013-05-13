@@ -71,7 +71,6 @@ LineService::acceptOneConnection ()
                                  max_line_len);
 
     mutex.lock ();
-
     line_conn->pollable_key =
             thread_ctx->getPollGroup()->addPollable (line_conn->tcp_conn.getPollable());
     if (!line_conn->pollable_key) {
@@ -81,8 +80,9 @@ LineService::acceptOneConnection ()
     }
 
     line_conn->conn_list_el = conn_list.append (line_conn);
-
     mutex.unlock ();
+
+    line_conn->conn_receiver.start ();
     return true;
 }
 
@@ -159,6 +159,7 @@ LineService::init (ServerContext    * const mt_nonnull server_ctx,
     tcp_server.init (
             CbDesc<TcpServer::Frontend> (
                     &tcp_server_frontend, this, getCoderefContainer()),
+            server_ctx->getMainThreadContext()->getDeferredProcessor(),
             server_ctx->getMainThreadContext()->getTimers());
 
     return Result::Success;
@@ -187,6 +188,17 @@ LineService::start ()
         return Result::Failure;
     }
     mutex.unlock ();
+
+    if (!tcp_server.start ()) {
+        logF_ (_func, "tcp_server.start() failed: ", exc->toString());
+
+        mutex.lock ();
+        thread_ctx->getPollGroup()->removePollable (server_pollable_key);
+        server_pollable_key = NULL;
+        mutex.unlock ();
+
+        return Result::Failure;
+    }
 
     return Result::Success;
 }

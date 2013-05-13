@@ -64,8 +64,7 @@ public:
           processing   (false),
           permanent    (false),
           registration (NULL)
-    {
-    }
+    {}
 };
 
 typedef IntrusiveList <DeferredProcessor_Task,
@@ -101,22 +100,17 @@ public:
     void revokeTask (DeferredProcessor_Task * mt_nonnull task);
 
     mt_const void setDeferredProcessor (DeferredProcessor * const mt_nonnull deferred_processor)
-    {
-        this->weak_deferred_processor = deferred_processor;
-    }
+        { this->weak_deferred_processor = deferred_processor; }
 
     void release ();
 
     DeferredProcessor_Registration ()
         : scheduled (false),
           permanent_scheduled (false)
-    {
-    }
+    {}
 
     ~DeferredProcessor_Registration ()
-    {
-        release ();
-    }
+        { release (); }
 };
 
 typedef IntrusiveList <DeferredProcessor_Registration,
@@ -130,7 +124,9 @@ typedef IntrusiveList <DeferredProcessor_Registration,
 class DeferredProcessor : public DependentCodeReferenced
 {
 private:
-    Mutex mutex;
+    // This could be a plain Mutex, but there was a synchronization bug in Cb::call_mutex,
+    // so this is extra-safe now.
+    StateMutex mutex;
 
 public:
     typedef DeferredProcessor_TaskCallback TaskCallback;
@@ -167,9 +163,7 @@ public:
     void trigger ();
 
     mt_const void setBackend (CbDesc<Backend> const &backend)
-    {
-	this->backend = backend;
-    }
+        { this->backend = backend; }
 
     DeferredProcessor (Object *coderef_container);
 };

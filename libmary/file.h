@@ -21,8 +21,6 @@
 #define LIBMARY__FILE__H__
 
 
-#include <libmary/libmary_config.h>
-
 #include <libmary/types.h>
 #include <libmary/exception.h>
 #include <libmary/input_stream.h>

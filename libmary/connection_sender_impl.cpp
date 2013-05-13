@@ -32,6 +32,26 @@ static LogGroup libMary_logGroup_close   ("close",   LogLevel::I);
 static LogGroup libMary_logGroup_hexdump ("hexdump", LogLevel::I);
 static LogGroup libMary_logGroup_mwritev ("sender_impl_mwritev", LogLevel::I);
 
+#ifdef LIBMARY_WIN32_IOCP
+ConnectionSenderImpl::SenderOverlapped::~SenderOverlapped ()
+{
+  // At this point, ConnectionSenderImpl object is no more.
+  // We simply release all remaining data.
+
+    // Synchronizing in the absense of *Sender::mutex.
+    full_memory_barrier ();
+
+    Sender::PendingMessageList::iterator msg_iter (pending_msg_list);
+    while (!msg_iter.done()) {
+        Sender::MessageEntry * const msg_entry = msg_iter.next ();
+        Sender::MessageEntry_Pages * const msg_pages = static_cast <Sender::MessageEntry_Pages*> (msg_entry);
+        msg_pages->page_pool->msgUnref (msg_pages->first_pending_page);
+        msg_pages->setFirstPage (NULL);
+        Sender::deleteMessageEntry (msg_entry);
+    }
+}
+#endif
+
 void
 ConnectionSenderImpl::setSendState (Sender::SendState const new_state)
 {
@@ -70,15 +90,7 @@ ConnectionSenderImpl::resetSendingState ()
     send_header_sent = 0;
 
     Sender::MessageEntry * const cur_msg = msg_list.getFirst();
-#if 0
-// TODO msg_len may be uninitialized for sendRaw
-    if (cur_msg->msg_len < out_chunk_size)
-	send_chunk_left = cur_msg->msg_len;
-    else
-	send_chunk_left = out_chunk_size;
-#endif
 
-    // XXX MessageEntry type dependency
     if (cur_msg->type == Sender::MessageEntry::Pages) {
 	Sender::MessageEntry_Pages * const msg_pages = static_cast <Sender::MessageEntry_Pages*> (cur_msg);
 	send_cur_offset = msg_pages->msg_offset;
@@ -92,12 +104,49 @@ ConnectionSenderImpl::resetSendingState ()
 void
 ConnectionSenderImpl::popPage (Sender::MessageEntry_Pages * const mt_nonnull msg_pages)
 {
-    PagePool::Page * const next_page = msg_pages->first_page->getNextMsgPage ();
-    msg_pages->page_pool->pageUnref (msg_pages->first_page);
-    msg_pages->first_page = next_page;
+    PagePool::Page * const page = msg_pages->getFirstPage();
+    PagePool::Page * const next_page = page->getNextMsgPage();
+
+#ifndef LIBMARY_WIN32_IOCP
+    msg_pages->page_pool->pageUnref (msg_pages->getFirstPage());
+#endif
+
     msg_pages->msg_offset = 0;
     send_cur_offset = 0;
+
+    msg_pages->setFirstPageNoPending (next_page);
 }
+
+#ifdef LIBMARY_WIN32_IOCP
+#warning TODO Communicate the number of bytes transferred here and compare it with the expected value.
+#warning      Can it be less during normal operation (without I/O errors)?
+void
+ConnectionSenderImpl::outputComplete ()
+{
+    overlapped_pending = false;
+
+    {
+        Sender::PendingMessageList::iterator msg_iter (sender_overlapped->pending_msg_list);
+        while (!msg_iter.done()) {
+            Sender::MessageEntry * const msg_entry = msg_iter.next ();
+            if (msg_entry == msg_list.getFirst())
+                break;
+
+            Sender::MessageEntry_Pages * const msg_pages = static_cast <Sender::MessageEntry_Pages*> (msg_entry);
+            msg_pages->page_pool->msgUnref (msg_pages->first_pending_page);
+            msg_pages->setFirstPage (NULL);
+
+            sender_overlapped->pending_msg_list.remove (msg_entry);
+            Sender::deleteMessageEntry (msg_entry);
+        }
+    }
+
+    if (send_state == Sender::ConnectionOverloaded)
+        setSendState (Sender::ConnectionReady);
+
+    overloaded = false;
+}
+#endif
 
 AsyncIoResult
 ConnectionSenderImpl::sendPendingMessages ()
@@ -105,6 +154,11 @@ ConnectionSenderImpl::sendPendingMessages ()
 	       InternalException))
 {
     logD (send, _func_);
+
+#ifdef LIBMARY_WIN32_IOCP
+    if (overlapped_pending)
+        return AsyncIoResult::Again;
+#endif
 
     processing_barrier_hit = false;
 
@@ -210,12 +264,10 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 	    return AsyncIoResult::Normal;
 	}
 
-	// TODO Count num_iovs
-	Size num_iovs = 0;
-        // Сейчас не используем режим count_iovs, и просто выделяем на стеке массив
-        // длиной IOV_MAX.
+	Count num_iovs = 0;
 
 #ifdef LIBMARY_WIN32_IOCP
+        Size num_bytes = 0;
         WSABUF buffers [IOV_MAX];
 #else
 	// Note: Comments in boost headers suggest that posix platforms are not
@@ -225,13 +277,14 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 
 	sendPendingMessages_vector_fill (&num_iovs,
 #ifdef LIBMARY_WIN32_IOCP
+                                         &num_bytes,
                                          buffers,
 #else
                                          iovs,
 #endif
                                          IOV_MAX /* num_iovs */);
 	if (num_iovs > IOV_MAX) {
-	    logE_ (_func, "num_iovs: ", num_iovs, ", IOV_MAX: ", IOV_MAX);
+	    logF_ (_func, "num_iovs: ", num_iovs, ", IOV_MAX: ", IOV_MAX);
 	    assert (0);
 	}
 
@@ -248,39 +301,49 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 	}
 #endif
 
-	Size num_written = 0;
-	{
+	if (num_iovs) {
+            Size num_written = 0;
+
 	    bool tmp_processing_barrier_hit = processing_barrier_hit;
 	    processing_barrier_hit = false;
 
             logD (send, _func, "writev: num_iovs: ", num_iovs);
 #ifdef LIBMARY_WIN32_IOCP
-            OVERLAPPED * const sys_overlapped = &overlapped;
-            memset (sys_overlapped, 0, sizeof (OVERLAPPED));
+            sender_overlapped->ref ();
 #endif
             AsyncIoResult const res = conn->writev (
 #ifdef LIBMARY_WIN32_IOCP
-                                                    &overlapped,
+                                                    sender_overlapped,
                                                     buffers,
 #else
                                                     iovs,
 #endif
                                                     num_iovs,
                                                     &num_written);
+	    if (res == AsyncIoResult::Error) {
+#ifdef LIBMARY_WIN32_IOCP
+                sender_overlapped->unref ();
+#endif
+		return AsyncIoResult::Error;
+            }
+
+#ifdef LIBMARY_WIN32_IOCP
+            num_written = num_bytes;
+            overlapped_pending = true;
+#endif
+
 	    if (res == AsyncIoResult::Again) {
 		if (send_state == Sender::ConnectionReady)
 		    setSendState (Sender::ConnectionOverloaded);
 
 		logD (send, _func, "connection overloaded");
-
-#warning TODO For IOCP, treat the pages as being sent but keep them in the queue till the next writev call.
-
 		overloaded = true;
+
+#ifdef LIBMARY_WIN32_IOCP
+                sendPendingMessages_vector_react (num_written);
+#endif
 		return AsyncIoResult::Again;
 	    }
-
-	    if (res == AsyncIoResult::Error)
-		return AsyncIoResult::Error;
 
 	    if (res == AsyncIoResult::Eof) {
 		logD (close, _func, "Eof, num_iovs: ", num_iovs);
@@ -295,9 +358,14 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 	    //   a) writev() syscall returned EINTR;
 	    //   b) there was nothing to send.
 	    // That's why we do not do a usual EINTR loop here.
+
+            sendPendingMessages_vector_react (num_written);
 	}
 
-	sendPendingMessages_vector_react (num_written);
+#ifdef LIBMARY_WIN32_IOCP
+        // We can't reuse OVERLAPPED until we get completion notification.
+        return AsyncIoResult::Again;
+#endif
     } // for (;;)
 
     unreachable();
@@ -307,6 +375,7 @@ ConnectionSenderImpl::sendPendingMessages_writev ()
 void
 ConnectionSenderImpl::sendPendingMessages_vector_fill (Count        * const mt_nonnull ret_num_iovs,
 #ifdef LIBMARY_WIN32_IOCP
+                                                       Size         * const mt_nonnull ret_num_bytes,
                                                        WSABUF       * const mt_nonnull buffers,
 #else
 						       struct iovec * const mt_nonnull iovs,
@@ -314,6 +383,11 @@ ConnectionSenderImpl::sendPendingMessages_vector_fill (Count        * const mt_n
 						       Count          const num_iovs)
 {
     logD (writev, _func_);
+
+    *ret_num_iovs = 0;
+#ifdef LIBMARY_WIN32_IOCP
+    *ret_num_bytes = 0;
+#endif
 
     Sender::MessageEntry *msg_entry = msg_list.getFirst ();
     if (mt_unlikely (!msg_entry)) {
@@ -331,10 +405,7 @@ ConnectionSenderImpl::sendPendingMessages_vector_fill (Count        * const mt_n
 	return;
     }
 
-    // Valid if @count_iovs is false.
     Count cur_num_iovs = 0;
-
-    *ret_num_iovs = 0;
 
     bool first_entry = true;
     Count i = 0;
@@ -357,8 +428,16 @@ ConnectionSenderImpl::sendPendingMessages_vector_fill (Count        * const mt_n
 			break;
 		    ++*ret_num_iovs;
 
-		    iovs [i].iov_base = msg_pages->getHeaderData() + send_header_sent;
-		    iovs [i].iov_len = msg_pages->header_len - send_header_sent;
+                    Byte * const buf = msg_pages->getHeaderData() + send_header_sent;
+                    Size   const len = msg_pages->header_len - send_header_sent;
+#ifdef LIBMARY_WIN32_IOCP
+                    buffers [i].buf = (char*) buf;
+                    buffers [i].len = len;
+                    *ret_num_bytes += len;
+#else
+		    iovs [i].iov_base = buf;
+		    iovs [i].iov_len  = len;
+#endif
 		    ++i;
 		}
 	    } else {
@@ -370,13 +449,21 @@ ConnectionSenderImpl::sendPendingMessages_vector_fill (Count        * const mt_n
 			break;
 		    ++*ret_num_iovs;
 
-		    iovs [i].iov_base = msg_pages->getHeaderData();
-		    iovs [i].iov_len = msg_pages->header_len;
+                    Byte * const buf = msg_pages->getHeaderData();
+                    Size   const len = msg_pages->header_len;
+#ifdef LIBMARY_WIN32_IOCP
+                    buffers [i].buf = (char*) buf;
+                    buffers [i].len = len;
+                    *ret_num_bytes += len;
+#else
+		    iovs [i].iov_base = buf;
+		    iovs [i].iov_len  = len;
+#endif
 		    ++i;
 		}
 	    } // if (first_entry)
 
-	    PagePool::Page *page = msg_pages->first_page;
+	    PagePool::Page *page = msg_pages->getFirstPage();
 	    bool first_page = true;
 	    while (page) {
 		logD (writev, _func, "page");
@@ -400,20 +487,46 @@ ConnectionSenderImpl::sendPendingMessages_vector_fill (Count        * const mt_n
 			    logD (writev, _func, "#", i, ": first page, first entry");
 
 			    assert (send_cur_offset < page->data_len);
-			    iovs [i].iov_base = page->getData() + send_cur_offset;
-			    iovs [i].iov_len = page->data_len - send_cur_offset;
+
+                            Byte * const buf = page->getData() + send_cur_offset;
+                            Size   const len = page->data_len - send_cur_offset;
+#ifdef LIBMARY_WIN32_IOCP
+                            buffers [i].buf = (char*) buf;
+                            buffers [i].len = len;
+                            *ret_num_bytes += len;
+#else
+			    iovs [i].iov_base = buf;
+			    iovs [i].iov_len  = len;
+#endif
 			} else {
 			    logD (writev, _func, "#", i, ": first page");
 
 			    assert (msg_pages->msg_offset < page->data_len);
-			    iovs [i].iov_base = page->getData() + msg_pages->msg_offset;
-			    iovs [i].iov_len = page->data_len - msg_pages->msg_offset;
+
+                            Byte * const buf = page->getData() + msg_pages->msg_offset;
+                            Size   const len = page->data_len - msg_pages->msg_offset;
+#ifdef LIBMARY_WIN32_IOCP
+                            buffers [i].buf = (char*) buf;
+                            buffers [i].len = len;
+                            *ret_num_bytes += len;
+#else
+			    iovs [i].iov_base = buf;
+			    iovs [i].iov_len  = len;
+#endif
 			}
 		    } else {
 			logD (writev, _func, "#", i);
 
-			iovs [i].iov_base = page->getData();
-			iovs [i].iov_len = page->data_len;
+                        Byte * const buf = page->getData();
+                        Size   const len = page->data_len;
+#ifdef LIBMARY_WIN32_IOCP
+                        buffers [i].buf = (char*) buf;
+                        buffers [i].len = len;
+                        *ret_num_bytes += len;
+#else
+			iovs [i].iov_base = buf;
+			iovs [i].iov_len  = len;
+#endif
 		    }
 
 		    ++i;
@@ -466,6 +579,11 @@ ConnectionSenderImpl::sendPendingMessages_vector_react (Size num_written)
 	Sender::MessageEntry * const next_msg_entry = msg_list.getNext (msg_entry);
 	Sender::MessageEntry_Pages * const msg_pages = static_cast <Sender::MessageEntry_Pages*> (msg_entry);
 
+#ifdef LIBMARY_WIN32_IOCP
+        if (sender_overlapped->pending_msg_list.getLast() != msg_entry)
+            sender_overlapped->pending_msg_list.append (msg_entry);
+#endif
+
 	// If still set to 'true' after the switch, then msg_entry is removed
 	// from the queue.
 	bool msg_sent_completely = true;
@@ -505,7 +623,7 @@ ConnectionSenderImpl::sendPendingMessages_vector_react (Size num_written)
 		}
 	    } // if (first_entry)
 
-	    PagePool::Page *page = msg_pages->first_page;
+	    PagePool::Page *page = msg_pages->getFirstPage();
 	    bool first_page = true;
 	    while (page) {
 		logD (writev, _func, "page");
@@ -563,9 +681,11 @@ ConnectionSenderImpl::sendPendingMessages_vector_react (Size num_written)
 	  // This is the only place where messages are removed from the queue.
 
 	    msg_list.remove (msg_entry);
+#ifndef LIBMARY_WIN32_IOCP
 	    Sender::deleteMessageEntry (msg_entry);
-	    --num_msg_entries;
+#endif
 
+	    --num_msg_entries;
 	    if (mt_unlikely (send_state == Sender::QueueSoftLimit ||
 			     send_state == Sender::QueueHardLimit))
 	    {
@@ -625,9 +745,9 @@ ConnectionSenderImpl::dumpMessage (Sender::MessageEntry * const mt_nonnull msg_e
             {
                 msg_len += msg_pages->header_len;
 
-                PagePool::Page *cur_page = msg_pages->first_page;
+                PagePool::Page *cur_page = msg_pages->getFirstPage();
                 while (cur_page != NULL) {
-                    if (cur_page == msg_pages->first_page) {
+                    if (cur_page == msg_pages->getFirstPage()) {
                         assert (cur_page->data_len >= msg_pages->msg_offset);
                         msg_len += cur_page->data_len - msg_pages->msg_offset;
                     } else {
@@ -646,9 +766,9 @@ ConnectionSenderImpl::dumpMessage (Sender::MessageEntry * const mt_nonnull msg_e
                 memcpy (tmp_data + pos, msg_pages->getHeaderData(), msg_pages->header_len);
                 pos += msg_pages->header_len;
 
-                PagePool::Page *cur_page = msg_pages->first_page;
+                PagePool::Page *cur_page = msg_pages->getFirstPage();
                 while (cur_page != NULL) {
-                    if (cur_page == msg_pages->first_page) {
+                    if (cur_page == msg_pages->getFirstPage()) {
                         assert (cur_page->data_len >= msg_pages->msg_offset);
                         memcpy (tmp_data + pos,
                                 cur_page->getData() + msg_pages->msg_offset,
@@ -691,22 +811,31 @@ ConnectionSenderImpl::queueMessage (Sender::MessageEntry * const mt_nonnull msg_
     msg_list.append (msg_entry);
 }
 
-ConnectionSenderImpl::ConnectionSenderImpl (bool const enable_processing_barrier)
-    : conn (NULL),
-      soft_msg_limit (1024),
-      hard_msg_limit (4096),
-      send_state (Sender::ConnectionReady),
-      overloaded (false),
-      num_msg_entries (0),
+ConnectionSenderImpl::ConnectionSenderImpl (
+#ifdef LIBMARY_WIN32_IOCP
+                                            CbDesc<Overlapped::IoCompleteCallback> const &io_complete_cb,
+#endif
+                                            bool const enable_processing_barrier)
+    : blocking_mode      (false),
+      conn               (NULL),
+      soft_msg_limit     (1024),
+      hard_msg_limit     (4096),
+#ifdef LIBMARY_WIN32_IOCP
+      overlapped_pending (false),
+#endif
+      send_state         (Sender::ConnectionReady),
+      overloaded         (false),
+      num_msg_entries    (0),
       enable_processing_barrier (enable_processing_barrier),
       processing_barrier (NULL),
       processing_barrier_hit (false),
-      sending_message (false),
-      send_header_sent (0),
-      send_cur_offset (0)
+      sending_message    (false),
+      send_header_sent   (0),
+      send_cur_offset    (0)
 {
 #ifdef LIBMARY_WIN32_IOCP
-    overlapped->op_kind = Overlapped::OpKind_Write;
+    sender_overlapped = grab (new (std::nothrow) SenderOverlapped);
+    sender_overlapped->io_complete_cb = io_complete_cb;
 #endif
 }
 
@@ -716,7 +845,12 @@ ConnectionSenderImpl::release ()
     Sender::MessageList::iter iter (msg_list);
     while (!msg_list.iter_done (iter)) {
 	Sender::MessageEntry * const msg_entry = msg_list.iter_next (iter);
-	Sender::deleteMessageEntry (msg_entry);
+#ifdef LIBMARY_WIN32_IOCP
+        // msg_list and pending_msg_list cannot overlap for more than one MessageEntry,
+        // the first for msg_list and the last for pending_msg_list.
+        if (msg_entry != sender_overlapped->pending_msg_list.getLast())
+#endif
+            Sender::deleteMessageEntry (msg_entry);
     }
     msg_list.clear ();
 }

@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -35,10 +35,8 @@
 #include <libmary/tcp_connection.h>
 
 
-// TEST
 //#define LIBMARY_TEST_MWRITEV
 //#define LIBMARY_TEST_MWRITEV_SINGLE
-
 
 //#define LIBMARY__TCP_CONNECTION__DEBUG
 
@@ -58,8 +56,8 @@ AtomicInt TcpConnection::num_instances;
 
 PollGroup::Pollable const TcpConnection::pollable = {
     processEvents,
-    getFd,
-    setFeedback
+    setFeedback,
+    getFd
 };
 
 void
@@ -136,6 +134,7 @@ TcpConnection::processEvents (Uint32   const event_flags,
 		} else {
 		    logW_ (_func, "0x", fmt_hex, (UintPtr) self,
 			   " Got output event, but not connected yet. opt_val: ", opt_val);
+                    self->connected = false;
 		    return;
 		}
 	    }
@@ -413,18 +412,15 @@ TcpConnection::close ()
 }
 #endif
 
-mt_throws TcpConnection::ConnectResult
-TcpConnection::connect (IpAddress const addr)
+mt_throws Result
+TcpConnection::open ()
 {
-    struct sockaddr_in saddr;
-    setIpAddress (addr, &saddr);
-
     fd = socket (AF_INET, SOCK_STREAM, 0 /* protocol */);
     if (fd == -1) {
 	exc_throw (PosixException, errno);
 	exc_push (InternalException, InternalException::BackendError);
 	logE_ (_func, "socket() failed: ", errnoString (errno));
-        return ConnectResult_Error;
+        return Result::Failure;
     }
 
     {
@@ -433,7 +429,7 @@ TcpConnection::connect (IpAddress const addr)
 	    exc_throw (PosixException, errno);
 	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_func, "fcntl() failed (F_GETFL): ", errnoString (errno));
-            return ConnectResult_Error;
+            return Result::Failure;
 	}
 
 	flags |= O_NONBLOCK;
@@ -442,7 +438,7 @@ TcpConnection::connect (IpAddress const addr)
 	    exc_throw (PosixException, errno);
 	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_func, "fcntl() failed (F_SETFL): ", errnoString (errno));
-            return ConnectResult_Error;
+            return Result::Failure;
 	}
     }
 
@@ -453,12 +449,12 @@ TcpConnection::connect (IpAddress const addr)
 	    exc_throw (PosixException, errno);
 	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_func, "setsockopt() failed (TCP_NODELAY): ", errnoString (errno));
-            return ConnectResult_Error;
+            return Result::Failure;
 	} else
 	if (res != 0) {
 	    exc_throw (InternalException, InternalException::BackendMalfunction);
 	    logE_ (_func, "setsockopt() (TCP_NODELAY): unexpected return value: ", res);
-            return ConnectResult_Error;
+            return Result::Failure;
 	}
     }
 
@@ -472,16 +468,24 @@ TcpConnection::connect (IpAddress const addr)
             exc_throw (PosixException, errno);
             exc_push (InternalException, InternalException::BackendError);
             logE_ (_func, "setsockopt() failed (TCP_QUICKACK): ", errnoString (errno));
-            return ConnectResult_Error;
+            return Result::Failure;
         } else
         if (res != 0) {
             exc_throw (InternalException, InternalException::BackendMalfunction);
             logE_ (_func, "setsockopt() (TCP_QUICKACK): unexpected return value: ", res);
-            return ConnectResult_Error;
+            return Result::Failure;
         }
     }
 #endif /* __linux__ */
 
+    return Result::Success;
+}
+
+mt_throws TcpConnection::ConnectResult
+TcpConnection::connect (IpAddress const addr)
+{
+    struct sockaddr_in saddr;
+    setIpAddress (addr, &saddr);
     for (;;) {
 	int const res = ::connect (fd, (struct sockaddr*) &saddr, sizeof (saddr));
 	if (res == 0) {
@@ -516,7 +520,7 @@ TcpConnection::connect (IpAddress const addr)
 TcpConnection::TcpConnection (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
       fd (-1),
-      connected (false),
+      connected    (false),
       hup_received (false)
 {
 #ifdef LIBMARY_TCP_CONNECTION_NUM_INSTANCES

@@ -17,8 +17,6 @@
 */
 
 
-#include <libmary/libmary_config.h>
-
 #include <libmary/log.h>
 
 #include <libmary/multi_thread.h>

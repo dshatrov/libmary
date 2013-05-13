@@ -54,10 +54,12 @@ AsyncIoResult::toString_ (Memory const &mem,
     switch (value) {
 	case Normal:
 	    return toString (mem, "AsyncIoResult::Normal");
+#ifndef LIBMARY_WIN32_IOCP
 	case Normal_Again:
 	    return toString (mem, "AsyncIoResult::Normal_Again");
 	case Normal_Eof:
 	    return toString (mem, "AsyncIoResult::Normal_Eof");
+#endif
 	case Again:
 	    return toString (mem, "AsyncIoResult::Again");
 	case Eof:

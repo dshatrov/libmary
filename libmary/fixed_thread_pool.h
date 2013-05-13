@@ -21,8 +21,6 @@
 #define __LIBMARY__FIXED_THREAD_POOL__H__
 
 
-#include <libmary/libmary_config.h>
-
 #include <libmary/types.h>
 #include <libmary/atomic.h>
 #include <libmary/code_referenced.h>

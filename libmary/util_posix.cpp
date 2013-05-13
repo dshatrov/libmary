@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -26,6 +26,9 @@
 #include <libmary/util_dev.h>
 
 #include <libmary/util_posix.h>
+
+
+//#define LIBMARY__TRIGGER_PIPE__DEBUG
 
 
 namespace M {
@@ -72,20 +75,35 @@ mt_throws Result posix_createNonblockingPipe (int (*fd) [2])
 mt_throws Result commonTriggerPipeWrite (int const fd)
 {
     for (;;) {
+#ifdef LIBMARY__TRIGGER_PIPE__DEBUG
+        logD_ (_func, "trigger write");
+#endif
 	ssize_t const res = write (fd, "A", 1);
 	if (res == -1) {
-	    if (errno == EINTR)
+	    if (errno == EINTR) {
+#ifdef LIBMARY__TRIGGER_PIPE__DEBUG
+                logD_ (_func, "trigger write: EINTR");
+#endif
 		continue;
+            }
 
-	    if (errno == EAGAIN || errno == EWOULDBLOCK)
+	    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+#ifdef LIBMARY__TRIGGER_PIPE__DEBUG
+                logD_ (_func, "trigger write ", (errno == EAGAIN ? "EAGAIN" : "EWOULDBLOCK"));
+#endif
 		break;
+            }
 
 	    exc_throw (PosixException, errno);
 	    exc_push (InternalException, InternalException::BackendError);
 	    logE_ (_func, "write() failed: ", errnoString (errno));
 	    return Result::Failure;
 	} else
-	if (res != 1 && res != 0) {
+        if (res == 0) {
+            logW_ (_func, "write() returned 0");
+            continue;
+        } else
+	if (res != 1) {
 	    exc_throw (InternalException, InternalException::BackendMalfunction);
 	    logE_ (_func, "write(): unexpected return value: ", res);
 	    return Result::Failure;
@@ -105,13 +123,24 @@ mt_throws Result commonTriggerPipeRead (int const fd)
 {
     for (;;) {
 	Byte buf [128];
+#ifdef LIBMARY__TRIGGER_PIPE__DEBUG
+        logD_ (_func, "trigger read");
+#endif
 	ssize_t const res = read (fd, buf, sizeof (buf));
 	if (res == -1) {
-	    if (errno == EINTR)
+	    if (errno == EINTR) {
+#ifdef LIBMARY__TRIGGER_PIPE__DEBUG
+                logD_ (_func, "trigger read: EINTR");
+#endif
 		continue;
+            }
 
-	    if (errno == EAGAIN || errno == EWOULDBLOCK)
+	    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+#ifdef LIBMARY__TRIGGER_PIPE__DEBUG
+                logD_ (_func, "trigger read ", (errno == EAGAIN ? "EAGAIN" : "EWOULDBLOCK"));
+#endif
 		break;
+            }
 
 	    exc_throw (PosixException, errno);
 	    exc_push (InternalException, InternalException::BackendError);
@@ -123,6 +152,10 @@ mt_throws Result commonTriggerPipeRead (int const fd)
 	    logE_ (_func, "read(): unexpected return value (trigger pipe): ", res);
 	    return Result::Failure;
 	}
+
+#ifdef LIBMARY__TRIGGER_PIPE__DEBUG
+        logD_ (_func, "trigger read: res: ", res);
+#endif
 
 	if ((Size) res < sizeof (buf)) {
 	  // Optimizing away an extra read() syscall.
@@ -159,10 +192,12 @@ mt_throws Result posix_statToFileStat (struct stat * const mt_nonnull stat_buf,
 	ret_stat->file_type = FileType::Socket;
 #endif
     else {
-	logE_ (_func, "Unknown file type:");
-        logLock ();
-	hexdump (logs, ConstMemory::forObject (stat_buf->st_mode));
-        logUnlock ();
+        if (logLevelOn_ (LogLevel::E)) {
+            logLock ();
+            logE_unlocked_ (_func, "Unknown file type:");
+            hexdump (logs, ConstMemory::forObject (stat_buf->st_mode));
+            logUnlock ();
+        }
 	exc_throw (InternalException, InternalException::BackendMalfunction);
 	return Result::Failure;
     }

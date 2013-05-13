@@ -31,7 +31,54 @@ Mutex Sender::msg_vslab_mutex;
 #endif
 #endif
 
-#ifndef LIBMARY_SENDER_VSLAB
+Sender::MessageEntry_Pages*
+Sender::MessageEntry_Pages::createNew (Size const max_header_len)
+{
+#ifdef LIBMARY_SENDER_VSLAB
+    unsigned const vslab_header_len = 33 /* RtmpConnection::MaxHeaderLen */;
+    if (max_header_len <= vslab_header_len /* TODO Artificial limit (matches Moment::RtmpConnection's needs) */) {
+        VSlab<MessageEntry_Pages>::AllocKey vslab_key;
+        MessageEntry_Pages *msg_pages;
+        {
+  #ifdef LIBMARY_MT_SAFE
+          MutexLock msg_vslab_l (&msg_vslab_mutex);
+  #endif
+            msg_pages = msg_vslab.alloc (sizeof (MessageEntry_Pages) + vslab_header_len, &vslab_key);
+            new (msg_pages) MessageEntry_Pages;
+        }
+        msg_pages->vslab_key = vslab_key;
+        return msg_pages;
+    } else {
+        Byte * const buf = new (std::nothrow) Byte [sizeof (MessageEntry_Pages) + max_header_len];
+        assert (buf);
+        MessageEntry_Pages * const msg_pages = new (buf) MessageEntry_Pages;
+        msg_pages->vslab_key = NULL;
+        return msg_pages;
+    }
+#else
+    Byte * const buf = new (std::nothrow) Byte [sizeof (MessageEntry_Pages) + max_header_len];
+    assert (buf);
+    return new (buf) MessageEntry_Pages;
+#endif
+}
+
+#ifdef LIBMARY_SENDER_VSLAB
+void
+Sender::deleteMessageEntry (MessageEntry * const mt_nonnull msg_entry)
+{
+    MessageEntry_Pages * const msg_pages = static_cast <MessageEntry_Pages*> (msg_entry);
+
+    msg_pages->page_pool->msgUnref (msg_pages->first_page);
+    if (msg_pages->vslab_key) {
+  #ifdef LIBMARY_MT_SAFE
+      MutexLock msg_vslab_l (&msg_vslab_mutex);
+  #endif
+        msg_vslab.free (msg_pages->vslab_key);
+    } else {
+        delete[] (Byte*) msg_pages;
+    }
+}
+#else
 void
 Sender::deleteMessageEntry (MessageEntry * const mt_nonnull msg_entry)
 {

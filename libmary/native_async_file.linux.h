@@ -29,7 +29,7 @@
 namespace M {
 
 class NativeAsyncFile : public AsyncFile,
-                        public DependentCodeReferenced
+                        public virtual DependentCodeReferenced
 {
 private:
     int fd;

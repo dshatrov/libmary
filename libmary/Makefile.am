@@ -4,9 +4,6 @@ COMMON_CFLAGS =				\
 	-include "local_config.h"	\
 	$(THIS_CFLAGS)
 
-if LIBMARY_PLATFORM_WIN32
-    COMMON_CFLAGS +=
-endif
 if LIBMARY_PLATFORM_CYGWIN
     COMMON_CFLAGS += -pthread
 endif
@@ -22,9 +19,17 @@ AM_CXXFLAGS += $(COMMON_CFLAGS)
 
 INCLUDES = -I$(top_srcdir) -I$(top_builddir)
 
-mary_private_headers =
+lib_LTLIBRARIES = libmary-1.0.la
+libmary_1_0_la_LDFLAGS = -no-undefined -version-info "0:0:0"
+libmary_1_0_la_LIBADD = $(THIS_LIBS)
 
-mary_target_headers =			\
+mary_target_headers  =
+mary_private_headers =
+mary_target_sources  =
+mary_private_sources =
+include Makefile.inc.am
+
+mary_target_headers +=			\
 	libmary_config.h		\
 	debug.h				\
 					\
@@ -141,9 +146,17 @@ mary_target_headers =			\
                                         \
         stat.h
 
-mary_mtsafe_headers = 			\
-	cond.h				\
-	thread.h			\
+mary_private_headers +=                 \
+	util_posix.h		        \
+	vfs_posix.h                     \
+	native_file.linux.h	        \
+	tcp_connection.linux.h	        \
+	tcp_server.linux.h	        \
+        connection_receiver.generic.h
+
+mary_mtsafe_headers =   \
+	cond.h          \
+	thread.h        \
 	multi_thread.h
 
 if LIBMARY_MT_SAFE
@@ -152,13 +165,7 @@ else
 mary_private_headers += $(mary_mtsafe_headers)
 endif
 
-mary_linux_target_headers =	\
-	posix.h			\
-	util_posix.h		\
-	vfs_posix.h             \
-	native_file.linux.h	\
-	tcp_connection.linux.h	\
-	tcp_server.linux.h	\
+mary_linux_target_headers =     \
 	poll_poll_group.h       \
         line_pipe.h
 
@@ -174,33 +181,12 @@ else
     mary_private_headers += mwritev.h
 endif
 
-mary_win32_target_headers =	\
-	win32.h			\
-	native_file.win32.h	\
-	tcp_connection.win32.h	\
-	tcp_server.win32.h
-
-if LIBMARY_WIN32_IOCP
-    mary_win32_target_headers += iocp_poll_group.h
-    mary_private_headers      += wsa_poll_group.h
-else
-    mary_win32_target_headers += wsa_poll_group.h
-    mary_private_headers      += iocp_poll_group.h
-endif
-
-if LIBMARY_PLATFORM_WIN32
-    mary_target_headers  += $(mary_win32_target_headers)
-    mary_private_headers += $(mary_linux_target_headers)
-else
-    mary_target_headers  += $(mary_linux_target_headers)
-    mary_private_headers += $(mary_win32_target_headers)
-endif
-
 MARY_GENFILES =			\
 	native_file.h		\
         native_async_file.h     \
 	tcp_connection.h	\
-	tcp_server.h
+	tcp_server.h            \
+        connection_receiver.h
 BUILT_SOURCES = $(MARY_GENFILES)
 CLEANFILES = $(MARY_GENFILES)
 nodist_libmary_1_0_la_SOURCES = $(MARY_GENFILES)
@@ -210,57 +196,12 @@ DISTCLEANFILES = libmary_config.h
 .PHONY: native_file.h           \
         native_async_file.h     \
         tcp_connection.h        \
-        tcp_server.h
-
-# TODO Use cp instead of ln -s ?
-if LIBMARY_PLATFORM_WIN32
-native_file.h: native_file.win32.h
-	rm -f $@
-	ln -s $(srcdir)/native_file.win32.h native_file.h
-
-native_async_file.h: native_async_file.win32.h
-	rm -f $@
-	ln -s $(srcdir)/native_async_file.win32.h native_async_file.h
-
-if LIBMARY_WIN32_IOCP
-tcp_connection.h: tcp_connection.win32_iocp.h
-	rm -f $@
-	ln -s $(srcdir)/tcp_connection.win32_iocp.h tcp_connection.h
-
-tcp_server.h: tcp_server.win32_iocp.h
-	rm -f $@
-	ln -s $(srcdir)/tcp_server.win32_iocp.h tcp_server.h
-else
-tcp_connection.h: tcp_connection.win32.h
-	rm -f $@
-	ln -s $(srcdir)/tcp_connection.win32.h tcp_connection.h
-
-tcp_server.h: tcp_server.win32.h
-	rm -f $@
-	ln -s $(srcdir)/tcp_server.win32.h tcp_server.h
-endif
-else
-native_file.h: native_file.linux.h
-	rm -f $@
-	ln -s $(srcdir)/native_file.linux.h native_file.h
-
-native_async_file.h: native_async_file.linux.h
-	rm -f $@
-	ln -s $(srcdir)/native_async_file.linux.h native_async_file.h
-
-tcp_connection.h: tcp_connection.linux.h
-	rm -f $@
-	ln -s $(srcdir)/tcp_connection.linux.h tcp_connection.h
-
-tcp_server.h: tcp_server.linux.h
-	rm -f $@
-	ln -s $(srcdir)/tcp_server.linux.h tcp_server.h
-endif
+        tcp_server.h            \
+        connection_receiver.h
 
 libmaryincludedir = $(includedir)/libmary-1.0/libmary
 libmaryinclude_HEADERS = $(mary_target_headers)
 
-lib_LTLIBRARIES = libmary-1.0.la
 libmary_1_0_la_SOURCES =		\
 	util_c.c			\
 	util_base.cpp			\
@@ -306,7 +247,6 @@ libmary_1_0_la_SOURCES =		\
 	immediate_connection_sender.cpp	\
 	deferred_connection_sender.cpp	\
 	receiver.cpp			\
-	connection_receiver.cpp		\
                                         \
         line_server.cpp                 \
         line_service.cpp                \
@@ -351,7 +291,8 @@ mary_linux_sources =			\
 	tcp_server.linux.cpp		\
 	select_poll_group.cpp		\
 	poll_poll_group.cpp             \
-        line_pipe.cpp
+        line_pipe.cpp			\
+	connection_receiver.generic.cpp
 
 if LIBMARY_ENABLE_EPOLL
     mary_linux_sources += epoll_poll_group.cpp
@@ -365,36 +306,32 @@ else
     mary_extra_dist += mwritev.cpp
 endif
 
-mary_win32_sources =			\
-        win32.cpp                       \
-	native_file.win32.cpp		\
-        native_async_file.win32.cpp     \
-	tcp_connection.win32.cpp	\
-	tcp_server.win32.cpp            \
-	wsa_poll_group.cpp              \
-        iocp_poll_group.cpp
+if !LIBMARY_INC
+mary_target_headers += $(mary_linux_target_headers)
+mary_target_sources += $(mary_linux_sources)
 
-if LIBMARY_WIN32_IOCP
-    mary_win32_sources += iocp_poll_group.cpp
-    mary_extra_dist    += wsa_poll_group.cpp
-else
-    mary_win32_sources += wsa_poll_group.cpp
-    mary_extra_dist    += iocp_poll_group.cpp
+connection_receiver.h:
+	rm -f $@
+	ln -s $(srcdir)/connection_receiver.generic.h connection_receiver.h
+
+native_file.h:
+	rm -f $@
+	ln -s $(srcdir)/native_file.linux.h native_file.h
+
+native_async_file.h:
+	rm -f $@
+	ln -s $(srcdir)/native_async_file.linux.h native_async_file.h
+
+tcp_connection.h:
+	rm -f $@
+	ln -s $(srcdir)/tcp_connection.linux.h tcp_connection.h
+
+tcp_server.h:
+	rm -f $@
+	ln -s $(srcdir)/tcp_server.linux.h tcp_server.h
 endif
 
-if LIBMARY_PLATFORM_WIN32
-    libmary_1_0_la_SOURCES += $(mary_win32_sources)
-    mary_extra_dist += $(mary_linux_sources)
-else
-    libmary_1_0_la_SOURCES += $(mary_linux_sources)
-    mary_extra_dist += $(mary_win32_sources)
-endif
+libmary_1_0_la_SOURCES += $(mary_target_sources)
 
-libmary_1_0_la_LDFLAGS = -no-undefined -version-info "0:0:0"
-libmary_1_0_la_LIBADD = $(THIS_LIBS)
-if LIBMARY_PLATFORM_WIN32
-libmary_1_0_la_LIBADD += -lws2_32 -lwinmm
-endif
-
-EXTRA_DIST = $(mary_private_headers) $(mary_extra_dist)
+EXTRA_DIST = $(mary_private_headers) $(mary_extra_dist) $(mary_private_sources)
 

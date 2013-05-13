@@ -17,8 +17,6 @@
 */
 
 
-#include <libmary/libmary_config.h>
-
 #include <libmary/types.h>
 #include <errno.h>
 
@@ -143,17 +141,18 @@ DeferredConnectionSender::closeIfNeeded (bool const deferred_event)
     }
 }
 
+#ifdef LIBMARY_WIN32_IOCP
+void
+DeferredConnectionSender::outputIoComplete (Exception  * const exc_,
+                                            Overlapped * const /* overlapped */,
+                                            Size         const /* bytes_transferred */,
+                                            void       * const _self)
+{
+#else
 Connection::OutputFrontend const DeferredConnectionSender::conn_output_frontend = {
     processOutput
 };
 
-#ifdef LIBMARY_WIN32_IOCP
-void
-ImmediateConnectionSender::outputComplete (Overlapped * const /* overlapped */,
-                                           Size         const /* bytes_transferred */,
-                                           void       * const _self)
-{
-#else
 void
 DeferredConnectionSender::processOutput (void * const _self)
 {
@@ -161,7 +160,21 @@ DeferredConnectionSender::processOutput (void * const _self)
     DeferredConnectionSender * const self = static_cast <DeferredConnectionSender*> (_self);
 
     self->mutex.lock ();
+
+#ifdef LIBMARY_WIN32_IOCP
+    self->conn_sender_impl.outputComplete ();
+
+    if (exc_) {
+        self->mutex.unlock ();
+        if (self->frontend && self->frontend->closed)
+            self->frontend.call (self->frontend->closed, /*(*/ exc_ /*)*/);
+
+        return;
+    }
+#endif
+
     self->ready_for_output = true;
+
     if (self->conn_sender_impl.gotDataToSend ())
 	mt_unlocks (self->mutex) self->toGlobOutputQueue (true /* add_ref */, true /* unlock */);
     else
@@ -278,7 +291,11 @@ DeferredConnectionSender::DeferredConnectionSender (Object * const coderef_conta
     : Sender                  (coderef_container),
       DependentCodeReferenced (coderef_container),
       dcs_queue               (coderef_container),
-      conn_sender_impl        (/* TEST (set to true)  true */ false /* enable_processing_barrier */),
+      conn_sender_impl        (
+#ifdef LIBMARY_WIN32_IOCP
+                               CbDesc<Overlapped::IoCompleteCallback> (&outputIoComplete, this, coderef_container),
+#endif
+                               /* TEST (set to true)  true */ false /* enable_processing_barrier */),
       closed                  (false),
       close_after_flush       (false),
       ready_for_output        (true),

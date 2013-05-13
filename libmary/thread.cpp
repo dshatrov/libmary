@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -47,6 +47,7 @@ Thread::wrapperThreadFunc (gpointer const _self)
 
     // TODO Release thread-local data, if any
     // libMary_releaseThreadLocal ();
+#warning DO DO DO RELEASE !!!
 
     return (gpointer) 0;
 }
@@ -96,14 +97,9 @@ Thread::join ()
 
 void Thread::setThreadFunc (CbDesc<ThreadFunc> const &cb)
 {
-  StateMutexLock l (&mutex);
+    mutex.lock ();
     this->thread_cb = cb;
-}
-
-void Thread::setThreadFunc (Cb<ThreadFunc> const &cb)
-{
-  StateMutexLock l (&mutex);
-    this->thread_cb = cb;
+    mutex.unlock ();
 }
 
 }

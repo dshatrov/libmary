@@ -56,20 +56,18 @@ private:
     typedef IntrusiveList<PollableEntry, PollableList_name> PollableList;
     typedef IntrusiveList<PollableEntry, PollableDeletionQueue_name> PollableDeletionQueue;
 
+    mt_const LibMary_ThreadLocal *poll_tlocal;
+
     mt_const int efd;
 
     mt_const int trigger_pipe [2];
     mt_mutex (mutex) bool triggered;
     mt_mutex (mutex) bool block_trigger_pipe;
 
-    // Should be accessed from event processing thread only.
-    bool got_deferred_tasks;
+    mt_sync_domain (poll) bool got_deferred_tasks;
 
     mt_mutex (mutex) PollableList pollable_list;
     mt_mutex (mutex) PollableDeletionQueue pollable_deletion_queue;
-
-    // TODO Get rid of 'poll_tlocal': it is now excessive, overlaps with 'block_trigger_pipe'.
-    mt_const LibMary_ThreadLocal *poll_tlocal;
 
     mt_throws Result doActivate (PollableEntry * mt_nonnull pollable_entry);
 
@@ -83,6 +81,23 @@ public:
 
       mt_throws Result activatePollable (PollableKey mt_nonnull key);
 
+      mt_throws Result addPollable_beforeConnect (CbDesc<Pollable> const & /* pollable */,
+                                                  PollableKey * const /* ret_key */)
+          { return Result::Success; }
+
+      mt_throws Result addPollable_afterConnect (CbDesc<Pollable> const &pollable,
+                                                 PollableKey * const ret_key)
+      {
+          PollableKey const key = addPollable (pollable, true /* activate */);
+          if (!key)
+              return Result::Failure;
+
+          if (ret_key)
+              *ret_key = key;
+
+          return Result::Success;
+      }
+
       void removePollable (PollableKey mt_nonnull key);
     mt_end
 
@@ -94,12 +109,9 @@ public:
     mt_const mt_throws Result open ();
 
     mt_const void bindToThread (LibMary_ThreadLocal * const poll_tlocal)
-    {
-	this->poll_tlocal = poll_tlocal;
-    }
+        { this->poll_tlocal = poll_tlocal; }
 
-    EpollPollGroup (Object *coderef_container);
-
+     EpollPollGroup (Object *coderef_container);
     ~EpollPollGroup ();
 };
 

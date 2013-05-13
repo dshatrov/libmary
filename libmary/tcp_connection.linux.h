@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -21,7 +21,6 @@
 #define LIBMARY__TCP_CONNECTION__LINUX__H__
 
 
-#include <libmary/libmary_config.h>
 #include <libmary/code_referenced.h>
 #include <libmary/connection.h>
 #include <libmary/poll_group.h>
@@ -32,7 +31,7 @@
 namespace M {
 
 class TcpConnection : public Connection,
-		      public DependentCodeReferenced
+		      public virtual DependentCodeReferenced
 {
 public:
     struct Frontend {
@@ -45,10 +44,9 @@ public:
 #endif
 
 private:
-    int fd;
-    // Must be accessed only from processEvents() or during initialization
-    // (by connect()).
-    bool connected;
+    mt_const int fd;
+
+    mt_sync_domain (pollable) bool connected;
 
     // Synchronized by processEvents() and also used by read(). This implies
     // that read() must be called from the same thread as processEvents(),
@@ -106,22 +104,15 @@ public:
 #endif
 
 #ifdef LIBMARY_ENABLE_MWRITEV
-    int getFd ()
-    {
-	return fd;
-    }
+    int getFd () { return fd; }
 #endif
   mt_iface_end
 
     void setFrontend (CbDesc<Frontend> const &frontend)
-    {
-	this->frontend = frontend;
-    }
+        { this->frontend = frontend; }
 
     CbDesc<PollGroup::Pollable> getPollable ()
-    {
-	return CbDesc<PollGroup::Pollable> (&pollable, this, getCoderefContainer());
-    }
+        { return CbDesc<PollGroup::Pollable> (&pollable, this, getCoderefContainer()); }
 
     enum ConnectResult
     {
@@ -130,19 +121,20 @@ public:
         ConnectResult_InProgress
     };
 
+    mt_const mt_throws Result open ();
+
     // May be called only once. Must be called early (during initialzation)
     // to ensure proper synchronization of accesses to 'connected' data member.
-    mt_throws ConnectResult connect (IpAddress addr);
+    mt_const mt_throws ConnectResult connect (IpAddress addr);
 
     // Should be called just once by TcpServer.
-    void setFd (int const fd)
+    mt_const void setFd (int const fd)
     {
 	this->fd = fd;
 	connected = true;
     }
 
-    TcpConnection (Object *coderef_container);
-
+     TcpConnection (Object *coderef_container);
     ~TcpConnection ();
 };
 

@@ -21,44 +21,43 @@
 #define LIBMARY__ASYNC_INPUT_STREAM__H__
 
 
-#include <libmary/types.h>
+#include <libmary/code_referenced.h>
 #include <libmary/exception.h>
 #include <libmary/cb.h>
 
 
 namespace M {
 
-class AsyncInputStream
+class AsyncInputStream : public virtual DependentCodeReferenced
 {
+#ifdef LIBMARY_WIN32_IOCP
+public:
+    virtual mt_throws AsyncIoResult read (OVERLAPPED * mt_nonnull overlapped,
+                                          Memory      mem,
+                                          Size       *ret_nread) = 0;
+#else
 public:
     struct InputFrontend {
-#ifdef LIBMARY_WIN32_IOCP
-        void (*inputComplete) (Overlapped *overlapped,
-                               Size        bytes_transferred,
-                               void       *cb_data);
-#else
 	void (*processInput) (void *cb_data);
 
 	void (*processError) (Exception *exc_,
 			      void      *cb_data);
-#endif
     };
 
 protected:
     mt_const Cb<InputFrontend> input_frontend;
 
 public:
-#ifdef LIBMARY_WIN32_IOCP
-    virtual mt_throws AsyncIoResult read (OVERLAPPED * mt_nonnull overlapped,
-                                          Memory      mem,
-                                          Size       *ret_nread) = 0;
-#else
     virtual mt_throws AsyncIoResult read (Memory  mem,
 					  Size   *ret_nread) = 0;
-#endif
 
     mt_const void setInputFrontend (CbDesc<InputFrontend> const &input_frontend)
         { this->input_frontend = input_frontend; }
+#endif
+
+    AsyncInputStream ()
+        : DependentCodeReferenced (NULL /* coderef_container */)
+    {}
 
     virtual ~AsyncInputStream () {}
 };

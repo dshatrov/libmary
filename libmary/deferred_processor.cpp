@@ -24,7 +24,7 @@
 
 namespace M {
 
-static LogGroup libMary_logGroup_dp ("deferred_processor", LogLevel::N);
+static LogGroup libMary_logGroup_dp ("deferred_processor", LogLevel::I);
 
 mt_mutex (unsafe_deferred_processor->mutex) void
 DeferredProcessor_Registration::rescheduleTask (DeferredProcessor_Task * const mt_nonnull task)

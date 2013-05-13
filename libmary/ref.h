@@ -111,6 +111,7 @@ public:
     template <class C>
     void setNoRef (C * const ref)
     {
+        // FIXME This is likely wrong: we should unref the object (-1 +0).
         if (obj == ref)
             return;
 

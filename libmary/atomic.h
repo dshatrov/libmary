@@ -21,8 +21,6 @@
 #define LIBMARY__ATOMIC__H__
 
 
-#include <libmary/libmary_config.h>
-
 #include <libmary/types.h>
 #ifdef LIBMARY_MT_SAFE
 //#include <glib/gatomic.h>
@@ -231,9 +229,7 @@ static inline void full_memory_barrier ()
     g_atomic_int_get (&_libMary_dummy_mb_int);
 }
 #else
-static inline void full_memory_barrier ()
-{
-}
+static inline void full_memory_barrier () {}
 #endif
 
 }

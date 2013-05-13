@@ -82,7 +82,7 @@ public:
 		goto _simple_path;
 	    }
 
-	    CodeRef const code_ref = weak_code_ref;
+	    CodeRef code_ref = weak_code_ref;
 	    if (!code_ref) {
 		DEBUG (
 		  fprintf (stderr, "Cb::call_ret: obj 0x%lx gone\n", (unsigned long) weak_code_ref.getWeakObject());
@@ -99,6 +99,7 @@ public:
 	    // This probably won't be optimized by the compiler, which is a bit sad.
 	    *ret = tocall (args..., cb_data);
 
+            code_ref = NULL;
 	    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 	    return true;
 	} else {
@@ -154,7 +155,7 @@ public:
 		goto _simple_path;
 	    }
 
-	    CodeRef const code_ref = weak_code_ref;
+	    CodeRef code_ref = weak_code_ref;
 	    if (!code_ref) {
 		DEBUG (
 		  fprintf (stderr, "Cb::call_ret_mutex: obj 0x%lx gone\n", (unsigned long) weak_code_ref.getWeakObject());
@@ -178,6 +179,7 @@ public:
 	    // This probably won't be optimized by the compiler, which is a bit sad.
 	    *ret = tocall (args..., tmp_cb_data);
 
+            code_ref = NULL;
 	    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 	    mutex.lock ();
 	    return true;
@@ -231,7 +233,7 @@ public:
 	    if (weak_code_ref.getShadowPtr() == tlocal->last_coderef_container_shadow)
 		goto _simple_path;
 
-	    CodeRef const code_ref = weak_code_ref;
+	    CodeRef code_ref = weak_code_ref;
 	    if (!code_ref) {
 		DEBUG (
 		  fprintf (stderr, "Cb::call: obj 0x%lx gone\n", (unsigned long) weak_code_ref.getWeakObject());
@@ -247,6 +249,7 @@ public:
 
 	    tocall (args..., cb_data);
 
+            code_ref = NULL;
 	    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 	    return true;
 	} else {
@@ -291,7 +294,7 @@ public:
 	    if (weak_code_ref.getShadowPtr() == tlocal->last_coderef_container_shadow)
 		goto _simple_path;
 
-	    CodeRef const code_ref = weak_code_ref;
+	    CodeRef code_ref = weak_code_ref;
 	    if (!code_ref) {
 		DEBUG (
 		  fprintf (stderr, "Cb::call_mutex: obj 0x%lx gone\n", (unsigned long) weak_code_ref.getWeakObject());
@@ -313,6 +316,7 @@ public:
 	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 	    tocall (args..., tmp_cb_data);
 
+            code_ref = NULL;
 	    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 	    mutex.lock ();
 	    return true;
@@ -357,7 +361,7 @@ public:
 	    if (weak_code_ref.getShadowPtr() == tlocal->last_coderef_container_shadow)
 		goto _simple_path;
 
-	    CodeRef const code_ref = weak_code_ref;
+	    CodeRef code_ref = weak_code_ref;
 	    if (!code_ref) {
 		DEBUG (
 		  fprintf (stderr, "Cb::call_unlocks_mutex: obj 0x%lx gone\n", (unsigned long) weak_code_ref.getWeakObject());
@@ -380,6 +384,7 @@ public:
 	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 	    tocall (args..., tmp_cb_data);
 
+            code_ref = NULL;
 	    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 	    return true;
 	} else {
@@ -418,7 +423,7 @@ public:
 	    if (weak_code_ref.getShadowPtr() == tlocal->last_coderef_container_shadow)
 		goto _simple_path;
 
-	    CodeRef const code_ref = weak_code_ref;
+	    CodeRef code_ref = weak_code_ref;
 	    if (!code_ref)
 		return false;
 
@@ -433,6 +438,7 @@ public:
 	    // Be careful not to use any data members of class Cb after the mutex is unlocked.
 	    tocall (args..., tmp_cb_data);
 
+            code_ref = NULL;
 	    tlocal->last_coderef_container_shadow = prv_coderef_container_shadow;
 	    return true;
 	}
@@ -451,39 +457,27 @@ public:
 
     template <class RET, class ...Args>
     bool call_ret_ (RET * const mt_nonnull ret, Args const &...args) const
-    {
-	return call_ret (ret, cb, args...);
-    }
+        { return call_ret (ret, cb, args...); }
 
     template <class ...Args>
     bool call_ (Args const &...args) const
-    {
-	return call (cb, args...);
-    }
+        { return call (cb, args...); }
 
     template <class MutexType, class RET, class ...Args>
     bool call_ret_mutex_ (MutexType &mutex, RET * const mt_nonnull ret, Args const &...args) const
-    {
-	return call_ret_mutex (ret, cb, mutex, args...);
-    }
+        { return call_ret_mutex (ret, cb, mutex, args...); }
 
     template <class MutexType, class ...Args>
     bool call_mutex_ (MutexType &mutex, Args const &...args) const
-    {
-	return call_mutex (cb, mutex, args...);
-    }
+        { return call_mutex (cb, mutex, args...); }
 
     template <class MutexType, class ...Args>
     bool call_unlocks_mutex_ (MutexType &mutex, Args const &...args) const
-    {
-	return call_unlocks_mutex (cb, mutex, args...);
-    }
+        { return call_unlocks_mutex (cb, mutex, args...); }
 
     template <class MutexType, class ...Args>
     bool call_unlocks_mutex_if_called_ (MutexType &mutex, Args const &...args) const
-    {
-	return call_unlocks_mutex_if_called (cb, mutex, args...);
-    }
+        { return call_unlocks_mutex_if_called (cb, mutex, args...); }
 
 #if 0
 // Commented out for safe transition to Cb::call()/Cb::call_ret().
@@ -493,10 +487,7 @@ public:
     }
 #endif
 
-    WeakCodeRef const & getWeakCodeRef () const
-    {
-	return weak_code_ref;
-    }
+    WeakCodeRef const & getWeakCodeRef () const { return weak_code_ref; }
 
 #if 0
     // For debugging only.
@@ -506,20 +497,10 @@ public:
     }
 #endif
 
-    void* getCbData () const
-    {
-	return cb_data;
-    }
+    void* getCbData () const { return cb_data; }
 
-    operator T const * () const
-    {
-	return cb;
-    }
-
-    T const * operator -> () const
-    {
-	return cb;
-    }
+    operator T const * () const    { return cb; }
+    T const * operator -> () const { return cb; }
 
     Cb& operator = (CbDesc<T> const &cb_desc)
     {
@@ -551,8 +532,7 @@ public:
 	  cb_data       (cb_data),
 	  weak_code_ref (coderef_container),
 	  ref_data      (ref_data)
-    {
-    }
+    {}
 
     Cb (T const           * const cb,
         void              * const cb_data,
@@ -562,22 +542,19 @@ public:
           cb_data       (cb_data),
           weak_code_ref (*weak_code_ref),
           ref_data      (ref_data)
-    {
-    }
+    {}
 
     Cb (CbDesc<T> const &cb_desc)
 	: cb            (cb_desc.cb),
 	  cb_data       (cb_desc.cb_data),
 	  weak_code_ref (cb_desc.coderef_container),
 	  ref_data      (cb_desc.ref_data)
-    {
-    }
+    {}
 
     Cb ()
 	: cb (NULL),
 	  cb_data (NULL)
-    {
-    }
+    {}
 };
 
 }

@@ -41,6 +41,8 @@ public:
 
     virtual mt_throws Result close (bool flush_data = true) = 0;
 
+    AsyncFile () : DependentCodeReferenced (NULL) {}
+
     virtual ~AsyncFile () {}
 };
 

@@ -26,13 +26,6 @@
 
 #include <libmary/log.h>
 #include <libmary/util_str.h>
-#ifndef LIBMARY_PLATFORM_WIN32
-#include <libmary/posix.h>
-#endif
-
-#ifdef LIBMARY_PLATFORM_WIN32
-#include <windows.h>
-#endif
 
 #include <libmary/util_time.h>
 
@@ -156,13 +149,15 @@ mt_throws Result updateTime ()
     else
 	logW_ (_func, "microseconds backwards: ", new_microseconds, " (was ", tlocal->time_microseconds, ")");
 
-//    logD_ (_func, "time_seconds: ", tlocal->time_seconds, ", time_microseconds: ", tlocal->time_microseconds);
-
     logD (time, _func, fmt_hex, tlocal->time_seconds, ", ", tlocal->time_microseconds);
 
-    if (tlocal->saved_monotime < tlocal->time_seconds) {
+    if (tlocal->saved_monotime < tlocal->time_seconds
+        || tlocal->saved_unixtime == 0)
+    {
 	// Updading saved unixtime once in a minute.
-	if (tlocal->time_seconds - tlocal->saved_monotime >= 60) {
+	if (tlocal->time_seconds - tlocal->saved_monotime >= 60
+            || tlocal->saved_unixtime == 0)
+        {
 	    // Obtaining current unixtime. This is an extra syscall.
 	    tlocal->saved_unixtime = time (NULL);
 	    tlocal->saved_monotime = tlocal->time_seconds;

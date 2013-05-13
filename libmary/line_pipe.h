@@ -70,6 +70,7 @@ private:
     mt_mutex (mutex) Ref<PipeSession> pipe_session;
 
     mt_mutex (mutex) Timers::TimerKey reopen_timer;
+    mt_mutex (mutex) StRef<String> prv_error_str;
 
   mt_iface (LineServer::Frontend)
     static LineServer::Frontend const line_frontend;

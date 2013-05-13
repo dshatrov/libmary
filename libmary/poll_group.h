@@ -23,13 +23,13 @@
 
 #include <libmary/types.h>
 
-#ifdef LIBMARY_PLATFORM_WIN32
-#include <winsock2.h>
-#endif
-
 #include <libmary/cb.h>
 #include <libmary/exception.h>
 #include <libmary/deferred_processor.h>
+
+#ifdef LIBMARY_WIN32_IOCP
+#include <libmary/connection.h>
+#endif
 
 
 namespace M {
@@ -44,7 +44,7 @@ public:
 	Hup    = 0x8
     };
 
-    // TODO Unused for now. This is meant to be used for multi-threaded WsaPollGroup.
+    // Unused for now. This is meant to be used for multi-threaded WsaPollGroup.
     struct Events {
         void (*pollGroupFull) (void *cb_data);
         void (*pollGroupFree) (void *cb_data);
@@ -65,39 +65,20 @@ public:
     };
 #endif
 
-#ifdef LIBMARY_WIN32_IOCP
-    struct Overlapped : public OVERLAPPED
-    {
-        enum OpKind
-        {
-            OpKind_Read,
-            OpKind_Write
-        };
-
-        OpKind op_kind;
-    };
-#endif
-
     struct Pollable
     {
-#ifdef LIBMARY_WIN32_IOCP
-        void (*ioComplete) (Overlapped *overlapped,
-                            Size        bytes_transferred,
-                            void       *cb_data);
-#else
+#ifndef LIBMARY_WIN32_IOCP
 	void (*processEvents) (Uint32  event_flags,
 			       void   *cb_data);
+
+	void (*setFeedback) (Cb<Feedback> const &feedback,
+			     void *cb_data);
 #endif
 
 #ifdef LIBMARY_PLATFORM_WIN32
 	SOCKET (*getFd) (void *cb_data);
 #else
 	int (*getFd) (void *cb_data);
-#endif
-
-#ifndef LIBMARY_WIN32_IOCP
-	void (*setFeedback) (Cb<Feedback> const &feedback,
-			     void *cb_data);
 #endif
     };
 
@@ -106,6 +87,10 @@ public:
     private:
         void *key;
     public:
+#ifdef LIBMARY_WIN32_IOCP
+        // TODO Get rid of activatePollable(), then this field will become unnecessary.
+        HANDLE handle;
+#endif
         operator void* () const { return key; }
         PollableKey (void * const key) : key (key) {}
         PollableKey () : key (NULL) {}
@@ -117,18 +102,26 @@ public:
     virtual mt_throws PollableKey addPollable (CbDesc<Pollable> const &pollable,
 					       bool activate = true) = 0;
 
+    // TODO After IOCP implementation, activatePollable() is wrong and obsolete.
+    //      No I/O operations are allowed before activatePollable() in case of IOCP,
+    //      which makes addPollable() mostly useless (the only use case is to
+    //      get PollableKey early, which is easily handled with synchronization
+    //      instead of activatePollable() - this results in cleaner user code
+    //      as well).
     virtual mt_throws Result activatePollable (PollableKey mt_nonnull key) = 0;
+
+    virtual mt_throws Result addPollable_beforeConnect (CbDesc<Pollable> const &pollable,
+                                                        PollableKey *ret_key) = 0;
+
+    virtual mt_throws Result addPollable_afterConnect (CbDesc<Pollable> const &pollable,
+                                                       PollableKey *ret_key) = 0;
 
     virtual void removePollable (PollableKey mt_nonnull key) = 0;
 
     virtual EventSubscriptionKey eventsSubscribe (CbDesc<Events> const & /* cb */)
-    {
-        return EventSubscriptionKey ();
-    }
+        { return EventSubscriptionKey (); }
 
-    virtual void eventsUnsubscribe (EventSubscriptionKey /* sbn_key */)
-    {
-    }
+    virtual void eventsUnsubscribe (EventSubscriptionKey /* sbn_key */) {}
 
     virtual ~PollGroup () {}
 };
@@ -137,8 +130,8 @@ public:
 
 
 namespace M {
-    // TODO Rename DefaultPollGroup to DefaultActivePollGroup
-    //      and move this into active_poll_group.h
+// TODO Rename DefaultPollGroup to DefaultActivePollGroup
+//      and move this into active_poll_group.h
 
 #ifdef LIBMARY_PLATFORM_WIN32
   #ifdef LIBMARY_WIN32_IOCP

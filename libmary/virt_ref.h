@@ -39,6 +39,14 @@ public:
 	return ref;
     }
 
+    void setNoRef (VirtReferenced * const obj)
+    {
+        VirtReferenced * const old = ref;
+        ref = obj;
+        if (old)
+            old->virt_unref ();
+    }
+
 #if 0
     void setNoUnref (VirtReferenced * const ref)
     {
@@ -51,6 +59,8 @@ public:
     // TODO Unrefing late in all *Ref<> classes is probably a good idea.
     //      ^^^ For sure!
     //      ^^^ 13.01.05 Did some fixes in this direction.
+    //
+    // TODO This is now equivalent to "= NULL". Get rid of selfUnref().
     void selfUnref ()
     {
         if (this->ref) {

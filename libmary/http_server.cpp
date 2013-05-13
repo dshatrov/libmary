@@ -177,78 +177,80 @@ HttpRequest::parseAcceptLanguage (ConstMemory              const mem,
         }
 
         ConstMemory const lang = mem.region (lang_begin, pos - lang_begin);
+        double weight = 1.0;
 
         // TODO Doesn't whitespace + ';' turn the rest of the string into a comment?
         skipLWS (mem, &pos);
-        if (pos >= mem.len())
-            return;
-
-        double weight = 1.0;
-        if (mem.mem() [pos] == ';') {
-            ++pos;
-            skipLWS (mem, &pos);
+        do {
             if (pos >= mem.len())
-                return;
+                break;
 
-            if (mem.mem() [pos] == 'q') {
+            if (mem.mem() [pos] == ';') {
                 ++pos;
                 skipLWS (mem, &pos);
                 if (pos >= mem.len())
-                    return;
+                    break;
 
-                if (mem.mem() [pos] == '=') {
+                if (mem.mem() [pos] == 'q') {
                     ++pos;
                     skipLWS (mem, &pos);
                     if (pos >= mem.len())
-                        return;
+                        break;
 
-                    if (mem.mem() [pos] == '0') {
-                        weight = 0.0;
+                    if (mem.mem() [pos] == '=') {
+                        ++pos;
+                        skipLWS (mem, &pos);
+                        if (pos >= mem.len())
+                            break;
 
-                        do {
-                            ++pos;
-                            skipLWS (mem, &pos);
-                            if (pos >= mem.len())
-                                break;
+                        if (mem.mem() [pos] == '0') {
+                            weight = 0.0;
 
-                            if (mem.mem() [pos] != '.')
-                                break;
-
-                            ++pos;
-                            skipLWS (mem, &pos);
-                            if (pos >= mem.len())
-                                break;
-
-                            double const mul_arr [3] = { 0.1, 0.01, 0.001 };
-                            unsigned mul_idx = 0;
-                            for (; mul_idx < 3; ++mul_idx) {
-                                if (mem.mem() [pos] >= '0' && mem.mem() [pos] <= '9') {
-                                    weight += mul_arr [mul_idx] * (mem.mem() [pos] - '0');
-
-                                    ++pos;
-                                    skipLWS (mem, &pos);
-                                    if (pos >= mem.len())
-                                        break;
-                                } else {
-                                  // garbage
+                            do {
+                                ++pos;
+                                skipLWS (mem, &pos);
+                                if (pos >= mem.len())
                                     break;
+
+                                if (mem.mem() [pos] != '.')
+                                    break;
+
+                                ++pos;
+                                skipLWS (mem, &pos);
+                                if (pos >= mem.len())
+                                    break;
+
+                                double const mul_arr [3] = { 0.1, 0.01, 0.001 };
+                                unsigned mul_idx = 0;
+                                for (; mul_idx < 3; ++mul_idx) {
+                                    if (mem.mem() [pos] >= '0' && mem.mem() [pos] <= '9') {
+                                        weight += mul_arr [mul_idx] * (mem.mem() [pos] - '0');
+
+                                        ++pos;
+                                        skipLWS (mem, &pos);
+                                        if (pos >= mem.len())
+                                            break;
+                                    } else {
+                                      // garbage
+                                        break;
+                                    }
                                 }
-                            }
-                        } while (0);
-                    } else {
-                      // The 'qvalue' is either ("1" ["." 0*3 ("0")])
-                      // or some garbage.
-                        weight = 1.0;
+                            } while (0);
+                        } else {
+                          // The 'qvalue' is either ("1" ["." 0*3 ("0")])
+                          // or some garbage.
+                            weight = 1.0;
+                        }
                     }
                 }
             }
-        }
 
-        // Garbage skipping.
-        for (; pos < mem.len(); ++pos) {
-            if (mem.mem() [pos] == ',')
-                break;
-        }
+            // Garbage skipping.
+            for (; pos < mem.len(); ++pos) {
+                if (mem.mem() [pos] == ',')
+                    break;
+            }
+        } while (0);
 
         if (pos >= mem.len() || mem.mem() [pos] == ',') {
             if (lang.len() > 0) {
@@ -718,8 +720,10 @@ HttpServer::processInput (Memory const &_mem,
 
     Memory mem = _mem;
     for (;;) {
-        if (self->input_blocked.get() == 1)
+        if (self->input_blocked.get() == 1) {
+            logD (http, _func, "input_blocked");
             return Receiver::ProcessInputResult::InputBlocked;
+        }
 
 	switch (self->req_state) {
 	    case RequestState::RequestLine:
@@ -833,11 +837,11 @@ HttpServer::sendStateChanged (Sender::SendState   const send_state,
     logD (http, _func_);
 
     if (send_state == Sender::SendState::ConnectionReady) {
-//        logD_ (_func, "--- blocking input");
+        logD (http, _func, "unblocking input");
         self->input_blocked.set (0);
         self->receiver->unblockInput ();
     } else {
-//        logD_ (_func, "--- unblocking input");
+        logD (http, _func, "blocking input");
         self->input_blocked.set (1);
     }
 }

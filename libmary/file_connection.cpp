@@ -23,8 +23,12 @@
 namespace M {
 
 mt_throws AsyncIoResult
-FileConnection::read (Memory   const mem,
-		      Size   * const ret_nread)
+FileConnection::read (
+#ifdef LIBMARY_WIN32_IOCP
+                      OVERLAPPED  * const mt_nonnull /* overlapped */,
+#endif
+                      Memory        const mem,
+		      Size        * const ret_nread)
 {
     IoResult const res = file->read (mem, ret_nread);
     switch (res) {
@@ -41,7 +45,11 @@ FileConnection::read (Memory   const mem,
 }
 
 mt_throws AsyncIoResult
-FileConnection::write (ConstMemory   const mem,
+FileConnection::write (
+#ifdef LIBMARY_WIN32_IOCP
+                       OVERLAPPED  * const mt_nonnull /* overlapped */,
+#endif
+                       ConstMemory   const mem,
 		       Size        * const ret_nwritten)
 {
     if (!file->write (mem, ret_nwritten))
@@ -54,10 +62,24 @@ FileConnection::write (ConstMemory   const mem,
 }
 
 mt_throws AsyncIoResult
-FileConnection::writev (struct iovec * const iovs,
+FileConnection::writev (
+#ifdef LIBMARY_WIN32_IOCP
+                        OVERLAPPED   * const mt_nonnull /* overlapped */,
+                        WSABUF       * const mt_nonnull buffers,
+#else
+                        struct iovec * const iovs,
+#endif
 			Count          const num_iovs,
 			Size         * const ret_nwritten)
 {
+#ifdef LIBMARY_WIN32_IOCP
+    struct iovec iovs [num_iovs];
+    for (Count i = 0; i < num_iovs; ++i) {
+        iovs [i].iov_base = buffers [i].buf;
+        iovs [i].iov_len  = buffers [i].len;
+    }
+#endif
+
     Result const res = file->writev (iovs, num_iovs, ret_nwritten);
     if (!res)
 	return AsyncIoResult::Error;

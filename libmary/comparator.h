@@ -31,7 +31,6 @@ namespace M {
  *
        static bool greater (L const &left, R const &right);
        static bool equals  (L const &left, R const &right);
-   // TODO ComparisonResult compare (...);
  */
 
 template < class T,
@@ -41,14 +40,10 @@ class DirectComparator
 {
 public:
     static bool greater (T const &left, T const &right)
-    {
-	return LeftExtractor::getValue (left) > RightExtractor::getValue (right);
-    }
+        { return LeftExtractor::getValue (left) > RightExtractor::getValue (right); }
 
     static bool equals (T const &left, T const &right)
-    {
-	return LeftExtractor::getValue (left) == RightExtractor::getValue (right);
-    }
+        { return LeftExtractor::getValue (left) == RightExtractor::getValue (right); }
 };
 
 template < class T = ConstMemory const & >
@@ -56,14 +51,10 @@ class MemoryComparator
 {
 public:
     static bool greater (T left, T right)
-    {
-	return compare (left, right) == ComparisonResult::Greater;
-    }
+        { return compare (left, right) == ComparisonResult::Greater; }
 
     static bool equals (T left, T right)
-    {
-	return compare (left, right) == ComparisonResult::Equal;
-    }
+        { return compare (left, right) == ComparisonResult::Equal; }
 };
 
 }

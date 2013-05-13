@@ -17,11 +17,9 @@
 */
 
 
-#ifndef __LIBMARY__MULTI_THREAD__H__
-#define __LIBMARY__MULTI_THREAD__H__
+#ifndef LIBMARY__MULTI_THREAD__H__
+#define LIBMARY__MULTI_THREAD__H__
 
-
-#include <libmary/libmary_config.h>
 
 #include <libmary/list.h>
 #include <libmary/state_mutex.h>
@@ -78,5 +76,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__MULTI_THREAD__H__ */
+#endif /* LIBMARY__MULTI_THREAD__H__ */
 

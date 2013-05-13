@@ -99,25 +99,25 @@ public:
 				   IpAddress     *ret_addr = NULL);
 
     // Should be called before listen().
-    mt_throws Result bind (IpAddress const &ip_addr);
+    mt_throws Result bind (IpAddress ip_addr);
 
     // Should only be called once.
     mt_throws Result listen ();
+
+    mt_throws Result start ();
 
 //    // TODO Questionable: there's no synchronization for "fd = -1" assignment.
 //    mt_throws Result close ();
 
     CbDesc<PollGroup::Pollable> getPollable ()
-    {
-        return CbDesc<PollGroup::Pollable> (&pollable, this, getCoderefContainer());
-    }
+        { return CbDesc<PollGroup::Pollable> (&pollable, this, getCoderefContainer()); }
 
     void init (CbDesc<Frontend> const &frontend,
-               Timers * mt_nonnull timers,
-               Time    accept_retry_timeout_millisec = 1000);
+               DeferredProcessor * mt_nonnull deferred_processor,
+               Timers            * mt_nonnull timers,
+               Time               accept_retry_timeout_millisec = 1000);
 
-    TcpServer (Object *coderef_container);
-
+     TcpServer (Object *coderef_container);
     ~TcpServer ();
 };
 

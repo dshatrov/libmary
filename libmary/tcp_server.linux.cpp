@@ -27,7 +27,6 @@
 #include <netinet/tcp.h>
 
 #include <libmary/log.h>
-#include <libmary/posix.h>
 #include <libmary/util_net.h>
 
 #include <libmary/tcp_server.h>
@@ -37,8 +36,8 @@ namespace M {
 
 PollGroup::Pollable const TcpServer::pollable = {
     processEvents,
-    getFd,
-    setFeedback
+    setFeedback,
+    getFd
 };
 
 void
@@ -289,13 +288,13 @@ _failure:
 
       // Eating all errors to avoid missing incoming connection events,
       // which would lead to not accepting any more connections (DoS).
-    }
+    } /* for (;;) */
 
     unreachable ();
 }
 
 mt_throws Result
-TcpServer::bind (IpAddress const &ip_addr)
+TcpServer::bind (IpAddress const ip_addr)
 {
     struct sockaddr_in addr;
     setIpAddress (ip_addr, &addr);
@@ -335,6 +334,10 @@ TcpServer::listen ()
     return Result::Success;
 }
 
+mt_throws Result
+TcpServer::start ()
+    { return Result::Success; }
+
 #if 0
 mt_throws Result
 TcpServer::close ()
@@ -372,8 +375,9 @@ TcpServer::close ()
 
 void
 TcpServer::init (CbDesc<Frontend> const &frontend,
-                 Timers * const mt_nonnull timers,
-                 Time     const accept_retry_timeout_millisec)
+                 DeferredProcessor * const mt_nonnull /* deferred_processor */,
+                 Timers            * const mt_nonnull timers,
+                 Time                const accept_retry_timeout_millisec)
 {
     assert (timers);
 

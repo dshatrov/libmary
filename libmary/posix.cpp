@@ -28,12 +28,10 @@
 #include <libmary/native_file.h>
 #include <libmary/log.h>
 
-#include <libmary/posix.h>
-
 
 namespace M {
 
-void libMary_posixInit ()
+void libMary_platformInit ()
 {
     {
       // Blocking SIGPIPE for write()/writev().

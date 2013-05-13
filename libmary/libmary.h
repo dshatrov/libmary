@@ -21,8 +21,6 @@
 #define LIBMARY__LIBMARY__H__
 
 
-#include <libmary/libmary_config.h>
-
 #include <libmary/annotations.h>
 #include <libmary/types_base.h>
 #include <libmary/types.h>
@@ -102,9 +100,6 @@
 #endif
 
 #include <libmary/vfs.h>
-#ifndef LIBMARY_PLATFORM_WIN32
-  #include <libmary/vfs_posix.h>
-#endif
 
 #include <libmary/deferred_processor.h>
 #include <libmary/poll_group.h>

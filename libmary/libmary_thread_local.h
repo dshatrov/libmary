@@ -28,10 +28,6 @@
 #include <sys/uio.h>
 #endif
 
-#ifdef LIBMARY_PLATFORM_WIN32
-#include <windows.h>
-#endif
-
 #include <libmary/exception_buffer.h>
 
 

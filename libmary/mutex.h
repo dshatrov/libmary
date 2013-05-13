@@ -39,7 +39,7 @@ namespace M {
 class Mutex
 {
 #ifdef LIBMARY_MT_SAFE
-  #ifdef __linux__
+  #if defined (__linux__)
     // Glib's mutexes and conds are crappy when it comes to performance,
     // especially after API change in 2.31. Every mutex is malloced
     // (even deprecated GStaticMutex), and actual pthread calls are several
@@ -50,9 +50,9 @@ public:
     void lock   () { pthread_mutex_lock   (&mutex); }
     void unlock () { pthread_mutex_unlock (&mutex); }
     pthread_mutex_t* get_pthread_mutex () { return &mutex; }
-    Mutex  () { pthread_mutex_init (&mutex, NULL /* mutexattr */); }
+     Mutex () { pthread_mutex_init (&mutex, NULL /* mutexattr */); }
     ~Mutex () { pthread_mutex_destroy (&mutex); }
-  #else
+  #elif defined (LIBMARY__OLD_GTHREAD_API)
 private:
     GStaticMutex mutex;
 public:
@@ -62,8 +62,17 @@ public:
     void unlock () { g_static_mutex_unlock (&mutex); }
     /* For internal use only: should not be expected to be present in future versions. */
     GMutex* get_glib_mutex () { return g_static_mutex_get_mutex (&mutex); }
-    Mutex  () { g_static_mutex_init (&mutex); }
+     Mutex () { g_static_mutex_init (&mutex); }
     ~Mutex () { g_static_mutex_free (&mutex); }
+  #else
+private:
+    GMutex mutex;
+public:
+    void lock ()   { g_mutex_lock   (&mutex); }
+    void unlock () { g_mutex_unlock (&mutex); }
+    GMutex* get_glib_mutex () { return &mutex; }
+     Mutex () { g_mutex_init  (&mutex); }
+    ~Mutex () { g_mutex_clear (&mutex); }
   #endif
 #else
 public:

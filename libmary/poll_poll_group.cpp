@@ -30,12 +30,6 @@
 
 namespace M {
 
-mt_throws Result
-PollPollGroup::triggerPipeWrite ()
-{
-    return commonTriggerPipeWrite (trigger_pipe [1]);
-}
-
 void
 PollPollGroup::requestInput (void * const _pollable_entry)
 {
@@ -49,13 +43,8 @@ PollPollGroup::requestInput (void * const _pollable_entry)
     } else {
 	self->mutex.lock ();
 	pollable_entry->need_input = true;
-	if (self->triggered) {
-	    self->mutex.unlock ();
-	} else {
-	    self->triggered = true;
-	    self->mutex.unlock ();
-	    self->triggerPipeWrite ();
-	}
+        if (! mt_unlocks (mutex) self->doTrigger ())
+            logF_ (_func, "doTrigger() failed: ", exc->toString());
     }
 }
 
@@ -72,13 +61,8 @@ PollPollGroup::requestOutput (void * const _pollable_entry)
     } else {
 	self->mutex.lock ();
 	pollable_entry->need_output = true;
-	if (self->triggered) {
-	    self->mutex.unlock ();
-	} else {
-	    self->triggered = true;
-	    self->mutex.unlock ();
-	    self->triggerPipeWrite ();
-	}
+        if (! mt_unlocks (mutex) self->doTrigger ())
+            logF_ (_func, "doTrigger() failed: ", exc->toString());
     }
 }
 
@@ -112,27 +96,22 @@ PollPollGroup::addPollable (CbDesc<Pollable> const &pollable,
 	    Cb<Feedback> (&pollable_feedback, pollable_entry, NULL /* coderef_container */),
 	    pollable.cb_data);
 
-    unsigned long tmp_num_pollables;
     mutex.lock ();
-    if (activate) {
+    if (activate)
 	pollable_list.append (pollable_entry);
-    } else {
+    else
 	inactive_pollable_list.append (pollable_entry);
-    }
+
     ++num_pollables;
-    tmp_num_pollables = num_pollables;
 
     if (activate
 	&& !(poll_tlocal && poll_tlocal == libMary_getThreadLocal()))
     {
-	if (!mt_unlocks (mutex) doTrigger ()) {
-	    logE_ (_func, "doTrigger() failed: ", exc->toString());
-	    // TODO Failed to add pollable, return NULL.
-	}
+	if (!mt_unlocks (mutex) doTrigger ())
+	    logF_ (_func, "doTrigger() failed: ", exc->toString());
     } else {
 	mutex.unlock ();
     }
-    logD_ (_func, "num_pollables: ", tmp_num_pollables);
 
     return static_cast <void*> (pollable_entry);
 }
@@ -160,19 +139,18 @@ PollPollGroup::removePollable (PollableKey const mt_nonnull key)
 {
     PollableEntry * const pollable_entry = static_cast <PollableEntry*> ((void*) key);
 
-    unsigned long tmp_num_pollables;
     mutex.lock ();
+
     pollable_entry->valid = false;
-    if (pollable_entry->activated) {
+    if (pollable_entry->activated)
 	pollable_list.remove (pollable_entry);
-    } else {
+    else
 	inactive_pollable_list.remove (pollable_entry);
-    }
+
     pollable_entry->unref ();
     --num_pollables;
-    tmp_num_pollables = num_pollables;
+
     mutex.unlock ();
-    logD_ (_func, "num_pollables: ", tmp_num_pollables);
 }
 
 mt_throws Result
@@ -229,19 +207,37 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 
 	    elapsed_microsec = cur_microsec - start_microsec;
 
-	    Uint64 tmp_timeout;
-	    if (!got_deferred_tasks) {
-		tmp_timeout = timeout_microsec;
-		if (timeout_microsec != (Uint64) -1) {
-		    tmp_timeout /= 1000;
-		    if (tmp_timeout >= Int_Max)
-			tmp_timeout = Int_Max - 1;
-		}
-	    } else {
-		tmp_timeout = 0;
-	    }
+            int timeout;
+            if (!got_deferred_tasks) {
+                if (timeout_microsec != (Uint64) -1) {
+                    if (timeout_microsec > elapsed_microsec) {
+                        Uint64 const tmp_timeout = (timeout_microsec - elapsed_microsec) / 1000;
+                        timeout = (int) tmp_timeout;
+                        if ((Uint64) timeout != tmp_timeout || timeout < 0)
+                            timeout = Int_Max - 1;
 
-	    nfds = ::poll (pollfds, cur_num_pollables, (int) tmp_timeout);
+                        if (timeout == 0)
+                            timeout = 1;
+                    } else {
+                        timeout = 0;
+                    }
+                } else {
+                    timeout = -1;
+                }
+            } else {
+                timeout = 0;
+            }
+
+            mutex.lock ();
+            if (triggered || timeout == 0) {
+                block_trigger_pipe = true;
+                timeout = 0;
+            } else {
+                block_trigger_pipe = false;
+            }
+            mutex.unlock ();
+
+	    nfds = ::poll (pollfds, cur_num_pollables, timeout);
 	    if (nfds == -1) {
 		if (errno == EINTR) {
 		    SelectedList::iter iter (selected_list);
@@ -262,9 +258,15 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 		ret_res = Result::Failure;
 		goto _poll_interrupted;
 	    }
-
-	    got_deferred_tasks = false;
 	}
+
+        mutex.lock ();
+        block_trigger_pipe = true;
+        bool const was_triggered = triggered;
+        triggered = false;
+        mutex.unlock ();
+
+        got_deferred_tasks = false;
 
 	if (frontend)
 	    frontend.call (frontend->pollIterationBegin);
@@ -329,29 +331,11 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 		}
 
 		pollable_entry->unref ();
-
 		++i;
 	    }
 	    assert (i == cur_num_pollables);
 
 	    mutex.unlock ();
-	}
-
-	bool trigger_break = false;
-	{
-	    if (trigger_pipe_ready) {
-		if (!commonTriggerPipeRead (trigger_pipe [0]))
-		    goto _poll_interrupted;
-	    }
-
-	    mutex.lock ();
-	    if (triggered) {
-		triggered = false;
-		mutex.unlock ();
-		trigger_break = true;
-	    } else {
-		mutex.unlock ();
-	    }
 	}
 
 	if (frontend) {
@@ -361,11 +345,17 @@ PollPollGroup::poll (Uint64 const timeout_microsec)
 		got_deferred_tasks = true;
 	}
 
-	if (trigger_break)
-	    break;
+        if (trigger_pipe_ready) {
+            if (!commonTriggerPipeRead (trigger_pipe [0])) {
+                logF_ (_func, "commonTriggerPipeRead() failed: ", exc->toString());
+                return Result::Failure;
+            }
+            break;
+        }
 
-	// TODO This is the reason for double poll() on timeouts.
-	//      Fix this in all kinds of poll groups.
+        if (was_triggered)
+            break;
+
 	if (elapsed_microsec >= timeout_microsec) {
 	  // Timeout expired.
 	    break;
@@ -386,7 +376,7 @@ _poll_interrupted:
     return ret_res;
 }
 
-mt_mutex (mutex) mt_unlocks (mutex) mt_throws Result
+mt_unlocks (mutex) mt_throws Result
 PollPollGroup::doTrigger ()
 {
     if (triggered) {
@@ -394,9 +384,14 @@ PollPollGroup::doTrigger ()
 	return Result::Success;
     }
     triggered = true;
+
+    if (block_trigger_pipe) {
+        mutex.unlock ();
+        return Result::Success;
+    }
     mutex.unlock ();
 
-    return triggerPipeWrite ();
+    return commonTriggerPipeWrite (trigger_pipe [1]);
 }
 
 mt_throws Result
@@ -424,12 +419,13 @@ PollPollGroup::open ()
 
 PollPollGroup::PollPollGroup (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
+      poll_tlocal (NULL),
       num_pollables (0),
       triggered (false),
+      block_trigger_pipe (true),
       // Initializing to 'true' to process deferred tasks scheduled before we
-      // enter poll() the first time.
-      got_deferred_tasks (true),
-      poll_tlocal (NULL)
+      // enter poll() for the first time.
+      got_deferred_tasks (true)
 {
     trigger_pipe [0] = -1;
     trigger_pipe [1] = -1;

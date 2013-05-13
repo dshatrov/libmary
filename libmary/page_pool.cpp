@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -29,9 +29,7 @@
 
 namespace M {
 
-namespace {
-LogGroup libMary_logGroup_pool ("pool", LogLevel::N);
-}
+static LogGroup libMary_logGroup_pool ("pool", LogLevel::I);
 
 void
 PagePool::PageListArray::doGetSet (Size        offset,
@@ -130,7 +128,7 @@ PagePool::grabPage ()
     Page *page;
     if (!first_spare_page) {
         // Default page refcount is 1.
-        page = new (new Byte [sizeof (Page) + page_size]) Page;
+        page = new (new (std::nothrow) Byte [sizeof (Page) + page_size]) Page;
         assert (page);
 
         logD (pool, _func, "new page 0x", fmt_hex, (UintPtr) page);
@@ -186,6 +184,10 @@ PagePool::doGetPages (PageListHead * const mt_nonnull page_list,
     mutex.lock ();
     while (cur_data_len > 0) {
         // TODO Grab all pages with mutex locked, then unlock the mutex, then do memcpy.
+        //      Don't forget about proper synchronization for memcpy.
+        //
+        //      It'd also be better to decide how many pages are needed and malloc them
+        //      in advance before locking 'mutex' (bulk grab).
 	Page * const page = grabPage ();
 	{
 	  // Dealing with the linked list.
@@ -233,8 +235,6 @@ PagePool::getFillPagesFromPages (PageListHead * const mt_nonnull page_list,
     }
     assert (from_page || (from_len == 0 && from_offset == 0));
 
-    mutex.lock ();
-
     if (page_list->last != NULL) {
         Page * const page = page_list->last;
         if (page->data_len < page_size) {
@@ -258,6 +258,10 @@ PagePool::getFillPagesFromPages (PageListHead * const mt_nonnull page_list,
         }
     }
 
+    if (from_len == 0)
+        return;
+
+    mutex.lock ();
     while (from_len > 0) {
         Page * const page = grabPage ();
 	{
@@ -290,7 +294,6 @@ PagePool::getFillPagesFromPages (PageListHead * const mt_nonnull page_list,
             from_offset = 0;
         }
     }
-
     mutex.unlock ();
 }
 
@@ -304,14 +307,14 @@ PagePool::getPages (PageListHead * const mt_nonnull page_list,
 void
 PagePool::pageRef (Page * const mt_nonnull page) 
 {
-    logD (pool, _func, "0x", fmt_hex, (UintPtr) page, ": ", page->refcount.get());
+    logD (pool, _func, "0x", fmt_hex, (UintPtr) page, ": ", fmt_def, page->refcount.get());
     page->refcount.inc ();
 }
 
 void
 PagePool::pageUnref (Page * const mt_nonnull page)
 {
-    logD (pool, _func, "0x", fmt_hex, (UintPtr) page, ": ", page->refcount.get());
+    logD (pool, _func, "0x", fmt_hex, (UintPtr) page, ": ", fmt_def, page->refcount.get());
 
     if (!page->refcount.decAndTest ())
 	return;
@@ -321,7 +324,7 @@ PagePool::pageUnref (Page * const mt_nonnull page)
     assert (stats.num_busy_pages > 0);
     --stats.num_busy_pages;
 
-    if (num_pages <= min_pages) {
+    if (stats.num_spare_pages < min_pages) {
 	logD (pool, _func, "num_pages: ", num_pages, ", spare page 0x", fmt_hex, (UintPtr) page);
 
 	page->next_pool_page = first_spare_page;
@@ -334,7 +337,6 @@ PagePool::pageUnref (Page * const mt_nonnull page)
 	--num_pages;
 	mutex.unlock ();
 
-	// FIXME mismatch free/delete/delete[] complaints from valgrind.
 	page->~Page();
 	delete[] (Byte*) page;
 
@@ -365,6 +367,7 @@ PagePool::msgUnref (Page * const first_page)
     Page *cur_page = first_page;
     while (cur_page) {
 	Page * const next_page = cur_page->next_msg_page;
+        // TODO bulk unref (single lock)
 	pageUnref (cur_page);
 	cur_page = next_page;
     }
@@ -375,38 +378,32 @@ PagePool::setMinPages (Count const min_pages)
 {
     mutex.lock ();
 
-    Count const old_min_pages = this->min_pages;
     this->min_pages = min_pages;
 
-    if (min_pages < old_min_pages) {
-	while (num_pages > min_pages &&
-	       first_spare_page)
-	{
-	    Page * const page = first_spare_page;
-	    first_spare_page = first_spare_page->next_pool_page;
+    while (stats.num_spare_pages < min_pages) {
+        Page * const page =
+                new (new (std::nothrow) Byte [sizeof (Page) + page_size]) Page (0);
+        assert (page);
 
-	    // FIXME mismatch free/delete/delete[] complaints from valgrind.
-	    page->~Page();
-	    delete[] (Byte*) page;
+        page->next_pool_page = first_spare_page;
+        first_spare_page = page;
 
-	    assert (stats.num_spare_pages > 0);
-	    --stats.num_spare_pages;
-	    --num_pages;
-	}
-    } else {
-	while (num_pages < min_pages) {
-//	    fprintf (stderr, "allocating %lu bytes, num_pages: %lu\n",
-//		     (unsigned long) (sizeof (Page) + page_size), (unsigned long) num_pages);
+        ++stats.num_spare_pages;
+        ++num_pages;
+    }
 
-	    Page * const page = new (new Byte [sizeof (Page) + page_size]) Page (0);
-	    assert (page);
+    while (stats.num_spare_pages > min_pages) {
+        assert (first_spare_page && num_pages);
 
-	    page->next_pool_page = first_spare_page;
-	    first_spare_page = page;
+        Page * const page = first_spare_page;
+        first_spare_page = first_spare_page->next_pool_page;
 
-	    ++stats.num_spare_pages;
-	    ++num_pages;
-	}
+        page->~Page();
+        delete[] (Byte*) page;
+
+        assert (stats.num_spare_pages > 0);
+        --stats.num_spare_pages;
+        --num_pages;
     }
 
     mutex.unlock ();
@@ -426,7 +423,8 @@ PagePool::PagePool (Object * const coderef_container,
 //	fprintf (stderr, "allocating %lu bytes #%lu\n",
 //		 (unsigned long) (sizeof (Page) + page_size), (unsigned long) i);
 
-	Page * const page = new (new Byte [sizeof (Page) + page_size]) Page (0 /* TODO: Set to 1 for testing (should be 0) */);
+	Page * const page =
+                new (new (std::nothrow) Byte [sizeof (Page) + page_size]) Page (0 /* TODO: Set to 1 for testing (should be 0) */);
 	assert (page);
 	if (!first_spare_page)
 	    first_spare_page = page;
@@ -456,9 +454,10 @@ PagePool::~PagePool ()
     Page *cur_page = first_spare_page;
     while (cur_page) {
 	Page * const next_page = cur_page->next_pool_page;
-	// FIXME mismatch free/delete/delete[] complaints from valgrind.
+
 	cur_page->~Page();
 	delete[] (Byte*) cur_page;
+
 	cur_page = next_page;
     }
 

@@ -44,23 +44,24 @@ private:
     mt_unlocks (mutex) void closeIfNeeded (bool deferred_event,
                                            bool unlock);
 
+#ifdef LIBMARY_WIN32_IOCP
+    static void outputIoComplete (Exception  *exc_,
+                                  Overlapped *overlapped,
+                                  Size        bytes_transferred,
+                                  void       *cb_data);
+#else
   mt_iface (Connection::OutputFrontend)
     static Connection::OutputFrontend const conn_output_frontend;
-#ifdef LIBMARY_WIN32_IOCP
-    static void outputComplete (Overlapped *overlapped,
-                                Size        bytes_transferred,
-                                void       *cb_data);
-#else
     static void processOutput (void *_self);
-#endif
   mt_iface_end
+#endif
 
     mt_mutex (mutex) mt_unlocks (mutex) void doFlush (bool unlock);
 
 public:
   mt_iface (Sender)
     void sendMessage (MessageEntry * mt_nonnull msg_entry,
-		      bool do_flush);
+		      bool          do_flush);
 
     mt_mutex (mutex) void sendMessage_unlocked (MessageEntry * mt_nonnull msg_entry,
                                                 bool          do_flush);
@@ -85,8 +86,10 @@ public:
     void setConnection (Connection * const mt_nonnull conn)
     {
 	conn_sender_impl.setConnection (conn);
+#ifndef LIBMARY_WIN32_IOCP
 	conn->setOutputFrontend (
                 CbDesc<Connection::OutputFrontend> (&conn_output_frontend, this, getCoderefContainer()));
+#endif
     }
 
     void init (DeferredProcessor * const mt_nonnull deferred_processor)
@@ -94,8 +97,7 @@ public:
         deferred_reg.setDeferredProcessor (deferred_processor);
     }
 
-    ImmediateConnectionSender (Object *coderef_container);
-
+     ImmediateConnectionSender (Object *coderef_container);
     ~ImmediateConnectionSender ();
 };
 

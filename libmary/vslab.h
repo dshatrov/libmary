@@ -23,6 +23,7 @@
 
 #include <libmary/vstack.h>
 #include <libmary/intrusive_list.h>
+#include <libmary/log.h>
 
 
 namespace M {
@@ -163,7 +164,7 @@ public:
 	    free_nodes.remove (free_nodes.getFirst ());
 	}
 
-	if (ret_key != NULL)
+	if (ret_key)
 	    *ret_key = node;
 
 	return &node->obj;
@@ -181,12 +182,12 @@ public:
 	    node = new (vstack.push_malign (sizeof (Node) - sizeof (T) + size, alignof (Node))) Node;
 	    node->refcount = 1;
 	} else {
-	    node = free_nodes.getFirst ();
+	    node = free_nodes.getFirst();
 	    node->refcount = 1;
-	    free_nodes.remove (free_nodes.getFirst ());
+	    free_nodes.remove (node);
 	}
 
-	if (ret_key != NULL)
+	if (ret_key)
 	    *ret_key = node;
 
 	return &node->obj;
@@ -229,18 +230,15 @@ public:
     // Deprecated method
     void free (AllocKey const key)
     {
-	Node * const &node = key;
-
-	free_nodes.append (node);
-
+	Node * const node = key;
+	free_nodes.prepend (node);
       // Note that no destructors are called.
     }
 
     // TODO prealloc in bytes, not in instances of T (the latter makes no sense).
     VSlab (Size prealloc = 1024)
-	: vstack (prealloc * sizeof (T))
-    {
-    }
+	: vstack (prealloc * sizeof (T) /* sizeof Node would be better */)
+    {}
 
     ~VSlab ()
     {

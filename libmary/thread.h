@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,11 +17,9 @@
 */
 
 
-#ifndef __LIBMARY__THREAD__H__
-#define __LIBMARY__THREAD__H__
+#ifndef LIBMARY__THREAD__H__
+#define LIBMARY__THREAD__H__
 
-
-#include <libmary/libmary_config.h>
 
 #include <libmary/types.h>
 #include <glib.h>
@@ -44,7 +42,6 @@ public:
 private:
     // 'thread_cb' gets reset when the thread exits.
     mt_mutex (mutex) Cb<ThreadFunc> thread_cb;
-
     mt_mutex (mutex) GThread *thread;
 
     static gpointer wrapperThreadFunc (gpointer _self);
@@ -60,23 +57,14 @@ public:
     // Thread callback is reset when the thread exits.
     void setThreadFunc (CbDesc<ThreadFunc> const &cb);
 
-    void setThreadFunc (Cb<ThreadFunc> const &cb);
-
     Thread (CbDesc<ThreadFunc> const &thread_cb = CbDesc<ThreadFunc> ())
 	: thread_cb (thread_cb),
 	  thread (NULL)
-    {
-    }
-
-    Thread (Cb<ThreadFunc> const &thread_cb)
-	: thread_cb (thread_cb),
-	  thread (NULL)
-    {
-    }
+    {}
 };
 
 }
 
 
-#endif /* __LIBMARY__THREAD__H__ */
+#endif /* LIBMARY__THREAD__H__ */
 

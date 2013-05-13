@@ -21,8 +21,6 @@
 #define LIBMARY__DEFERRED_CONNECTION_SENDER__H__
 
 
-#include <libmary/libmary_config.h>
-
 #include <libmary/intrusive_list.h>
 #include <libmary/connection.h>
 #include <libmary/sender.h>
@@ -63,17 +61,17 @@ private:
 
     mt_unlocks (mutex) void closeIfNeeded (bool deferred_event);
 
+#ifdef LIBMARY_WIN32_IOCP
+    static void outputIoComplete (Exception  *exc_,
+                                  Overlapped *overlapped,
+                                  Size        bytes_transferred,
+                                  void       *cb_data);
+#else
   mt_iface (Connection::OutputFrontend)
     static Connection::OutputFrontend const conn_output_frontend;
-
-#ifdef LIBMARY_WIN32_IOCP
-    static void outputComplete (Overlapped *overlapped,
-                                Size        bytes_transferred,
-                                void       *cb_data);
-#else
     static void processOutput (void *_self);
-#endif
   mt_iface_end
+#endif
 
     mt_unlocks (mutex) void doFlush (bool unlock);
 
@@ -105,8 +103,10 @@ public:
     mt_const void setConnection (Connection * const mt_nonnull conn)
     {
 	conn_sender_impl.setConnection (conn);
+#ifndef LIBMARY_WIN32_IOCP
 	conn->setOutputFrontend (
                 CbDesc<Connection::OutputFrontend> (&conn_output_frontend, this, getCoderefContainer()));
+#endif
     }
 
     mt_const void setQueue (DeferredConnectionSenderQueue * mt_nonnull dcs_queue);

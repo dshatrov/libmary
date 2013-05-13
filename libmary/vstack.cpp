@@ -17,6 +17,8 @@
 */
 
 
+#include <libmary/log.h>
+
 #include <libmary/vstack.h>
 
 
@@ -57,7 +59,6 @@ VStack::addBlock (Size const num_bytes)
     }
 
     level += num_bytes;
-
     return ret_buf;
 }
 
@@ -78,12 +79,11 @@ VStack::push_unaligned (Size const num_bytes)
     block->height += num_bytes;
 
     level += num_bytes;
-
     return block->buf + prv_height;
 }
 
 // Returned address meets alignment requirements for an object of class A
-// if sizeof(A) is @alignment.
+// if alignof(A) is @alignment.
 // Returned address is always a multiple of @alignment bytes away from
 // the start of the corresponding block.
 Byte*
@@ -124,7 +124,6 @@ VStack::push_malign (Size const num_bytes,
     block->height = new_height;
 
     level += new_height - prv_height;
-
     return ptr;
 }
 

@@ -49,56 +49,49 @@ private:
     // TODO It would be more efficient to manage PollableEntries through
     // a deletion queue instead of basic refcounts. There's two points where
     // the queue can be processed: right after processing all events in poll(),
-    // and in ~SelectPollGroup() destructor.
+    // and in ~SelectPollGroup() destructor. That way there would be no need
+    // in unref loops when leaving poll().
     //
-    // Operations with BasicReferenced base (ref/unref) should be synchronized
+    // Operations with StReferenced base (ref/unref) should be synchronized
     // with SelectPollGroup::mutex.
-    class PollableEntry : public BasicReferenced,
+    class PollableEntry : public StReferenced,
 			  public IntrusiveListElement<PollableList_name>,
 			  public IntrusiveListElement<SelectedList_name>
     {
     public:
 	mt_const SelectPollGroup *select_poll_group;
 
-	bool valid;
+	mt_const Cb<Pollable> pollable;
+	mt_const int fd;
 
-	mt_mutex (SelectPollGroup::mutex) bool activated;
+	mt_mutex (mutex) bool valid;
+	mt_mutex (mutex) bool activated;
 
-	Cb<Pollable> pollable;
-
-	int fd;
-
-	bool need_input;
-	bool need_output;
+	mt_mutex (mutex) bool need_input;
+	mt_mutex (mutex) bool need_output;
     };
 
     typedef IntrusiveList< PollableEntry, PollableList_name > PollableList;
     typedef IntrusiveList< PollableEntry, SelectedList_name > SelectedList;
 
-    PollableList pollable_list;
-    PollableList inactive_pollable_list;
-
-    mt_const int trigger_pipe [2];
-    bool triggered;
-
-    // Should be accessed from event processing thread only.
-    bool got_deferred_tasks;
-
     mt_const LibMary_ThreadLocal *poll_tlocal;
 
-    mt_throws Result triggerPipeWrite ();
+    mt_mutex (mutex) PollableList pollable_list;
+    mt_mutex (mutex) PollableList inactive_pollable_list;
+
+    mt_const int trigger_pipe [2];
+    mt_mutex (mutex) bool triggered;
+    mt_mutex (mutex) bool block_trigger_pipe;
+
+    mt_sync_domain (poll) bool got_deferred_tasks;
 
   mt_iface (PollGroup::Feedback)
-
     static Feedback const pollable_feedback;
-
-    static void requestInput (void *_pollable_entry);
-
+    static void requestInput  (void *_pollable_entry);
     static void requestOutput (void *_pollable_entry);
-
   mt_iface_end
 
-    mt_mutex (mutex) mt_unlocks (mutex) mt_throws Result doTrigger ();
+    mt_unlocks (mutex) mt_throws Result doTrigger ();
 
 public:
   mt_iface (ActivePollGroup)
@@ -107,6 +100,23 @@ public:
 					 bool activate = true);
 
       mt_throws Result activatePollable (PollableKey mt_nonnull key);
+
+      mt_throws Result addPollable_beforeConnect (CbDesc<Pollable> const & /* pollable */,
+                                                  PollableKey * const /* ret_key */)
+          { return Result::Success; }
+
+      mt_throws Result addPollable_afterConnect (CbDesc<Pollable> const &pollable,
+                                                 PollableKey * const ret_key)
+      {
+          PollableKey const key = addPollable (pollable, true /* activate */);
+          if (!key)
+              return Result::Failure;
+
+          if (ret_key)
+              *ret_key = key;
+
+          return Result::Success;
+      }
 
       void removePollable (PollableKey mt_nonnull key);
     mt_iface_end
@@ -120,12 +130,9 @@ public:
     mt_throws Result open ();
 
     mt_const void bindToThread (LibMary_ThreadLocal * const poll_tlocal)
-    {
-	this->poll_tlocal = poll_tlocal;
-    }
+        { this->poll_tlocal = poll_tlocal; }
 
-    SelectPollGroup (Object *coderef_container);
-
+     SelectPollGroup (Object *coderef_container);
     ~SelectPollGroup ();
 };
 

@@ -25,7 +25,6 @@
 #include <cstdlib>
 #include <new>
 
-#include <libmary/libmary_config.h>
 #include <libmary/string.h>
 #include <libmary/ref.h>
 #include <libmary/libmary_thread_local.h>
@@ -195,8 +194,7 @@ public:
 
     Ref<String> toString ()
     {
-        // TODO Error code to string.
-        return grab (new (std::nothrow) String ("WSAException"));
+        return wsaErrorToString (wsa_error_code);
     }
 
     WSAException (int const wsa_error_code)

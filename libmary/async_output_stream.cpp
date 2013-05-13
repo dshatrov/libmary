@@ -22,6 +22,7 @@
 
 namespace M {
 
+#ifndef LIBMARY_WIN32_IOCP
 mt_throws AsyncIoResult
 AsyncOutputStream::writev (struct iovec * const iovs,
 			   Count          const num_iovs,
@@ -76,6 +77,7 @@ AsyncOutputStream::writev (struct iovec * const iovs,
 
     return AsyncIoResult::Normal;
 }
+#endif /* LIBMARY_WIN32_IOCP */
 
 }
 

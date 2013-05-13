@@ -17,6 +17,8 @@
 */
 
 
+#include <libmary/types.h>
+
 #include <limits.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -24,7 +26,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include <libmary/posix.h>
 #include <libmary/log.h>
 #include <libmary/util_base.h>
 #include <libmary/util_dev.h>
@@ -36,8 +37,8 @@ namespace M {
 
 PollGroup::Pollable const NativeAsyncFile::pollable = {
     processEvents,
-    getFd,
-    setFeedback
+    setFeedback,
+    getFd
 };
 
 void

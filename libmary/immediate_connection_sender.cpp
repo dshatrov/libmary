@@ -59,28 +59,38 @@ ImmediateConnectionSender::closeIfNeeded (bool const deferred_event,
     }
 }
 
-Connection::OutputFrontend const ImmediateConnectionSender::conn_output_frontend = {
-#ifdef LIBMARY_WIN32_IOCP
-    outputComplete
-#else
-    processOutput
-#endif
-};
-
 #ifdef LIBMARY_WIN32_IOCP
 void
-ImmediateConnectionSender::outputComplete (Overlapped * const /* overlapped */,
-                                           Size         const /* bytes_transferred */,
-                                           void       * const _self)
+ImmediateConnectionSender::outputIoComplete (Exception  * const exc_,
+                                             Overlapped * const /* overlapped */,
+                                             Size         const /* bytes_transferred */,
+                                             void       * const _self)
 {
 #else
+Connection::OutputFrontend const ImmediateConnectionSender::conn_output_frontend = {
+    processOutput
+};
+
 void
 ImmediateConnectionSender::processOutput (void * const _self)
 {
-    ImmediateConnectionSender * const self = static_cast <ImmediateConnectionSender*> (_self);
 #endif
+    ImmediateConnectionSender * const self = static_cast <ImmediateConnectionSender*> (_self);
 
     self->mutex.lock ();
+
+#ifdef LIBMARY_WIN32_IOCP
+    self->conn_sender_impl.outputComplete ();
+
+    if (exc_) {
+        self->mutex.unlock ();
+        if (self->frontend)
+            self->frontend.call (self->frontend->closed, /*(*/ exc_ /*)*/);
+
+        return;
+    }
+#endif
+
     AsyncIoResult const res = self->conn_sender_impl.sendPendingMessages ();
     if (res == AsyncIoResult::Error ||
 	res == AsyncIoResult::Eof)
@@ -276,7 +286,11 @@ ImmediateConnectionSender::unlock ()
 ImmediateConnectionSender::ImmediateConnectionSender (Object * const coderef_container)
     : Sender (coderef_container),
       DependentCodeReferenced (coderef_container),
-      conn_sender_impl (false /* enable_processing_barrier */),
+      conn_sender_impl (
+#ifdef LIBMARY_WIN32_IOCP
+                        CbDesc<Overlapped::IoCompleteCallback> (&outputIoComplete, this, coderef_container),
+#endif
+                        false /* enable_processing_barrier */),
       closed (false),
       close_after_flush (false),
       ready_for_output (true)

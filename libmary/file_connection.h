@@ -28,35 +28,59 @@
 
 namespace M {
 
+//#warning For IOCP, this is completely inadequate.
+//#warning For epoll, this is inadequate as well, because
+//#warning we hold sender mutex while doing blocking i/o.
+//#warning So this must be redesigned for both cases.
+
+//#warning Продумать синхронизацию Sender'ов. Можно ли ввести разрыв мьютекса на время системного вызова?
+
 class FileConnection : public Connection
 {
 private:
     mt_const File *file;
 
 public:
+  mt_iface (Connection)
     mt_iface (AsyncInputStream)
-      mt_throws AsyncIoResult read (Memory  mem,
-				    Size   *ret_nread);
+      mt_throws AsyncIoResult read (
+#ifdef LIBMARY_WIN32_IOCP
+                                    OVERLAPPED  * mt_nonnull overlapped,
+#endif
+                                    Memory       mem,
+				    Size        *ret_nread);
     mt_iface_end
 
     mt_iface (AsyncOutputStream)
-      mt_throws AsyncIoResult write (ConstMemory  mem,
+      mt_throws AsyncIoResult write (
+#ifdef LIBMARY_WIN32_IOCP
+                                     OVERLAPPED  * mt_nonnull overlapped,
+#endif
+                                     ConstMemory  mem,
 				     Size        *ret_nwritten);
 
-      mt_throws AsyncIoResult writev (struct iovec *iovs,
+      mt_throws AsyncIoResult writev (
+#ifdef LIBMARY_WIN32_IOCP
+                                      OVERLAPPED   * mt_nonnull overlapped,
+                                      WSABUF       * mt_nonnull buffers,
+#else
+                                      struct iovec *iovs,
+#endif
 				      Count         num_iovs,
 				      Size         *ret_nwrittev);
     mt_iface_end
 
-    mt_iface (Connection)
 #ifdef LIBMARY_ENABLE_MWRITEV
-      int getFd () { return file->getFd(); }
+    int getFd () { return file->getFd(); }
 #endif
-    mt_iface_end
+  mt_iface_end
 
     mt_const void init (File * const mt_nonnull file) { this->file = file; }
 
-    FileConnection () : file (NULL) {}
+    FileConnection (Object * const coderef_container)
+        : DependentCodeReferenced (coderef_container),
+          file (NULL)
+    {}
 };
 
 }

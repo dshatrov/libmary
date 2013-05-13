@@ -22,54 +22,53 @@
 
 
 #include <libmary/types.h>
-
 #ifndef LIBMARY_PLATFORM_WIN32
 #include <sys/uio.h>
 #endif
 
+#include <libmary/code_referenced.h>
 #include <libmary/exception.h>
 #include <libmary/cb.h>
 
 
 namespace M {
 
-class AsyncOutputStream
+class AsyncOutputStream : public virtual DependentCodeReferenced
 {
-public:
-    struct OutputFrontend {
 #ifdef LIBMARY_WIN32_IOCP
-        void (*outputComplete) (Overlapped *overlapped,
-                                Size        bytes_transferred,
-                                void       *cb_data);
-#else
-	void (*processOutput) (void *cb_data);
-#endif
-    };
-
-protected:
-    mt_const Cb<OutputFrontend> output_frontend;
-
 public:
-#ifdef LIBMARY_WIN32_IOCP
     virtual mt_throws AsyncIoResult write (OVERLAPPED  * mt_nonnull overlapped,
                                            ConstMemory  mem,
                                            Size        *ret_nwritten) = 0;
 
     virtual mt_throws AsyncIoResult writev (OVERLAPPED  * mt_nonnull overlapped,
                                             WSABUF      * mt_nonnull buffers,
-                                            Count        buffer_count;
+                                            Count        buffer_count,
                                             Size        *ret_nwritten) = 0;
 #else
+public:
+    struct OutputFrontend {
+	void (*processOutput) (void *cb_data);
+    };
+
+protected:
+    mt_const Cb<OutputFrontend> output_frontend;
+
+public:
     virtual mt_throws AsyncIoResult write (ConstMemory  mem,
 					   Size        *ret_nwritten) = 0;
 
     virtual mt_throws AsyncIoResult writev (struct iovec *iovs,
 					    Count         num_iovs,
 					    Size         *ret_nwritten);
-#endif
 
     mt_const void setOutputFrontend (CbDesc<OutputFrontend> const &output_frontend)
         { this->output_frontend = output_frontend; }
+#endif
+
+    AsyncOutputStream ()
+        : DependentCodeReferenced (NULL /* coderef_container */)
+    {}
 
     virtual ~AsyncOutputStream () {}
 };

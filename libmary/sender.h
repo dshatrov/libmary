@@ -22,10 +22,8 @@
 
 
 #include <libmary/types.h>
-
 #include <new>
 
-#include <libmary/libmary_config.h>
 #include <libmary/intrusive_list.h>
 #include <libmary/code_referenced.h>
 #include <libmary/cb.h>
@@ -80,8 +78,10 @@ public:
     };
 
     class MessageList_name;
+    class PendingMessageList_name;
 
-    class MessageEntry : public IntrusiveListElement<MessageList_name>
+    class MessageEntry : public IntrusiveListElement<MessageList_name>,
+                         public IntrusiveListElement<PendingMessageList_name>
     {
     public:
 	enum Type {
@@ -90,32 +90,13 @@ public:
 
 	Type const type;
 
-	MessageEntry (Type const type)
-	    : type (type)
-	{
-	}
+	MessageEntry (Type const type) : type (type) {}
     };
 
     typedef IntrusiveList <MessageEntry, MessageList_name> MessageList;
+    typedef IntrusiveList <MessageEntry, PendingMessageList_name> PendingMessageList;
 
-#ifdef LIBMARY_SENDER_VSLAB
-    static void deleteMessageEntry (MessageEntry * const mt_nonnull msg_entry)
-    {
-	MessageEntry_Pages * const msg_pages = static_cast <MessageEntry_Pages*> (msg_entry);
-
-	msg_pages->page_pool->msgUnref (msg_pages->first_page);
-	if (msg_pages->vslab_key) {
-  #ifdef LIBMARY_MT_SAFE
-	  MutexLock msg_vslab_l (&msg_vslab_mutex);
-  #endif
-	    msg_vslab.free (msg_pages->vslab_key);
-	} else {
-	    delete[] (Byte*) msg_pages;
-	}
-    }
-#else
     static void deleteMessageEntry (MessageEntry * mt_nonnull msg_entry);
-#endif
 
     class MessageEntry_Pages : public MessageEntry
     {
@@ -125,22 +106,39 @@ public:
 #endif
 
     private:
-	MessageEntry_Pages ()
-	    : MessageEntry (MessageEntry::Pages)
-	{
-	}
+        MessageEntry_Pages ()
+            : MessageEntry (MessageEntry::Pages)
+#ifdef LIBMARY_WIN32_IOCP
+              , first_pending_page (NULL)
+#endif
+        {}
 
-	~MessageEntry_Pages ()
-	{
-	}
+	~MessageEntry_Pages () {}
 
     public:
 	Size header_len;
-
-        // TODO There's really no point to ref/unref 'page_pool' in runtime.
-        //      It only slightly matters at program exit.
 	CodeDepRef<PagePool> page_pool;
+
+    private:
 	PagePool::Page *first_page;
+    public:
+#ifdef LIBMARY_WIN32_IOCP
+        PagePool::Page *first_pending_page;
+#endif
+
+        void setFirstPage (PagePool::Page * const page)
+        {
+            first_page = page;
+#ifdef LIBMARY_WIN32_IOCP
+            first_pending_page = page;
+#endif
+        }
+
+        void setFirstPageNoPending (PagePool::Page * const page)
+            { first_page = page; }
+
+        PagePool::Page* getFirstPage () { return first_page; }
+
 	Size msg_offset;
 
 #ifdef LIBMARY_SENDER_VSLAB
@@ -148,49 +146,15 @@ public:
 #endif
 
 	Byte* getHeaderData () const
-	{
-	    return (Byte*) this + sizeof (*this);
-	}
+	    { return (Byte*) this + sizeof (*this); }
 
 	Size getTotalMsgLen() const
-	{
-	    return header_len + getPagesDataLen();
-	}
+            { return header_len + getPagesDataLen(); }
 
 	Size getPagesDataLen () const
-	{
-            return PagePool::countPageListDataLen (first_page, msg_offset);
-	}
+            { return PagePool::countPageListDataLen (first_page, msg_offset); }
 
-	static MessageEntry_Pages* createNew (Size const max_header_len = 0)
-	{
-#ifdef LIBMARY_SENDER_VSLAB
-	    unsigned const vslab_header_len = 33 /* RtmpConnection::MaxHeaderLen */;
-	    if (max_header_len <= vslab_header_len /* TODO Artificial limit (matches Moment::RtmpConnection's needs) */) {
-		VSlab<MessageEntry_Pages>::AllocKey vslab_key;
-		MessageEntry_Pages *msg_pages;
-		{
-  #ifdef LIBMARY_MT_SAFE
-		  MutexLock msg_vslab_l (&msg_vslab_mutex);
-  #endif
-		    msg_pages = msg_vslab.alloc (sizeof (MessageEntry_Pages) + vslab_header_len, &vslab_key);
-                    new (msg_pages) MessageEntry_Pages;
-		}
-		msg_pages->vslab_key = vslab_key;
-		return msg_pages;
-	    } else {
-                Byte * const buf = new (std::nothrow) Byte [sizeof (MessageEntry_Pages) + vslab_header_len];
-                assert (buf);
-		MessageEntry_Pages * const msg_pages = new (buf) MessageEntry_Pages;
-		msg_pages->vslab_key = NULL;
-		return msg_pages;
-	    }
-#else
-            Byte * const buf = new (std::nothrow) Byte [sizeof (MessageEntry_Pages) + max_header_len];
-            assert (buf);
-	    return new (buf) MessageEntry_Pages;
-#endif
-	}
+	static MessageEntry_Pages* createNew (Size max_header_len = 0);
     };
 
 #ifdef LIBMARY_SENDER_VSLAB
@@ -232,9 +196,7 @@ protected:
 
 public:
     Informer_<Frontend>* getEventInformer ()
-    {
-        return &event_informer;
-    }
+        { return &event_informer; }
 
     // public for ConnectionSenderImpl.
     void fireSendStateChanged_deferred (DeferredProcessor::Registration *def_reg,
@@ -261,8 +223,7 @@ public:
 
     virtual mt_mutex (mutex) SendState getSendState_unlocked () = 0;
 
-    virtual void lock () = 0;
-
+    virtual void lock   () = 0;
     virtual void unlock () = 0;
 
     void sendPages (PagePool       * const mt_nonnull page_pool,
@@ -274,7 +235,7 @@ public:
 	MessageEntry_Pages * const msg_pages = MessageEntry_Pages::createNew (0 /* max_header_len */);
 	msg_pages->header_len = 0;
 	msg_pages->page_pool = page_pool;
-	msg_pages->first_page = first_page;
+	msg_pages->setFirstPage (first_page);
 	msg_pages->msg_offset = 0;
 
 	sendMessage (msg_pages, do_flush);
@@ -288,7 +249,7 @@ public:
         MessageEntry_Pages * const msg_pages = MessageEntry_Pages::createNew (0 /* max_header_len */);
         msg_pages->header_len = 0;
         msg_pages->page_pool = page_pool;
-        msg_pages->first_page = first_page;
+        msg_pages->setFirstPage (first_page);
         msg_pages->msg_offset = msg_offset;
 
         sendMessage (msg_pages, do_flush);
@@ -305,21 +266,18 @@ public:
         MessageEntry_Pages * const msg_pages = MessageEntry_Pages::createNew (0 /* max_header_len */);
         msg_pages->header_len = 0;
         msg_pages->page_pool = page_pool;
-        msg_pages->first_page = page_list.first;
+        msg_pages->setFirstPage (page_list.first);
         msg_pages->msg_offset = 0;
 
         sendMessage (msg_pages, do_flush);
     }
 
     mt_const void setFrontend (CbDesc<Frontend> const &frontend)
-    {
-        this->frontend = frontend;
-    }
+        { this->frontend = frontend; }
 
     Sender (Object * const coderef_container)
         : event_informer (coderef_container, &mutex)
-    {
-    }
+    {}
 };
 
 }

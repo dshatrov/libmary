@@ -22,6 +22,10 @@
 
 
 #include <libmary/libmary_config.h>
+#ifdef LIBMARY_WIN32_IOCP
+#include <libmary/iocp_poll_group.h>
+#endif
+
 #include <libmary/connection.h>
 #include <libmary/sender.h>
 
@@ -31,6 +35,8 @@ namespace M {
 mt_unsafe class ConnectionSenderImpl
 {
 private:
+    mt_const bool blocking_mode;
+
     mt_const Cb<Sender::Frontend> *frontend;
     mt_const Sender *sender;
     mt_const DeferredProcessor::Registration *deferred_reg;
@@ -42,10 +48,18 @@ private:
     mt_const Count hard_msg_limit;
 
 #ifdef LIBMARY_WIN32_IOCP
-    Overlapped overlapped;
+    struct SenderOverlapped : public Overlapped
+    {
+        Sender::PendingMessageList pending_msg_list;
+        ~SenderOverlapped ();
+    };
+
+    Ref<SenderOverlapped> sender_overlapped;
+    bool overlapped_pending;
 #endif
 
     Sender::SendState send_state;
+    // Tracks send state as if there was no *QueueLimit states.
     bool overloaded;
 
     Sender::MessageList msg_list;
@@ -70,19 +84,24 @@ private:
 
     void sendPendingMessages_vector_fill (Count        * mt_nonnull ret_num_iovs,
 #ifdef LIBMARY_WIN32_IOCP
+                                          Count        * mt_nonnull ret_num_bytes,
                                           WSABUF       * mt_nonnull buffers,
 #else
 					  struct iovec * mt_nonnull iovs,
 #endif
 					  Count         num_iovs);
 
-    void sendPendingMessages_vector_react (Count num_iovs);
+    void sendPendingMessages_vector_react (Count num_written);
 
     void dumpMessage (Sender::MessageEntry * mt_nonnull msg_entry);
 
 public:
     // Takes ownership of msg_entry.
     void queueMessage (Sender::MessageEntry * mt_nonnull msg_entry);
+
+#ifdef LIBMARY_WIN32_IOCP
+    void outputComplete ();
+#endif
 
     mt_throws AsyncIoResult sendPendingMessages ();
 
@@ -101,8 +120,8 @@ public:
 
     bool gotDataToSend () const
     {
-	// TODO msg_list.isEmpty() is enough for this check.
-	return sending_message || !msg_list.isEmpty ();
+        // msg_list.isEmpty() is (likely) enough for this check.
+        return sending_message || !msg_list.isEmpty ();
     }
 
     Sender::SendState getSendState () const { return send_state; }
@@ -115,11 +134,13 @@ public:
 
     mt_const void init (Cb<Sender::Frontend>            * const frontend,
                         Sender                          * const sender,
-                        DeferredProcessor::Registration * const deferred_reg)
+                        DeferredProcessor::Registration * const deferred_reg,
+                        bool                              const blocking_mode = false)
     {
         this->frontend = frontend;
         this->sender = sender;
         this->deferred_reg = deferred_reg;
+        this->blocking_mode = blocking_mode;
     }
 
     mt_const void setLimits (Count const soft_msg_limit,
@@ -129,7 +150,11 @@ public:
 	this->hard_msg_limit = hard_msg_limit;
     }
 
-    ConnectionSenderImpl (bool enable_processing_barrier);
+    ConnectionSenderImpl (
+#ifdef LIBMARY_WIN32_IOCP
+                          CbDesc<Overlapped::IoCompleteCallback> const &io_complete_cb,
+#endif
+                          bool enable_processing_barrier);
 
     void release ();
 };

@@ -106,15 +106,16 @@ EpollPollGroup::doActivate (PollableEntry * const mt_nonnull pollable_entry)
 	return Result::Failure;
     }
 
-#warning We've added a new pollable to the poll group. We don't yet know its state
-#warning and we use edge-triggered events, hence we should assume initially that
-#warning both input and output events should be reported without waiting for an edge.
-#warning Take care of robust triggering to avoid loosing such injected events.
-    // ^^^ Note that ConnectionReceiver takes care of this.
     if (!trigger ()) {
-	logE_ (_func, "trigger() failed: ", exc->toString());
+	logF_ (_func, "trigger() failed: ", exc->toString());
 	return Result::Failure;
     }
+
+  // We've added a new pollable to the poll group. We don't yet know its state
+  // and we use edge-triggered events, hence we should assume initially that
+  // input and output events should be reported without waiting for an edge.
+  // Epoll appears to handle this for us, delivering ET I/O events which occured
+  // before EPOLL_CTL_ADD.
 
     return Result::Success;
 }
@@ -140,10 +141,10 @@ EpollPollGroup::removePollable (PollableKey const mt_nonnull key)
     {
 	int const res = epoll_ctl (efd, EPOLL_CTL_DEL, pollable_entry->fd, NULL /* event */);
 	if (res == -1) {
-	    logE_ (_func, "epoll_ctl() failed: ", errnoString (errno));
+	    logF_ (_func, "epoll_ctl() failed: ", errnoString (errno));
 	} else {
 	    if (res != 0)
-		logE_ (_func, "epoll_ctl(): unexpected return value: ", res);
+		logF_ (_func, "epoll_ctl(): unexpected return value: ", res);
 	}
     }
 
@@ -162,12 +163,13 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
     Time const start_microsec = getTimeMicroseconds ();
 
     struct epoll_event events [4096];
+    bool first = true;
     for (;;) {
-	Time const cur_microsec = getTimeMicroseconds ();
+	Time cur_microsec = first ? (first = false, start_microsec) : getTimeMicroseconds ();
+        if (cur_microsec < start_microsec)
+            cur_microsec = start_microsec;
 
 	Time const elapsed_microsec = cur_microsec - start_microsec;
-
-//	logD_ (_func, "start: ", start_microsec, ", cur: ", cur_microsec, ", elapsed: ", elapsed_microsec);
 
 	int timeout;
 	if (!got_deferred_tasks) {
@@ -175,8 +177,8 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 		if (timeout_microsec > elapsed_microsec) {
 		    Uint64 const tmp_timeout = (timeout_microsec - elapsed_microsec) / 1000;
                     timeout = (int) tmp_timeout;
-                    if ((Uint64) timeout != tmp_timeout)
-                        timeout = Int_Max;
+                    if ((Uint64) timeout != tmp_timeout || timeout < 0)
+                        timeout = Int_Max - 1;
 
 		    if (timeout == 0)
 			timeout = 1;
@@ -195,17 +197,30 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
         if (triggered || timeout == 0) {
             block_trigger_pipe = true;
             timeout = 0;
-            mutex.unlock ();
         } else {
             block_trigger_pipe = false;
-            mutex.unlock ();
         }
+        mutex.unlock ();
 
 #ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
         logD_ (_this_func, "calling epoll_wait()");
 #endif
 
+#if 0
+        if (timeout != 0) {
+            updateTime ();
+            logD_ (_func, "epoll_wait... (", timeout, ")");
+        }
+#endif
+
 	int const nfds = epoll_wait (efd, events, sizeof (events) / sizeof (events [0]), timeout);
+
+#if 0
+        if (timeout != 0) {
+            updateTime ();
+            logD_ (_func, "...epoll_wait, nfds: ", nfds);
+        }
+#endif
 
 #ifdef LIBMARY__EPOLL_POLL_GROUP__DEBUG
         logD_ (_this_func, "epoll_wait() returned");
@@ -216,19 +231,41 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 		continue;
 
 	    exc_throw (PosixException, errno);
-	    logE_ (_func, "epoll_wait() failed: ", errnoString (errno));
+	    logF_ (_func, "epoll_wait() failed: ", errnoString (errno));
 	    return Result::Failure;
 	}
 
 	if (nfds < 0 || (Size) nfds > sizeof (events) / sizeof (events [0])) {
-	    logE_ (_func, "epoll_wait(): unexpected return value: ", nfds);
+	    logF_ (_func, "epoll_wait(): unexpected return value: ", nfds);
 	    return Result::Failure;
 	}
+
+      // Trigger optimization:
+      //
+      // After trigger() returns, two events MUST happen:
+      //   1. pollIterationBegin() and pollIterationEnd() must be called,
+      //      i.e. a full poll iteration must occur;
+      //   2. poll() should return.
+      //
+      // For poll/select/epoll, we use pipes to implement trigger().
+      // Writing and reading to/from a pipe is expensive. To reduce
+      // the number of writes, we do the following:
+      //
+      // 1. write() makes sense only when we're blocked in epoll_wait(),
+      //    i.e. when epoll_wait with a non-zero timeout is in progress.
+      //    'block_trigger_pipe' is set to 'false' when we're (supposedly)
+      //    blocked in epoll_wait().
+      // 2. 'triggered' flag indicates that trigger() has been called.
+      //    This flag should be checked and cleared right after epoll_wait
+      //    to ensure that every trigger() results in a full extra poll
+      //    iteration.
 
         // This lock() acts as a memory barrier which ensures that we see
         // valid contents of PollableEntry objects.
         mutex.lock ();
         block_trigger_pipe = true;
+        bool const was_triggered = triggered;
+        triggered = false;
         mutex.unlock ();
 
 	got_deferred_tasks = false;
@@ -237,7 +274,6 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 	    frontend.call (frontend->pollIterationBegin);
 
 	bool trigger_pipe_ready = false;
-        assert (nfds >= 0);
         for (int i = 0; i < nfds; ++i) {
             PollableEntry * const pollable_entry = static_cast <PollableEntry*> (events [i].data.ptr);
             uint32_t const epoll_event_flags = events [i].events;
@@ -255,7 +291,7 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
                     epoll_event_flags & EPOLLRDHUP ||
                     epoll_event_flags & EPOLLERR)
                 {
-                    logE_ (_func, "Trigger pipe error: 0x", fmt_hex, epoll_event_flags);
+                    logF_ (_func, "Trigger pipe error: 0x", fmt_hex, epoll_event_flags);
                 }
 
                 continue;
@@ -281,6 +317,13 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
                 logD_ (_this_func, "calling pollable->processEvents()");
 #endif
 
+                logD (epoll, _this_func, "pollable_entry: 0x", fmt_hex, (UintPtr) pollable_entry, ", "
+                      "events: 0x", event_flags, " ",
+                      (event_flags & PollGroup::Input  ? "I" : ""),
+                      (event_flags & PollGroup::Output ? "O" : ""),
+                      (event_flags & PollGroup::Error  ? "E" : ""),
+                      (event_flags & PollGroup::Hup    ? "H" : ""));
+
                 pollable_entry->pollable.call (
                         pollable_entry->pollable->processEvents, /*(*/ event_flags /*)*/);
 
@@ -297,32 +340,24 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 		got_deferred_tasks = true;
 	}
 
-        // TODO mutex lock/unlock for triggering can be optimized further
         mutex.lock ();
 	processPollableDeletionQueue ();
+        mutex.unlock ();
 
         if (trigger_pipe_ready) {
-            triggered = false;
-            mutex.unlock ();
-
 	    logD (epoll, _func, "trigger pipe break");
 
             if (!commonTriggerPipeRead (trigger_pipe [0])) {
-                logE_ (_func, "commonTriggerPipeRead() failed: ", exc->toString());
+                logF_ (_func, "commonTriggerPipeRead() failed: ", exc->toString());
                 return Result::Failure;
             }
-
             break;
         }
 
-        if (triggered) {
-            triggered = false;
-            mutex.unlock ();
-
+        if (was_triggered) {
 	    logD (epoll, _func, "trigger break");
             break;
         }
-        mutex.unlock ();
 
 	if (elapsed_microsec >= timeout_microsec) {
 	  // Timeout expired.
@@ -336,20 +371,26 @@ EpollPollGroup::poll (Uint64 const timeout_microsec)
 mt_throws Result
 EpollPollGroup::trigger ()
 {
+#if 0
+// In the current form, 'poll_tlocal' is excessive, overlaps with 'block_trigger_pipe'.
+// It would make slightly more sense if we used thread-local 'triggered' flag here
+// instead of general mutex-protected 'triggered'.
+
     if (poll_tlocal && poll_tlocal == libMary_getThreadLocal()) {
 	mutex.lock ();
 	triggered = true;
 	mutex.unlock ();
 	return Result::Success;
     }
+#endif
 
     mutex.lock ();
     if (triggered) {
         mutex.unlock ();
         return Result::Success;
     }
-
     triggered = true;
+
     if (block_trigger_pipe) {
 	mutex.unlock ();
 	return Result::Success;
@@ -365,12 +406,15 @@ EpollPollGroup::open ()
     efd = epoll_create (1 /* size, unused */);
     if (efd == -1) {
 	exc_throw (PosixException, errno);
-	logE_ (_func, "epoll_create() failed: ", errnoString (errno));
+	logF_ (_func, "epoll_create() failed: ", errnoString (errno));
 	return Result::Failure;
     }
+    logD_ (_this_func, "epoll fd: ", efd);
 
-    if (!posix_createNonblockingPipe (&trigger_pipe))
+    if (!posix_createNonblockingPipe (&trigger_pipe)) {
 	return Result::Failure;
+    }
+    logD_ (_this_func, "trigger_pipe fd: read ", trigger_pipe [0], ", write ", trigger_pipe [1]);
 
     {
 	struct epoll_event event;
@@ -380,13 +424,13 @@ EpollPollGroup::open ()
 	int const res = epoll_ctl (efd, EPOLL_CTL_ADD, trigger_pipe [0], &event);
 	if (res == -1) {
 	    exc_throw (PosixException, errno);
-	    logE_ (_func, "epoll_ctl() failed: ", errnoString (errno));
+	    logF_ (_func, "epoll_ctl() failed: ", errnoString (errno));
 	    return Result::Failure;
 	}
 
 	if (res != 0) {
 	    exc_throw (InternalException, InternalException::BackendMalfunction);
-	    logE_ (_func, "epoll_ctl(): unexpected return value: ", res);
+	    logF_ (_func, "epoll_ctl(): unexpected return value: ", res);
 	    return Result::Failure;
 	}
     }
@@ -396,13 +440,13 @@ EpollPollGroup::open ()
 
 EpollPollGroup::EpollPollGroup (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
+      poll_tlocal (NULL),
       efd (-1),
       triggered (false),
-      block_trigger_pipe (false),
+      block_trigger_pipe (true),
       // Initializing to 'true' to process deferred tasks scheduled before we
-      // enter poll() the first time.
-      got_deferred_tasks (true),
-      poll_tlocal (NULL)
+      // enter poll() for the first time.
+      got_deferred_tasks (true)
 {
     trigger_pipe [0] = -1;
     trigger_pipe [1] = -1;
@@ -411,7 +455,6 @@ EpollPollGroup::EpollPollGroup (Object * const coderef_container)
 EpollPollGroup::~EpollPollGroup ()
 {
     mutex.lock ();
-
     {
 	PollableList::iter iter (pollable_list);
 	while (!pollable_list.iter_done (iter)) {
@@ -427,7 +470,6 @@ EpollPollGroup::~EpollPollGroup ()
 	    delete pollable_entry;
 	}
     }
-
     mutex.unlock ();
 
     if (efd != -1) {
@@ -455,10 +497,10 @@ EpollPollGroup::~EpollPollGroup ()
 		    if (errno == EINTR)
 			continue;
 
-		    logE_ (_func, "close() failed (trigger_pipe[", i, "]): ", errnoString (errno));
+		    logE_ (_func, "trigger_pipe[", i, "]: close() failed: ", errnoString (errno));
 		} else
 		if (res != 0) {
-		    logE_ (_func, "close(): unexpected return value (trigger_pipe[", i, "]): ", res);
+		    logE_ (_func, "trigger_pipe[", i, "]: close(): unexpected return value: ", res);
 		}
 
 		break;

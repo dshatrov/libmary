@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__ST_REFERENCED__H__
-#define __LIBMARY__ST_REFERENCED__H__
+#ifndef LIBMARY__ST_REFERENCED__H__
+#define LIBMARY__ST_REFERENCED__H__
 
 
 #include <libmary/types_base.h>
@@ -32,10 +32,7 @@ private:
     unsigned refcount;
 
 public:
-    void libMary_st_ref ()
-    {
-        ++refcount;
-    }
+    void libMary_st_ref () { ++refcount; }
 
     void libMary_st_unref ()
     {
@@ -44,37 +41,16 @@ public:
             delete this;
     }
 
-    void ref ()
-    {
-        libMary_st_ref ();
-    }
-
-    void unref ()
-    {
-        libMary_st_unref ();
-    }
+    void ref   () { libMary_st_ref   (); }
+    void unref () { libMary_st_unref (); }
 
     // For debugging purposes only.
-    unsigned getRefCount () const
-    {
-        return refcount;
-    }
+    unsigned getRefCount () const { return refcount; }
 
-    StReferenced& operator = (StReferenced const &)
-    {
-      // No-op
-        return *this;
-    }
+    StReferenced& operator = (StReferenced const &) { /* No-op */ return *this; }
 
-    StReferenced (StReferenced const &)
-        : refcount (1)
-    {
-    }
-
-    StReferenced ()
-        : refcount (1)
-    {
-    }
+    StReferenced (StReferenced const &) : refcount (1) {}
+    StReferenced () : refcount (1) {}
 
     virtual ~StReferenced () {}
 };
@@ -84,13 +60,11 @@ class StReferenced_UnrefAction
 {
 public:
     static void act (T * const obj)
-    {
-        static_cast <StReferenced*> (obj)->libMary_st_unref ();
-    }
+        { static_cast <StReferenced*> (obj)->libMary_st_unref (); }
 };
 
 }
 
 
-#endif /* __LIBMARY__ST_REFERENCED__H__ */
+#endif /* LIBMARY__ST_REFERENCED__H__ */
 

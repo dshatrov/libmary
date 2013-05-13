@@ -62,6 +62,8 @@ public:
 					    Size *ret_accepted,
 					    void *cb_data);
 
+        // TODO There may be unprocessed data in the input buffer.
+        //      Pass it to processEof().
 	void (*processEof) (void *cb_data);
 
 	void (*processError) (Exception *exc_,
@@ -75,9 +77,7 @@ public:
     virtual void unblockInput () = 0;
 
     mt_const void setFrontend (Cb<Frontend> const frontend)
-    {
-	this->frontend = frontend;
-    }
+        { this->frontend = frontend; }
 
     virtual ~Receiver () {}
 };

@@ -151,7 +151,13 @@ LinePipe::openPipeSession ()
     return Result::Success;
 
 _close:
-    logW_ (_func, "could not open pipe\"", filename, "\": ", exc->toString());
+    {
+        Ref<String> const error_str = exc->toString();
+        if (!prv_error_str || !equal (prv_error_str->mem(), error_str ? error_str->mem() : ConstMemory())) {
+            prv_error_str = st_grab (new (std::nothrow) String (error_str ? error_str->mem() : ConstMemory()));
+            logW_ (_func, "could not open pipe\"", filename, "\": ", error_str);
+        }
+    }
 
     ExceptionBuffer * const exc_buf = exc_swap_nounref ();
 

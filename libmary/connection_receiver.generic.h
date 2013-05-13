@@ -17,8 +17,8 @@
 */
 
 
-#ifndef LIBMARY__CONNECTION_RECEIVER__H__
-#define LIBMARY__CONNECTION_RECEIVER__H__
+#ifndef LIBMARY__CONNECTION_RECEIVER__GENERIC__H__
+#define LIBMARY__CONNECTION_RECEIVER__GENERIC__H__
 
 
 #include <libmary/receiver.h>
@@ -44,14 +44,11 @@ private:
     mt_const Byte *recv_buf;
     mt_const Size const recv_buf_len;
 
-#ifdef LIBMARY_WIN32_IOCP
-    mt_sync_domain (conn_input_frontend) Overlapped overlapped;
-    mt_sync_domain (conn_input_frontend) bool overlapped_in_progress;
-#endif
-
     mt_sync_domain (conn_input_frontend) Size recv_buf_pos;
     mt_sync_domain (conn_input_frontend) Size recv_accepted_pos;
 
+    mt_sync_domain (conn_input_frontend) bool block_input;
+    mt_sync_domain (conn_input_frontend) bool error_received;
     mt_sync_domain (conn_input_frontend) bool error_reported;
 
     mt_sync_domain (conn_input_frontend) void doProcessInput ();
@@ -59,16 +56,10 @@ private:
   mt_iface (AsyncInputStream::InputFrontend)
     static AsyncInputStream::InputFrontend const conn_input_frontend;
 
-#ifdef LIBMARY_WIN32_IOCP
-    static void inputComplete (Overlapped *overlapped,
-                               Size        bytes_transferred,
-                               void       *_self);
-#else
     static void processInput (void *_self);
 
     static void processError (Exception *exc_,
 			      void      *_self);
-#endif
   mt_iface_end
 
     static bool unblockInputTask (void *_self);
@@ -78,9 +69,14 @@ public:
     void unblockInput ();
   mt_iface_end
 
+    void start ();
+
     mt_const void init (AsyncInputStream  * const mt_nonnull conn,
-                        DeferredProcessor * const mt_nonnull deferred_processor)
+                        DeferredProcessor * const mt_nonnull deferred_processor,
+                        bool                const block_input = false)
     {
+        this->block_input = block_input;
+
         deferred_reg.setDeferredProcessor (deferred_processor);
 
 	this->conn = conn;
@@ -88,13 +84,12 @@ public:
                 CbDesc<AsyncInputStream::InputFrontend> (&conn_input_frontend, this, getCoderefContainer()));
     }
 
-    ConnectionReceiver (Object * const coderef_container);
-
+     ConnectionReceiver (Object * const coderef_container);
     ~ConnectionReceiver ();
 };
 
 }
 
 
-#endif /* LIBMARY__CONNECTION_RECEIVER__H__ */
+#endif /* LIBMARY__CONNECTION_RECEIVER__GENERIC__H__ */
 

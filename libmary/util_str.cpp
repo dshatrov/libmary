@@ -17,16 +17,13 @@
 */
 
 
+#include <libmary/types.h>
 #include <cctype>
 #include <cstring>
 #include <cstdlib>
 #include <cmath>
 
 #include <errno.h>
-
-#if defined(LIBMARY_PLATFORM_WIN32) || defined(LIBMARY_PLATFORM_CYGWIN)
-#include <windows.h>
-#endif
 
 #include <libmary/libmary_thread_local.h>
 
@@ -90,10 +87,11 @@ char const * errnoString (int const errnum)
 }
 
 #if defined(LIBMARY_PLATFORM_WIN32) || defined(LIBMARY_PLATFORM_CYGWIN)
-// Very similar to MyCpp::win32ErrorToString().
-Ref<String>
-win32ErrorToString (DWORD const error)
+Ref<String> win32ErrorToString (DWORD const error)
 {
+    if (error == WAIT_TIMEOUT)
+        return makeString ("(", (unsigned long) error, ") WAIT_TIMEOUT");
+
     LPTSTR pBuffer = NULL;
 
     DWORD const rv = FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM
@@ -107,16 +105,26 @@ win32ErrorToString (DWORD const error)
                                     0, 
                                     NULL);
     if (rv == 0) {
-	if (pBuffer != NULL)
+	if (pBuffer)
 	    LocalFree (pBuffer);
 
         return makeString ((unsigned long) error);
     }
 
-    Ref<String> const str = makeString ("(", (unsigned long) error, ") ", (char const *) pBuffer);
+    Ref<String> str;
+    if (pBuffer) {
+        str = makeString ("(", (unsigned long) error, ") ", (char const *) pBuffer);
+        LocalFree (pBuffer);
+    } else {
+        str = makeString ("(", (unsigned long) error, ")");
+    }
 
-    LocalFree (pBuffer);
     return str;
+}
+
+Ref<String> wsaErrorToString (int const error)
+{
+    return win32ErrorToString ((DWORD) error);
 }
 #endif
 

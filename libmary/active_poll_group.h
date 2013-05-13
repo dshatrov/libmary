@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -47,9 +47,7 @@ public:
     virtual mt_throws Result trigger () = 0;
 
     void setFrontend (Cb<Frontend> const &frontend)
-    {
-	this->frontend = frontend;
-    }
+        { this->frontend = frontend; }
 
     virtual ~ActivePollGroup () {}
 };
@@ -58,14 +56,18 @@ public:
 
 
 #ifdef LIBMARY_PLATFORM_WIN32
-#include <libmary/wsa_poll_group.h>
+  #ifdef LIBMARY_WIN32_IOCP
+    #include <libmary/iocp_poll_group.h>
+  #else
+    #include <libmary/wsa_poll_group.h>
+  #endif
 #else
-#include <libmary/select_poll_group.h>
-#include <libmary/poll_poll_group.h>
+  #include <libmary/select_poll_group.h>
+  #include <libmary/poll_poll_group.h>
 #endif
 
 #if !defined (LIBMARY_PLATFORM_WIN32) && defined (LIBMARY_ENABLE_EPOLL)
-#include <libmary/epoll_poll_group.h>
+  #include <libmary/epoll_poll_group.h>
 #endif
 
 

@@ -205,9 +205,8 @@ public:
 
     // @cb is called whenever a new timer appears at the head of timer chain,
     // i.e. when the nearest expiration time changes.
-    Timers (Object *coderef_container,
-            CbDesc<FirstTimerAddedCallback> const &first_added_cb);
-
+     Timers (Object *coderef_container,
+             CbDesc<FirstTimerAddedCallback> const &first_added_cb);
     ~Timers ();
 };
 

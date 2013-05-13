@@ -506,38 +506,47 @@ HttpClient::connect (bool * const ret_connected)
             IpAddress(),
             true /* client_mode */);
 
-    // TODO FIXME There's a racy nasty problem here: TcpConnection::connected field updates
-    // are not synchronized, and we probably want to add pollable before calling connect () - test for this.
-    // The same applies to all other invocations of TcpConnection::connect().
-    TcpConnection::ConnectResult const connect_res = http_conn->tcp_conn.connect (next_server_addr);
-    if (connect_res == TcpConnection::ConnectResult_Error) {
-        logE (http_client, _this_func, "http_conn->connect() failed: ", exc->toString());
+    if (!http_conn->tcp_conn.open ()) {
+        logE (http_client, _this_func, "http_conn->open() failed: ", exc->toString());
         return NULL;
     }
 
-    http_conn->pollable_key =
-            thread_ctx->getPollGroup()->addPollable (http_conn->tcp_conn.getPollable(),
-                                                     false /* activate */);
-
-    if (!http_conn->pollable_key) {
-        logE (http_client, _func, "addPollable() failed: ", exc->toString());
+    if (!thread_ctx->getPollGroup()->addPollable_beforeConnect (http_conn->tcp_conn.getPollable(),
+                                                                &http_conn->pollable_key))
+    {
+        logE (http_client, _this_func, "addPollable_beforeConnect() failed: ", exc->toString());
         return NULL;
     }
 
-    if (!thread_ctx->getPollGroup()->activatePollable (http_conn->pollable_key)) {
-        thread_ctx->getPollGroup()->removePollable (http_conn->pollable_key);
-        http_conn->pollable_key = NULL;
-        logE (http_client, _func, "activatePollable() failed: ", exc->toString());
-        return NULL;
+    {
+        TcpConnection::ConnectResult const connect_res = http_conn->tcp_conn.connect (next_server_addr);
+        if (connect_res == TcpConnection::ConnectResult_Error) {
+            logE (http_client, _this_func, "http_conn->connect() failed: ", exc->toString());
+
+            if (http_conn->pollable_key) {
+                thread_ctx->getPollGroup()->removePollable (http_conn->pollable_key);
+                http_conn->pollable_key = NULL;
+            }
+
+            return NULL;
+        }
+
+        if (connect_res == TcpConnection::ConnectResult_Connected)
+            *ret_connected = true;
+        else
+            assert (connect_res == TcpConnection::ConnectResult_InProgress);
     }
 
-    if (connect_res == TcpConnection::ConnectResult_Connected) {
-        *ret_connected = true;
-    } else {
-        assert (connect_res == TcpConnection::ConnectResult_InProgress);
+    if (!thread_ctx->getPollGroup()->addPollable_afterConnect (http_conn->tcp_conn.getPollable(),
+                                                               &http_conn->pollable_key))
+    {
+        logE (http_client, _this_func, "addPollable_afterConnect() failed: ", exc->toString());
+        return NULL;
     }
 
     http_conn->conn_list_el = http_conns.append (http_conn);
+
+    http_conn->receiver.start ();
 
     return http_conn;
 }

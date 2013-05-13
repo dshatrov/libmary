@@ -521,6 +521,7 @@ HttpService::acceptOneConnection ()
     conn_list.append (http_conn);
     mutex.unlock ();
 
+    http_conn->conn_receiver.start ();
     return true;
 }
 
@@ -620,8 +621,14 @@ HttpService::start ()
     if (!tcp_server.listen ())
 	return Result::Failure;
 
+    // TODO Remove pollable when done.
     if (!poll_group->addPollable (tcp_server.getPollable()))
 	return Result::Failure;
+
+    if (!tcp_server.start ()) {
+        logF_ (_func, "tcp_server.start() failed: ", exc->toString());
+        return Result::Failure;
+    }
 
     return Result::Success;
 }
@@ -656,6 +663,7 @@ HttpService::init (PollGroup         * const mt_nonnull poll_group,
 	return Result::Failure;
 
     tcp_server.init (CbDesc<TcpServer::Frontend> (&tcp_server_frontend, this, getCoderefContainer()),
+                     deferred_processor,
                      timers);
 
     return Result::Success;

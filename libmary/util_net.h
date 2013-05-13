@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__UTIL_NET__H__
-#define __LIBMARY__UTIL_NET__H__
+#ifndef LIBMARY__UTIL_NET__H__
+#define LIBMARY__UTIL_NET__H__
 
 
 #include <libmary/types.h>
@@ -28,8 +28,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#else
-#include <winsock2.h>
 #endif
 
 #include <libmary/log.h>
@@ -78,8 +76,7 @@ Result serviceToPort (ConstMemory  service,
         IpAddress ()
             : ip_addr (0),
               port (0)
-        {
-        }
+        {}
     };
 
     class IpAddress_NoPort
@@ -92,8 +89,7 @@ Result serviceToPort (ConstMemory  service,
 
         IpAddress_NoPort (IpAddress const addr)
             : ip_addr (addr.ip_addr)
-        {
-        }
+        {}
     };
 
     static inline void setIpAddress (Uint32 const ip_addr,
@@ -224,5 +220,5 @@ Result serviceToPort (ConstMemory  service,
 }
 
 
-#endif /* __LIBMARY__UTIL_NET__H__ */
+#endif /* LIBMARY__UTIL_NET__H__ */
 

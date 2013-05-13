@@ -31,10 +31,6 @@
 #include <libmary/st_ref.h>
 #include <libmary/string.h>
 
-#if defined(LIBMARY_PLATFORM_WIN32) || defined(LIBMARY_PLATFORM_CYGWIN)
-#include <windows.h>
-#endif
-
 
 namespace M {
 
@@ -42,7 +38,10 @@ Ref<String> errnoToString (int errnum);
 char const* errnoString (int errnum);
 
 #if defined(LIBMARY_PLATFORM_WIN32) || defined(LIBMARY_PLATFORM_CYGWIN)
+// TODO return StRef, beware of Exception::toString(), which returns Ref<>
+//      (make it return StRef, too)
 Ref<String> win32ErrorToString (DWORD error);
+Ref<String> wsaErrorToString   (int error);
 #endif
 
 Ref<String> catenateStrings (ConstMemory const &left,
@@ -137,6 +136,9 @@ inline Size toString (Memory const &mem, char const (&str) [N], Format const & /
 
 inline Size toString (Memory const &mem, char * const str, Format const & /* fmt */ = libMary_default_format)
 {
+    if (str == NULL)
+        return 0;
+
     Size const len = strlen (str);
     if (len <= mem.len())
 	memcpy (mem.mem(), str, len);
@@ -146,6 +148,9 @@ inline Size toString (Memory const &mem, char * const str, Format const & /* fmt
 
 inline Size toString (Memory const &mem, char const * const str, Format const & /* fmt */ = libMary_default_format)
 {
+    if (str == NULL)
+        return 0;
+
     Size const len = strlen (str);
     if (len <= mem.len())
 	memcpy (mem.mem(), str, len);

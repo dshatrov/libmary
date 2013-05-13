@@ -127,12 +127,12 @@ void Cb<T>::call_deferred (DeferredProcessor_Registration * const mt_nonnull def
         return;
 
     Cb_SpecificDeferredCall <CB, Args...> * const deferred_call =
-            new Cb_SpecificDeferredCall <CB, Args...> (tocall,
-                                                       cb_data,
-                                                       &weak_code_ref,
-                                                       ref_data.ptr(),
-                                                       extra_ref_data,
-                                                       args...);
+            new (std::nothrow) Cb_SpecificDeferredCall <CB, Args...> (tocall,
+                                                                      cb_data,
+                                                                      &weak_code_ref,
+                                                                      ref_data.ptr(),
+                                                                      extra_ref_data,
+                                                                      args...);
     // Note that 'def_reg' will reset deferred_call->task.self_ref when released,
     // which will delete 'deferred_call' object.
     def_reg->scheduleTask (&deferred_call->task, false /* permanent */);

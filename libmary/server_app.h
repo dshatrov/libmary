@@ -21,8 +21,6 @@
 #define LIBMARY__SERVER_APP__H__
 
 
-#include <libmary/libmary_config.h>
-
 #include <libmary/types.h>
 #include <libmary/code_referenced.h>
 #include <libmary/exception.h>
@@ -125,13 +123,9 @@ private:
     static void threadFunc (void *_self);
 
   mt_iface (ActivePollGroup::Frontend)
-
     static ActivePollGroup::Frontend poll_frontend;
-
     static void pollIterationBegin (void *_thread_ctx);
-
-    static bool pollIterationEnd (void *_thread_ctx);
-
+    static bool pollIterationEnd   (void *_thread_ctx);
   mt_iface_end
 
 public:

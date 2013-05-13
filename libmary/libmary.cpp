@@ -27,18 +27,14 @@
 
 #include <libmary/libmary_thread_local.h>
 
-#ifdef LIBMARY_PLATFORM_WIN32
-#include <libmary/win32.h>
-#else
-#include <libmary/posix.h>
-#endif
-
 #ifdef LIBMARY_ENABLE_MWRITEV
 #include <libmary/mwritev.h>
 #endif
 
 
 namespace M {
+
+void libMary_platformInit ();
 
 #ifdef LIBMARY_MT_SAFE
 volatile gint _libMary_dummy_mb_int = 0;
@@ -82,12 +78,7 @@ void libMaryInit ()
     _libMary_stat = new Stat;
 
     libMary_threadLocalInit ();
-
-#ifdef LIBMARY_PLATFORM_WIN32
-    libMary_win32Init ();
-#else
-    libMary_posixInit ();
-#endif
+    libMary_platformInit ();
 
   // log*() logging is now available.
 

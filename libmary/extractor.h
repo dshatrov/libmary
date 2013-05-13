@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2011 Dmitry Shatrov
+    Copyright (C) 2011-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -17,8 +17,8 @@
 */
 
 
-#ifndef __LIBMARY__EXTRACTOR__H__
-#define __LIBMARY__EXTRACTOR__H__
+#ifndef LIBMARY__EXTRACTOR__H__
+#define LIBMARY__EXTRACTOR__H__
 
 
 #include <libmary/pointer.h>
@@ -30,10 +30,7 @@ template <class T>
 class DirectExtractor
 {
 public:
-    static T getValue (T t)
-    {
-	return t;
-    }
+    static T getValue (T t) { return t; }
 };
 
 template < class T,
@@ -41,10 +38,7 @@ template < class T,
 class CastExtractor
 {
 public:
-    static C getValue (T t)
-    {
-	return (C) t;
-    }
+    static C getValue (T t) { return (C) t; }
 };
 
 template < class T,      // The type of an aggregate which we are extracting from
@@ -55,36 +49,9 @@ template < class T,      // The type of an aggregate which we are extracting fro
 class MemberExtractor
 {
 public:
-#if 0
-    static E getValue (Pointer<T> const &t)
-    {
-	return Extractor::getValue ((*t).*m);
-    }
-#endif
-
     template <class C>
-    static E getValue (C &c)
-    {
-	return Extractor::getValue ((* Pointer<T> (c)).*m);
-    }
+    static E getValue (C &c) { return Extractor::getValue ((* Pointer<T> (c)).*m); }
 };
-
-#if 0
-// Unnecessary
-template < class T,      // The type of the aggregate which we are extracting from
-	   class M,      // The type of the element to extract
-	   M T::*m,      // Pointer to the element being extracted
-	   class E = M&, // Return type of the extractor
-	   class Extractor = DirectExtractor<M&> > // The extractor to apply to the element being extracted
-class ValueMemberExtractor
-{
-public:
-    static E getValue (T const &t)
-    {
-	return Extractor::getValue (t.*m);
-    }
-};
-#endif
 
 template < class T,
 	   class X,
@@ -94,18 +61,8 @@ template < class T,
 class AccessorExtractor
 {
 public:
-#if 0
-    static E getValue (Pointer<T> const &t)
-    {
-	return Extractor::getValue (((*t).*m) ());
-    }
-#endif
-
     template <class C>
-    static E getValue (C &c)
-    {
-	return Extractor::getValue (((* Pointer<T> (c)).*m) ());
-    }
+    static E getValue (C &c) { return Extractor::getValue (((* Pointer<T> (c)).*m) ()); }
 };
 
 // Useful when referring to accessors of parent classes.
@@ -122,10 +79,7 @@ class AccessorExtractorEx
 {
 public:
     template <class C>
-    static E getValue (C &c)
-    {
-	return Extractor::getValue (((* Pointer<B> (c)).*m) ());
-    }
+    static E getValue (C &c) { return Extractor::getValue (((* Pointer<B> (c)).*m) ()); }
 };
 
 template < class T,
@@ -135,10 +89,7 @@ class DereferenceExtractor
 {
 public:
     template <class C>
-    static E getValue (C &c)
-    {
-	return Extractor::getValue (* Pointer<T> (c));
-    }
+    static E getValue (C &c) { return Extractor::getValue (* Pointer<T> (c)); }
 };
 
 // Note: So far, this class is unused.
@@ -148,14 +99,11 @@ template < class T,
 class AddressExtractor
 {
 public:
-    static E getValue (T &t)
-    {
-	return Extractor::getValue (&t);
-    }
+    static E getValue (T &t) { return Extractor::getValue (&t); }
 };
 
 }
 
 
-#endif /* __LIBMARY__EXTRACTOR__H__ */
+#endif /* LIBMARY__EXTRACTOR__H__ */
 

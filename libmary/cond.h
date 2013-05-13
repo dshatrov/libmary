@@ -39,17 +39,26 @@ public:
     void signal () { pthread_cond_signal (&cond); }
     void wait (Mutex      &mutex) { pthread_cond_wait (&cond, mutex.get_pthread_mutex()); }
     void wait (StateMutex &mutex) { pthread_cond_wait (&cond, mutex.get_pthread_mutex()); }
-    Cond  () { pthread_cond_init (&cond, NULL /* cond_attr */); }
+     Cond () { pthread_cond_init (&cond, NULL /* cond_attr */); }
     ~Cond () { pthread_cond_destroy (&cond); }
-#else
+#elif defined (LIBMARY__OLD_GTHREAD_API)
 private:
     GCond *cond;
 public:
     void signal () { g_cond_signal (cond); }
     void wait (Mutex      &mutex) { g_cond_wait (cond, mutex.get_glib_mutex()); }
     void wait (StateMutex &mutex) { g_cond_wait (cond, mutex.get_glib_mutex()); }
-    Cond  () { cond = g_cond_new (); }
+     Cond () { cond = g_cond_new (); }
     ~Cond () { g_cond_free (cond); }
+#else
+private:
+    GCond cond;
+public:
+    void signal () { g_cond_signal (&cond); }
+    void wait (Mutex      &mutex) { g_cond_wait (&cond, mutex.get_glib_mutex()); }
+    void wait (StateMutex &mutex) { g_cond_wait (&cond, mutex.get_glib_mutex()); }
+     Cond () { g_cond_init  (&cond); }
+    ~Cond () { g_cond_clear (&cond); }
 #endif
 };
 

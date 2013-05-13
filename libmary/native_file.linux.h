@@ -21,8 +21,6 @@
 #define LIBMARY__NATIVE_FILE_LINUX__H__
 
 
-#include <libmary/posix.h>
-
 #include <libmary/file.h>
 
 
