@@ -208,7 +208,7 @@ private:
     mt_const Cb<Frontend> frontend;
 
     mt_const DataDepRef<Receiver> receiver;
-    mt_const DataDepRef<Sender> sender;
+    mt_const DataDepRef<Sender>   sender;
     mt_const DataDepRef<PagePool> page_pool;
 
     mt_const bool client_mode;
@@ -293,8 +293,7 @@ public:
 	  recv_pos (0),
 	  recv_content_length (0),
           recv_content_length_specified (false)
-    {
-    }
+    {}
 };
 
 }

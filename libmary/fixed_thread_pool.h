@@ -59,8 +59,7 @@ private:
               poll_group         (this /* coderef_container */),
               deferred_processor (this /* coderef_container */),
 	      dcs_queue          (this /* coderef_container */)
-	{
-	}
+	{}
     };
 #endif
 
@@ -81,23 +80,18 @@ private:
     static void threadFunc (void *_self);
 
     mt_iface (ActivePollGroup::Frontend)
-    mt_begin
-
       static ActivePollGroup::Frontend poll_frontend;
 
       static void pollIterationBegin (void *_thread_ctx);
 
       static bool pollIterationEnd (void *_thread_ctx);
-
-    mt_end
+    mt_iface_end
 
 public:
   mt_iface (ServerThreadPool)
-
     mt_throws CodeDepRef<ServerThreadContext> grabThreadContext (ConstMemory const &filename);
 
     void releaseThreadContext (ServerThreadContext *thread_ctx);
-
   mt_iface_end
 
 // Unnecessary    mt_throws Result init ();
@@ -117,9 +111,7 @@ public:
     }
 
     mt_const void setMainThreadContext (ServerThreadContext * const main_thread_ctx)
-    {
-	this->main_thread_ctx = main_thread_ctx;
-    }
+        { this->main_thread_ctx = main_thread_ctx; }
 
     FixedThreadPool (Object *coderef_container,
 		     Count   num_threads = 0);

@@ -110,8 +110,7 @@ public:
 
     mt_const void setQueue (DeferredConnectionSenderQueue * mt_nonnull dcs_queue);
 
-    DeferredConnectionSender (Object *coderef_container);
-
+     DeferredConnectionSender (Object *coderef_container);
     ~DeferredConnectionSender ();
 };
 

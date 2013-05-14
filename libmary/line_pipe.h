@@ -96,8 +96,7 @@ public:
                            Time                    reopen_timeout_millisec,
                            Size                    max_line_len = 4096);
 
-    LinePipe (Object *coderef_container);
-
+     LinePipe (Object *coderef_container);
     ~LinePipe ();
 };
 

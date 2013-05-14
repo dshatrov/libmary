@@ -38,25 +38,12 @@ private:
     mt_const DataDepRef<DeferredConnectionSenderQueue> dcs_queue;
 
 public:
-    Timers* getTimers () const
-    {
-	return timers;
-    }
-
-    PollGroup* getPollGroup () const
-    {
-	return poll_group;
-    }
-
-    DeferredProcessor* getDeferredProcessor () const
-    {
-	return deferred_processor;
-    }
+    Timers*            getTimers            () const { return timers; }
+    PollGroup*         getPollGroup         () const { return poll_group; }
+    DeferredProcessor* getDeferredProcessor () const { return deferred_processor; }
 
     DeferredConnectionSenderQueue* getDeferredConnectionSenderQueue () const
-    {
-	return dcs_queue;
-    }
+        { return dcs_queue; }
 
     mt_const void init (Timers                        * const timers,
 			PollGroup                     * const poll_group,
@@ -75,21 +62,18 @@ public:
 	  poll_group              (coderef_container),
 	  deferred_processor      (coderef_container),
 	  dcs_queue               (coderef_container)
-    {
-    }
+    {}
 };
 
 class ServerContext : public DependentCodeReferenced
 {
 public:
-    virtual CodeDepRef<ServerThreadContext> selectThreadContext () = 0;
-
+    virtual CodeDepRef<ServerThreadContext> selectThreadContext  () = 0;
     virtual CodeDepRef<ServerThreadContext> getMainThreadContext () = 0;
 
     ServerContext (Object * const coderef_container)
 	: DependentCodeReferenced (coderef_container)
-    {
-    }
+    {}
 
     virtual ~ServerContext () {}
 };

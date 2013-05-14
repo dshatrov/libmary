@@ -824,6 +824,7 @@ ConnectionSenderImpl::ConnectionSenderImpl (
                                             CbDesc<Overlapped::IoCompleteCallback> const &io_complete_cb,
 #endif
                                             bool const enable_processing_barrier)
+#warning TODO blocking_mode: unused
     : blocking_mode      (false),
       conn               (NULL),
       soft_msg_limit     (1024),

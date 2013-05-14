@@ -1,5 +1,5 @@
 /*  LibMary - C++ library for high-performance network servers
-    Copyright (C) 2012 Dmitry Shatrov
+    Copyright (C) 2012-2013 Dmitry Shatrov
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -30,51 +30,33 @@ namespace M {
 template <class T>
 class WeakDepRef
 {
-    template <class C> friend class DataDepRef;
     template <class C> friend class CodeDepRef;
 
 private:
     T *unsafe_obj;
-    Object *weak_obj;
     WeakRef<Object> weak_ref;
 
 public:
-    bool isValid () const
-    {
-        return weak_ref.isValid();
-    }
+    bool isValid () const { return weak_ref.isValid(); }
 
-    Object* getWeakObject () const
-    {
-        return weak_obj;
-    }
-
-    T* getUnsafePtr () const
-    {
-        return unsafe_obj;
-    }
+    T* getUnsafePtr () const { return unsafe_obj; }
 
     WeakDepRef& operator = (T * const obj)
     {
         Object * const container = obj ? obj->getCoderefContainer() : NULL;
         unsafe_obj = obj;
         weak_ref = container;
-        weak_obj = container;
         return *this;
     }
 
     WeakDepRef (T * const obj)
         : unsafe_obj (obj),
-          weak_obj (obj ? obj->getCoderefContainer() : NULL),
-          weak_ref (weak_obj)
-    {
-    }
+          weak_ref (obj ? obj->getCoderefContainer() : NULL)
+    {}
 
     WeakDepRef ()
-        : unsafe_obj (NULL),
-          weak_obj (NULL)
-    {
-    }
+        : unsafe_obj (NULL)
+    {}
 };
 
 template <class T>
@@ -87,24 +69,14 @@ private:
     Ref<Object> container_ref;
 
 public:
-    operator T* () const
-    {
-        return obj_ptr;
-    }
-
-    T* operator -> () const
-    {
-        return obj_ptr;
-    }
-
-    T* ptr () const
-    {
-        return obj_ptr;
-    }
+       operator T* () const { return obj_ptr; }
+    T* operator -> () const { return obj_ptr; }
+    T*         ptr () const { return obj_ptr; }
 
     DataDepRef& operator = (T * const ptr)
     {
         obj_ptr = ptr;
+
         if (ptr) {
             Object * const ptr_container = ptr->getCoderefContainer();
             if (ptr_container == coderef_container)
@@ -118,46 +90,10 @@ public:
         return *this;
     }
 
-    DataDepRef (WeakDepRef<T> const &weak_ref)
-    {
-        if (weak_ref.weak_obj == coderef_container) {
-            obj_ptr = weak_ref.unsafe_obj;
-            return;
-        }
-
-        if (weak_ref.weak_ref.isValid()) {
-            container_ref = weak_ref.weak_ref.getRef();
-            if (container_ref)
-                obj_ptr = weak_ref.unsafe_obj;
-            else
-                obj_ptr = NULL;
-        } else {
-            obj_ptr = weak_ref.unsafe_obj;
-        }
-    }
-
-    DataDepRef (Object * const coderef_container,
-                T      * const ptr)
-        : coderef_container (coderef_container),
-          obj_ptr (ptr)
-    {
-        obj_ptr = ptr;
-        if (ptr) {
-            Object * const ptr_container = ptr->getCoderefContainer();
-            if (ptr_container == coderef_container)
-                container_ref = NULL;
-            else
-                container_ref = ptr_container;
-        } else {
-            container_ref = NULL;
-        }
-    }
-
     DataDepRef (Object * const coderef_container)
         : coderef_container (coderef_container),
           obj_ptr (NULL)
-    {
-    }
+    {}
 };
 
 template <class T>
@@ -168,22 +104,13 @@ private:
     Ref<Object> container_ref;
 
 public:
-    operator T* () const
-    {
-        return obj_ptr;
-    }
-
-    T* operator -> () const
-    {
-        return obj_ptr;
-    }
+       operator T* () const { return obj_ptr; }
+    T* operator -> () const { return obj_ptr; }
 
     CodeDepRef& operator = (T * const ptr)
     {
         obj_ptr = ptr;
-        if (ptr)
-            container_ref = ptr->getCoderefContainer();
-
+        container_ref = ptr ? ptr->getCoderefContainer() : NULL;
         return *this;
     }
 
@@ -196,21 +123,19 @@ public:
             else
                 obj_ptr = NULL;
         } else {
+          // NULL coderef_container
             obj_ptr = weak_ref.unsafe_obj;
         }
     }
 
     CodeDepRef (T * const ptr)
-    {
-        obj_ptr = ptr;
-        if (ptr)
-            container_ref = ptr->getCoderefContainer();
-    }
+        : obj_ptr (ptr),
+          container_ref (ptr ? ptr->getCoderefContainer() : NULL)
+    {}
 
     CodeDepRef ()
         : obj_ptr (NULL)
-    {
-    }
+    {}
 };
 
 }

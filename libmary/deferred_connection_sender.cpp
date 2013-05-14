@@ -318,7 +318,7 @@ DeferredConnectionSender::~DeferredConnectionSender ()
 }
 
 bool
-DeferredConnectionSenderQueue::process (void *_self)
+DeferredConnectionSenderQueue::process (void * const _self)
 {
     logD (sender, _func_);
 
