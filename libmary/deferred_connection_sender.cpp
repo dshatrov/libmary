@@ -209,7 +209,7 @@ mt_unlocks (mutex) void
 DeferredConnectionSender::doFlush (bool const unlock)
 {
     if (ready_for_output
-	&& conn_sender_impl.gotDataToSend ())
+	&& conn_sender_impl.gotDataToSend())
     {
 	logD (sender, _func, "calling toGlobOutputQueue()");
 	mt_unlocks (mutex) toGlobOutputQueue (true /* add_ref */, unlock);

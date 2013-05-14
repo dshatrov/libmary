@@ -418,7 +418,7 @@ ConnectionSenderImpl::sendPendingMessages_vector_fill (Count        * const mt_n
 
 	    // Разделение "if (first_entry) {} else {}" нужно, потому что переменные
 	    // состояния send*, в том числе и send_header_sent, обновляются только
-	    // при последнем вызове этого метода (в фазе "react").
+	    // в фазе "react".
 	    if (first_entry) {
 		if (send_header_sent < msg_pages->header_len) {
 		    logD (writev, _func, "first entry, header");
@@ -486,33 +486,41 @@ ConnectionSenderImpl::sendPendingMessages_vector_fill (Count        * const mt_n
 			if (first_entry) {
 			    logD (writev, _func, "#", i, ": first page, first entry");
 
-			    assert (send_cur_offset < page->data_len);
-
-                            Byte * const buf = page->getData() + send_cur_offset;
-                            Size   const len = page->data_len - send_cur_offset;
+                            if (send_cur_offset < page->data_len) {
+                                Byte * const buf = page->getData() + send_cur_offset;
+                                Size   const len = page->data_len - send_cur_offset;
 #ifdef LIBMARY_WIN32_IOCP
-                            buffers [i].buf = (char*) buf;
-                            buffers [i].len = len;
-                            *ret_num_bytes += len;
+                                buffers [i].buf = (char*) buf;
+                                buffers [i].len = len;
+                                *ret_num_bytes += len;
 #else
-			    iovs [i].iov_base = buf;
-			    iovs [i].iov_len  = len;
+                                iovs [i].iov_base = buf;
+                                iovs [i].iov_len  = len;
 #endif
+                                ++i;
+                            } else {
+                                --cur_num_iovs;
+                                --*ret_num_iovs;
+                            }
 			} else {
 			    logD (writev, _func, "#", i, ": first page");
 
-			    assert (msg_pages->msg_offset < page->data_len);
-
-                            Byte * const buf = page->getData() + msg_pages->msg_offset;
-                            Size   const len = page->data_len - msg_pages->msg_offset;
+			    if (msg_pages->msg_offset < page->data_len) {
+                                Byte * const buf = page->getData() + msg_pages->msg_offset;
+                                Size   const len = page->data_len - msg_pages->msg_offset;
 #ifdef LIBMARY_WIN32_IOCP
-                            buffers [i].buf = (char*) buf;
-                            buffers [i].len = len;
-                            *ret_num_bytes += len;
+                                buffers [i].buf = (char*) buf;
+                                buffers [i].len = len;
+                                *ret_num_bytes += len;
 #else
-			    iovs [i].iov_base = buf;
-			    iovs [i].iov_len  = len;
+                                iovs [i].iov_base = buf;
+                                iovs [i].iov_len  = len;
 #endif
+                                ++i;
+                            } else {
+                                --cur_num_iovs;
+                                --*ret_num_iovs;
+                            }
 			}
 		    } else {
 			logD (writev, _func, "#", i);
@@ -527,9 +535,9 @@ ConnectionSenderImpl::sendPendingMessages_vector_fill (Count        * const mt_n
 			iovs [i].iov_base = buf;
 			iovs [i].iov_len  = len;
 #endif
-		    }
 
-		    ++i;
+                        ++i;
+		    }
 		} else { // if (page->data_len > 0)
 		  // Empty page.
 		}
@@ -635,7 +643,7 @@ ConnectionSenderImpl::sendPendingMessages_vector_react (Size num_written)
 
 		    if (first_page) {
 			if (first_entry) {
-			    assert (send_cur_offset < page->data_len);
+			    assert (send_cur_offset <= page->data_len);
 			    if (mt_unlikely (num_written < page->data_len - send_cur_offset)) {
 				send_cur_offset += num_written;
 				num_written = 0;
@@ -645,9 +653,9 @@ ConnectionSenderImpl::sendPendingMessages_vector_react (Size num_written)
 
 			    num_written -= page->data_len - send_cur_offset;
 			} else {
-			    assert (msg_pages->msg_offset < page->data_len);
+			    assert (msg_pages->msg_offset <= page->data_len);
 			    if (mt_unlikely (num_written < page->data_len - msg_pages->msg_offset)) {
-				send_cur_offset += num_written;
+				send_cur_offset = num_written;
 				num_written = 0;
 				msg_sent_completely = false;
 				break;

@@ -95,8 +95,7 @@ public:
 
     mt_mutex (mutex) SendState getSendState_unlocked ();
 
-    void lock ();
-
+    void lock   ();
     void unlock ();
   mt_iface_end
 
