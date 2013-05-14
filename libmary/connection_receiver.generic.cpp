@@ -210,8 +210,26 @@ ConnectionReceiver::start ()
         deferred_reg.scheduleTask (&unblock_input_task, false /* permanent */);
 }
 
+mt_const void
+ConnectionReceiver::init (AsyncInputStream  * const mt_nonnull conn,
+                          DeferredProcessor * const mt_nonnull deferred_processor,
+                          bool                const block_input)
+{
+    this->conn = conn;
+    this->block_input = block_input;
+
+    deferred_reg.setDeferredProcessor (deferred_processor);
+
+    recv_buf = new (std::nothrow) Byte [recv_buf_len];
+    assert (recv_buf);
+
+    conn->setInputFrontend (
+            CbDesc<AsyncInputStream::InputFrontend> (&conn_input_frontend, this, getCoderefContainer()));
+}
+
 ConnectionReceiver::ConnectionReceiver (Object * const coderef_container)
     : DependentCodeReferenced (coderef_container),
+      recv_buf          (NULL),
       recv_buf_len      (1 << 16 /* 64 Kb */),
       recv_buf_pos      (0),
       recv_accepted_pos (0),
@@ -219,9 +237,6 @@ ConnectionReceiver::ConnectionReceiver (Object * const coderef_container)
       error_received    (false),
       error_reported    (false)
 {
-    recv_buf = new (std::nothrow) Byte [recv_buf_len];
-    assert (recv_buf);
-
     unblock_input_task.cb =
             CbDesc<DeferredProcessor::TaskCallback> (
                     unblockInputTask, this, coderef_container);
@@ -229,7 +244,8 @@ ConnectionReceiver::ConnectionReceiver (Object * const coderef_container)
 
 ConnectionReceiver::~ConnectionReceiver ()
 {
-    delete[] recv_buf;
+    if (recv_buf)
+        delete[] recv_buf;
 }
 
 }

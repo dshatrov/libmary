@@ -71,18 +71,9 @@ public:
 
     void start ();
 
-    mt_const void init (AsyncInputStream  * const mt_nonnull conn,
-                        DeferredProcessor * const mt_nonnull deferred_processor,
-                        bool                const block_input = false)
-    {
-        this->block_input = block_input;
-
-        deferred_reg.setDeferredProcessor (deferred_processor);
-
-	this->conn = conn;
-	conn->setInputFrontend (
-                CbDesc<AsyncInputStream::InputFrontend> (&conn_input_frontend, this, getCoderefContainer()));
-    }
+    mt_const void init (AsyncInputStream  * mt_nonnull conn,
+                        DeferredProcessor * mt_nonnull deferred_processor,
+                        bool               block_input = false);
 
      ConnectionReceiver (Object * const coderef_container);
     ~ConnectionReceiver ();
