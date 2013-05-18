@@ -49,7 +49,7 @@ static inline Time getUnixtime ()
     return tlocal->unixtime;
 }
 
-// Retreives cached time in microseconds.
+// Retrieves cached time in microseconds.
 static inline Time getTimeMicroseconds ()
 {
     LibMary_ThreadLocal * const tlocal = libMary_getThreadLocal();

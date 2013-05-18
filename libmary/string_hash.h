@@ -40,8 +40,7 @@ private:
 
         Entry (ConstMemory const mem)
             : str (grab (new (std::nothrow) String (mem)))
-        {
-        }
+        {}
     };
 
 public:
@@ -80,13 +79,11 @@ private:
 	       T data)
 	    : GenericStringHash::Entry (mem),
 	      data (data)
-	{
-	}
+	{}
 
 	Entry (ConstMemory const mem)
 	    : GenericStringHash::Entry (mem)
-	{
-	}
+	{}
     };
 
     typedef Hash< Entry,
@@ -119,24 +116,18 @@ public:
 	EntryKey () : entry (NULL) {}
 
         operator GenericStringHash::EntryKey ()
-        {
-            return GenericStringHash::EntryKey (entry);
-        }
+            { return GenericStringHash::EntryKey (entry); }
 
         EntryKey (GenericStringHash::EntryKey const mt_nonnull entry_key)
             : entry (static_cast <Entry*> (entry_key.entry))
-        {
-        }
+        {}
 
 	// Methods for C API binding.
 	void *getAsVoidPtr () const { return static_cast <void*> (entry); }
 	static EntryKey fromVoidPtr (void *ptr) { return EntryKey (static_cast <Entry*> (ptr)); }
     };
 
-    bool isEmpty () const
-    {
-	return hash.isEmpty ();
-    }
+    bool isEmpty () const { return hash.isEmpty (); }
 
     EntryKey add (ConstMemory const &mem,
 		  T data)
@@ -165,16 +156,12 @@ public:
 
     // TODO Why not to use "lookup (ConstMemory mem)" ?
     template <class C>
-    EntryKey lookup (C key)
-    {
-	return hash.lookup (key);
-    }
+    EntryKey lookup (C key) { return hash.lookup (key); }
 
     StringHash_anybase (Size const initial_hash_size,
 			bool const growing)
 	: hash (initial_hash_size, growing)
-    {
-    }
+    {}
 
     ~StringHash_anybase ()
     {
@@ -197,20 +184,9 @@ public:
 	iter (StringHash_anybase &hash) : _iter (hash.hash) {}
     };
 
-    void iter_begin (iter &iter) const
-    {
-	hash.iter_begin (iter._iter);
-    }
-
-    EntryKey iter_next (iter &iter) const
-    {
-	return hash.iter_next (iter._iter);
-    }
-
-    bool iter_done (iter &iter) const
-    {
-	return hash.iter_done (iter._iter);
-    }
+    void     iter_begin (iter &iter) const { hash.iter_begin (iter._iter); }
+    EntryKey iter_next  (iter &iter) const { return hash.iter_next (iter._iter); }
+    bool     iter_done  (iter &iter) const { return hash.iter_done (iter._iter); }
 
 
   // ________________________________ iterator _________________________________
@@ -243,8 +219,7 @@ public:
     StringHash (Size const initial_hash_size = 16,
 		bool const growing = true)
 	: StringHash_anybase<T> (initial_hash_size, growing)
-    {
-    }
+    {}
 };
 
 }
