@@ -498,9 +498,12 @@ ConnectionSenderImpl::sendPendingMessages_vector_fill (Count        * const mt_n
                                 iovs [i].iov_len  = len;
 #endif
                                 ++i;
-                            } else {
+                            } else
+                            if (send_cur_offset == page->data_len) {
                                 --cur_num_iovs;
                                 --*ret_num_iovs;
+                            } else {
+                                unreachable ();
                             }
 			} else {
 			    logD (writev, _func, "#", i, ": first page");
@@ -517,9 +520,12 @@ ConnectionSenderImpl::sendPendingMessages_vector_fill (Count        * const mt_n
                                 iovs [i].iov_len  = len;
 #endif
                                 ++i;
-                            } else {
+                            } else
+                            if (msg_pages->msg_offset == page->data_len) {
                                 --cur_num_iovs;
                                 --*ret_num_iovs;
+                            } else {
+                                unreachable ();
                             }
 			}
 		    } else {
@@ -655,7 +661,10 @@ ConnectionSenderImpl::sendPendingMessages_vector_react (Size num_written)
 			} else {
 			    assert (msg_pages->msg_offset <= page->data_len);
 			    if (mt_unlikely (num_written < page->data_len - msg_pages->msg_offset)) {
-				send_cur_offset = num_written;
+                                // Note: '+=' is correct here. '=' is wrong.
+                                //       That's because it is pre-set to msg_pages->msg_offset
+                                //       when switching to the next msg entry.
+				send_cur_offset += num_written;
 				num_written = 0;
 				msg_sent_completely = false;
 				break;
