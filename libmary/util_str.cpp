@@ -99,8 +99,8 @@ Ref<String> win32ErrorToString (DWORD const error)
                                         | FORMAT_MESSAGE_IGNORE_INSERTS,
                                     NULL, 
                                     error,
-                                    MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
-//                                    MAKELANGID (LANG_ENGLISH, SUBLANG_ENGLISH_US),
+//                                    MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
+                                    MAKELANGID (LANG_ENGLISH, SUBLANG_ENGLISH_US),
                                     (LPTSTR) &pBuffer, 
                                     0, 
                                     NULL);
@@ -113,7 +113,11 @@ Ref<String> win32ErrorToString (DWORD const error)
 
     Ref<String> str;
     if (pBuffer) {
-        str = makeString ("(", (unsigned long) error, ") ", (char const *) pBuffer);
+        char const * const buf = (char const *) pBuffer;
+        Size len = strlen (buf);
+        for (; len > 0 && (buf [len - 1] == '\r' || buf [len - 1] == '\n'); --len);
+
+        str = makeString ("(", (unsigned long) error, ") ", ConstMemory ((Byte const *) buf, len));
         LocalFree (pBuffer);
     } else {
         str = makeString ("(", (unsigned long) error, ")");
