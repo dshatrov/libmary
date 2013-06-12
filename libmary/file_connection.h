@@ -24,20 +24,30 @@
 #include <libmary/types.h>
 #include <libmary/connection.h>
 #include <libmary/file.h>
+#ifdef LIBMARY_WIN32_IOCP
+#include <libmary/iocp_poll_group.h>
+#endif
 
 
 namespace M {
 
-//#warning For IOCP, this is completely inadequate.
-//#warning For epoll, this is inadequate as well, because
-//#warning we hold sender mutex while doing blocking i/o.
-//#warning So this must be redesigned for both cases.
-
-//#warning Продумать синхронизацию Sender'ов. Можно ли ввести разрыв мьютекса на время системного вызова?
-
 class FileConnection : public Connection
 {
 private:
+#ifdef LIBMARY_WIN32_IOCP
+    StateMutex mutex;
+
+    DeferredProcessor::Task output_complete_task;
+    DeferredProcessor::Registration deferred_reg;
+
+    mt_mutex (mutex) Overlapped *overlapped;
+    mt_mutex (mutex) Size        bytes_transferred;
+    mt_mutex (mutex) bool        output_completion_pending;
+    mt_mutex (mutex) Cb<Overlapped::IoCompleteCallback> io_complete_cb;
+
+    static bool outputCompleteTask (void *_self);
+#endif
+
     mt_const File *file;
 
 public:
@@ -75,12 +85,31 @@ public:
 #endif
   mt_iface_end
 
-    mt_const void init (File * const mt_nonnull file) { this->file = file; }
+    mt_const void init (DeferredProcessor * const deferred_processor,
+                        File              * const mt_nonnull file)
+    {
+        this->file = file;
+#ifdef LIBMARY_WIN32_IOCP
+        deferred_reg.setDeferredProcessor (deferred_processor);
+#else
+        (void) deferred_processor;
+#endif
+    }
 
     FileConnection (Object * const coderef_container)
         : DependentCodeReferenced (coderef_container),
+#ifdef LIBMARY_WIN32_IOCP
+          overlapped (NULL),
+          bytes_transferred (0),
+          output_completion_pending (false),
+#endif
           file (NULL)
-    {}
+    {
+#ifdef LIBMARY_WIN32_IOCP
+        output_complete_task.cb =
+                CbDesc<DeferredProcessor::TaskCallback> (outputCompleteTask, this, coderef_container);
+#endif
+    }
 };
 
 }
