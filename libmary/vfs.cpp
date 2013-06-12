@@ -82,13 +82,8 @@ Vfs::removeSubdirs (ConstMemory const dirs_path)
 mt_throws Ref<Vfs>
 Vfs::createDefaultLocalVfs (ConstMemory const root_path)
 {
-#ifdef LIBMARY_PLATFORM_WIN32
-    abort ();
-    return NULL;
-#else
     // VfsPosix appears to work under mingw as well.
     return grab (static_cast <Vfs*> (new (std::nothrow) VfsPosix (root_path)));
-#endif
 }
 
 }

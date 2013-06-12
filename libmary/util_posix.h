@@ -29,10 +29,12 @@
 
 namespace M {
 
+#ifndef LIBMARY_PLATFORM_WIN32
 mt_throws Result posix_createNonblockingPipe (int (*fd) [2]);
 
 mt_throws Result commonTriggerPipeWrite (int fd);
 mt_throws Result commonTriggerPipeRead  (int fd);
+#endif
 
 mt_throws Result posix_statToFileStat (struct stat * mt_nonnull stat_buf,
                                        FileStat    * mt_nonnull ret_stat);

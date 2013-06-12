@@ -218,7 +218,11 @@ VfsPosix::createDirectory (ConstMemory const _dirname)
     ConstMemory const dirname = makePath (dirname_str, _dirname);
 
     for (;;) {
-        int const res = mkdir (dirname_str->cstr(), 0700);
+        int const res = mkdir (dirname_str->cstr()
+#ifndef LIBMARY_PLATFORM_WIN32
+                               , 0700
+#endif
+                               );
         if (res == -1) {
             int const err = errno;
 
@@ -252,6 +256,20 @@ VfsPosix::removeFile (ConstMemory const _filename)
     Ref<String> filename_str;
     ConstMemory const filename = makePath (filename_str, _filename);
 
+#ifdef LIBMARY_PLATFORM_WIN32
+    for (unsigned i = 0, i_end = filename_str->len(); i < i_end; ++i) {
+        if (filename_str->mem().mem() [i] == '/')
+            filename_str->mem().mem() [i] = '\\';
+    }
+
+    // Error codes for DeleteFile() are more descriptive than unlink() errnos.
+    if (!DeleteFile (filename_str->cstr())) {
+        int const err = GetLastError();
+        logE_ (_func, "DeleteFile() failed for file \"", filename, "\": ", win32ErrorToString (err));
+        exc_throw (Win32Exception, err);
+        return Result::Failure;
+    }
+#else
     for (;;) {
         int const res = unlink (filename_str->cstr());
         if (res == -1) {
@@ -272,6 +290,7 @@ VfsPosix::removeFile (ConstMemory const _filename)
 
         break;
     }
+#endif
 
     return Result::Success;
 }
