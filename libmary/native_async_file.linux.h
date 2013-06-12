@@ -91,9 +91,7 @@ public:
                            FileAccessMode access_mode);
 
     CbDesc<PollGroup::Pollable> getPollable ()
-    {
-	return CbDesc<PollGroup::Pollable> (&pollable, this, getCoderefContainer());
-    }
+        { return CbDesc<PollGroup::Pollable> (&pollable, this, getCoderefContainer()); }
 
     NativeAsyncFile (Object *coderef_container,
                      int     fd = -1);

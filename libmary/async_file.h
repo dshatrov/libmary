@@ -17,19 +17,28 @@
 */
 
 
-#ifndef __LIBMARY__ASYNC_FILE__H__
-#define __LIBMARY__ASYNC_FILE__H__
+#ifndef LIBMARY__ASYNC_FILE__H__
+#define LIBMARY__ASYNC_FILE__H__
 
 
 #include <libmary/types.h>
 #include <libmary/async_input_stream.h>
 #include <libmary/async_output_stream.h>
 
+#ifdef LIBMARY_PLATFORM_WIN32
+#include <libmary/connection.h>
+#endif
+
 
 namespace M {
 
-class AsyncFile : public AsyncInputStream,
+class AsyncFile : 
+#ifdef LIBMARY_PLATFORM_WIN32
+                  public Connection
+#else
+                  public AsyncInputStream,
                   public AsyncOutputStream
+#endif
 {
 public:
     virtual mt_throws Result seek (FileOffset offset,
@@ -49,5 +58,5 @@ public:
 }
 
 
-#endif /* __LIBMARY__ASYNC_FILE__H__ */
+#endif /* LIBMARY__ASYNC_FILE__H__ */
 

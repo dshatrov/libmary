@@ -24,58 +24,5 @@
 
 namespace M {
 
-#if 0
-IoResult
-File::readFull (Memory const &mem,
-		Size * const nread)
-    mt_throw (IoException
-              InternalException)
-{
-    Size bread = 0;
-    IoResult res = IoResult::Normal;
-
-    while (bread < mem.len()) {
-	Size last_read;
-	res = read (mem.region (bread, mem.len() - bread), &last_read);
-	if (res != IoResult::Normal)
-	    break;
-
-	bread += last_read;
-    }
-
-    if (nread)
-	*nread = bread;
-
-    return res;
-}
-
-IoResult
-File::writeFull (ConstMemory const &mem,
-		 Size * const nwritten)
-    mt_throw (IoException
-              InternalException)
-{
-    return writeFull_common (this, mem, nwritten);
-#if 0
-    Size bwritten = 0;
-    IoResult res = IoResult::Normal;
-
-    while (bwritten < mem.len()) {
-	Size last_written;
-	res = write (mem.region (bwritten, mem.len() - bwritten), &last_written);
-	if (res != IoResult::Normal)
-	    break;
-
-	bwritten += last_written;
-    }
-
-    if (nwritten)
-	*nwritten = bwritten;
-
-    return res;
-#endif
-}
-#endif
-
 }
 
