@@ -39,7 +39,7 @@ class LogLevel
 public:
     enum Value {
 	All     =  1000,
-        Stream  = 1500,
+        Stream  =  1500,
 	Debug   =  2000,
 	Info    =  3000,
 	Warning =  4000,
@@ -228,7 +228,8 @@ extern char const _libMary_loglevel_str_N [4];
 #define log__(...)          _libMary_log_macro_s (_libMary_log,          default, LogLevel::None, _libMary_loglevel_str_N, __VA_ARGS__)
 #define log_unlocked__(...) _libMary_log_macro_s (_libMary_log_unlocked, default, LogLevel::None, _libMary_loglevel_str_N, __VA_ARGS__)
 
-#define log(group, loglevel, ...)          _libMary_log_macro (_libMary_log,          group,   (loglevel), __VA_ARGS__)
+// log() macro would conflict with log() library function definition
+#define log_plain(group, loglevel, ...)          _libMary_log_macro (_libMary_log,          group,   (loglevel), __VA_ARGS__)
 #define log_unlocked(group, loglevel, ...) _libMary_log_macro (_libMary_log_unlocked, group,   (loglevel), __VA_ARGS__)
 #define log_(loglevel, ...)                _libMary_log_macro (_libMary_log,          default, (loglevel), __VA_ARGS__)
 #define log_unlocked_(loglevel, ...)       _libMary_log_macro (_libMary_log_unlocked, default, (loglevel), __VA_ARGS__)
