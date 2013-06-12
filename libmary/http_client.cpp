@@ -59,6 +59,8 @@ HttpClient::connected (Exception * const exc_,
         return;
     }
 
+    http_conn->connected = true;
+
     List< Ref<HttpClientRequest> >::iter iter (http_conn->requests);
     while (!http_conn->requests.iter_done (iter)) {
         Ref<HttpClientRequest> &http_req = http_conn->requests.iter_next (iter)->data;
@@ -66,6 +68,8 @@ HttpClient::connected (Exception * const exc_,
     }
 
     self->mutex.unlock ();
+
+    http_conn->receiver.start ();
 }
 
 Sender::Frontend const HttpClient::sender_frontend = {
@@ -477,6 +481,7 @@ HttpClient::connect (bool * const ret_connected)
     http_conn->http_client = this;
     http_conn->server_addr = next_server_addr;
     http_conn->valid = true;
+    http_conn->connected = false;
     http_conn->conn_list_el = NULL;
 
     http_conn->preassembly_buf = NULL;
@@ -518,23 +523,16 @@ HttpClient::connect (bool * const ret_connected)
         return NULL;
     }
 
-    {
-        TcpConnection::ConnectResult const connect_res = http_conn->tcp_conn.connect (next_server_addr);
-        if (connect_res == TcpConnection::ConnectResult_Error) {
-            logE (http_client, _this_func, "http_conn->connect() failed: ", exc->toString());
+    TcpConnection::ConnectResult const connect_res = http_conn->tcp_conn.connect (next_server_addr);
+    if (connect_res == TcpConnection::ConnectResult_Error) {
+        logE (http_client, _this_func, "http_conn->connect() failed: ", exc->toString());
 
-            if (http_conn->pollable_key) {
-                thread_ctx->getPollGroup()->removePollable (http_conn->pollable_key);
-                http_conn->pollable_key = NULL;
-            }
-
-            return NULL;
+        if (http_conn->pollable_key) {
+            thread_ctx->getPollGroup()->removePollable (http_conn->pollable_key);
+            http_conn->pollable_key = NULL;
         }
 
-        if (connect_res == TcpConnection::ConnectResult_Connected)
-            *ret_connected = true;
-        else
-            assert (connect_res == TcpConnection::ConnectResult_InProgress);
+        return NULL;
     }
 
     if (!thread_ctx->getPollGroup()->addPollable_afterConnect (http_conn->tcp_conn.getPollable(),
@@ -544,9 +542,15 @@ HttpClient::connect (bool * const ret_connected)
         return NULL;
     }
 
-    http_conn->conn_list_el = http_conns.append (http_conn);
+    if (connect_res == TcpConnection::ConnectResult_Connected) {
+        http_conn->connected = true;
+        *ret_connected = true;
 
-    http_conn->receiver.start ();
+        http_conn->receiver.start ();
+    } else
+        assert (connect_res == TcpConnection::ConnectResult_InProgress);
+
+    http_conn->conn_list_el = http_conns.append (http_conn);
 
     return http_conn;
 }
@@ -562,8 +566,9 @@ HttpClient::getConnection (bool * const ret_connected,
         && keepalive
         && !http_conns.isEmpty())
     {
-        *ret_connected = true;
-        return http_conns.getLast();
+        Ref<HttpClientConnection> const client_conn = http_conns.getLast();
+        *ret_connected = client_conn->connected;
+        return client_conn;
     }
 
     cur_server_addr = next_server_addr;

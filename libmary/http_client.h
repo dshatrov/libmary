@@ -99,6 +99,7 @@ private:
         mt_const WeakDepRef<ServerThreadContext> weak_thread_ctx;
 
         mt_mutex (HttpClient::mutex) bool valid;
+        mt_mutex (HttpClient::mutex) bool connected;
         mt_mutex (HttpClient::mutex) List< Ref<HttpClientConnection> >::Element *conn_list_el;
         mt_mutex (mutex) PollGroup::PollableKey pollable_key;
 
@@ -186,8 +187,6 @@ private:
                          bool            use_http_1_0);
 
 public:
-  // TODO Make requests by URI
-
     Result httpGet (ConstMemory req_path,
                     CbDesc<HttpResponseHandler> const &response_cb,
                     bool        preassembly       = false,
