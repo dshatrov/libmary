@@ -73,6 +73,7 @@ int _libmary_strerror_r (int      const errnum,
     buf [len] = 0;
 
     libmary_library_unlock ();
+    return 0;
 #else
     return strerror_r (errnum, buf, buflen);
 #endif // LIBMARY_PLATFORM_WIN32
