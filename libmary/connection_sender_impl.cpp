@@ -24,6 +24,9 @@
 #include <libmary/connection_sender_impl.h>
 
 
+#warning "TODO Don't hold the mutex while in write*() syscall."
+
+
 namespace M {
 
 static LogGroup libMary_logGroup_send    ("send",    LogLevel::I);
@@ -817,6 +820,31 @@ ConnectionSenderImpl::queueMessage (Sender::MessageEntry * const mt_nonnull msg_
 {
     if (logLevelOn (hexdump, LogLevel::Debug))
         dumpMessage (msg_entry);
+
+    // Don't queue empty messages, so that gotDataToSend() is correct.
+    switch (msg_entry->type) {
+        case Sender::MessageEntry::Pages: {
+            Sender::MessageEntry_Pages * const msg_pages = static_cast <Sender::MessageEntry_Pages*> (msg_entry);
+            if (msg_pages->header_len == 0) {
+                if (msg_pages->getFirstPage() == NULL)
+                    return;
+
+                if (msg_pages->getFirstPage()->data_len <= msg_pages->msg_offset) {
+                    PagePool::Page *page = msg_pages->getFirstPage()->getNextMsgPage();
+                    while (page) {
+                        if (page->data_len > 0)
+                            break;
+
+                        page = page->getNextMsgPage();
+                    }
+                    if (!page)
+                        return;
+                }
+            }
+        } break;
+        default:
+            unreachable ();
+    }
 
     ++num_msg_entries;
     if (num_msg_entries >= hard_msg_limit)
