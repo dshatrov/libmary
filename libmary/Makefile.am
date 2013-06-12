@@ -193,11 +193,7 @@ nodist_libmary_1_0_la_SOURCES = $(MARY_GENFILES)
 
 DISTCLEANFILES = libmary_config.h
 
-.PHONY: native_file.h           \
-        native_async_file.h     \
-        tcp_connection.h        \
-        tcp_server.h            \
-        connection_receiver.h
+FORCE = $(top_builddir)/local_config.h
 
 libmaryincludedir = $(includedir)/libmary-1.0/libmary
 libmaryinclude_HEADERS = $(mary_target_headers)
@@ -210,6 +206,7 @@ libmary_1_0_la_SOURCES =		\
 	util_time.cpp			\
 	util_net.cpp			\
 	util_dev.cpp			\
+	util_posix.cpp			\
         cmdline.cpp                     \
 					\
 	types.cpp			\
@@ -239,6 +236,7 @@ libmary_1_0_la_SOURCES =		\
         memory_file.cpp                 \
 					\
 	vfs.cpp				\
+	vfs_posix.cpp                   \
 					\
 	async_output_stream.cpp		\
 	file_connection.cpp		\
@@ -283,8 +281,6 @@ endif
 
 mary_linux_sources =			\
 	posix.cpp			\
-	util_posix.cpp			\
-	vfs_posix.cpp                   \
 	native_file.linux.cpp		\
         native_async_file.linux.cpp     \
 	tcp_connection.linux.cpp	\
@@ -310,24 +306,29 @@ if !LIBMARY_INC
 mary_target_headers += $(mary_linux_target_headers)
 mary_target_sources += $(mary_linux_sources)
 
-connection_receiver.h:
+connection_receiver.h: $(FORCE)
 	rm -f $@
+	touch $(srcdir)/connection_receiver.generic.h
 	ln -s $(srcdir)/connection_receiver.generic.h connection_receiver.h
 
-native_file.h:
+native_file.h: $(FORCE)
 	rm -f $@
+	touch $(srcdir)/native_file.linux.h
 	ln -s $(srcdir)/native_file.linux.h native_file.h
 
-native_async_file.h:
+native_async_file.h: $(FORCE)
 	rm -f $@
+	touch $(srcdir)/native_async_file.linux.h
 	ln -s $(srcdir)/native_async_file.linux.h native_async_file.h
 
-tcp_connection.h:
+tcp_connection.h: $(FORCE)
 	rm -f $@
+	touch $(srcdir)/tcp_connection.linux.h
 	ln -s $(srcdir)/tcp_connection.linux.h tcp_connection.h
 
-tcp_server.h:
+tcp_server.h: $(FORCE)
 	rm -f $@
+	touch $(srcdir)/tcp_server.linux.h
 	ln -s $(srcdir)/tcp_server.linux.h tcp_server.h
 endif
 
