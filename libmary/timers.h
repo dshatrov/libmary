@@ -150,9 +150,9 @@ public:
 
     // Every call to addTimer_microseconds() must be matched with a call to deleteTimer().
     TimerKey addTimer (CbDesc<TimerCallback> const &cb,
-		       Time time_seconds,
-		       bool periodical,
-                       bool auto_delete = true)
+		       Time const time_seconds,
+		       bool const periodical,
+                       bool const auto_delete = true)
     {
 	return addTimer_microseconds (cb, time_seconds * 1000000, periodical, auto_delete);
     }

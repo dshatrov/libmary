@@ -220,6 +220,7 @@ ImmediateConnectionSender::doFlush (bool const unlock)
 	return;
     }
 
+    // 'ready_for_output' is 'true' at this point. 
     if (res == AsyncIoResult::Again)
 	ready_for_output = false;
 
